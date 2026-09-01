@@ -1,0 +1,26 @@
+<svg viewBox="0 0 512 512" width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <!-- logo base: duck #E9653A  frame #103359; ramps derived from those two -->
+  <defs>
+    <linearGradient id="shell" x1="0.15" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#EC7B56"/>
+      <stop offset="1" stop-color="#C3432A"/>
+    </linearGradient>
+    <!-- userSpaceOnUse so one ramp spans lens and arm instead of restarting per shape -->
+    <linearGradient id="glass" gradientUnits="userSpaceOnUse" x1="104" y1="52" x2="312" y2="178">
+      <stop offset="0" stop-color="#1C599C"/>
+      <stop offset="1" stop-color="#1C2246"/>
+    </linearGradient>
+
+    <g id="frame" transform="translate(10,0)">
+      <circle cx="150" cy="114" r="58"/>
+      <path d="M208 104 c36 -6 66 0 88 12"/>
+    </g>
+    <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff"/>
+      <use href="#frame" fill="none" stroke="#000" stroke-width="35" stroke-linecap="round"/>
+    </mask>
+  </defs>
+
+  <path d="M310.7 486.2C364.6 478.2 407.0 460.6 440.5 432.3C459.9 415.9 473.6 396.9 482.7 373.6C502.2 323.8 501.6 276.7 481.0 234.3C474.5 220.9 462.6 203.5 457.6 200.0C454.8 198.0 448.8 197.5 445.3 198.8C444.2 199.2 441.3 202.6 438.8 206.3C427.2 223.2 406.4 237.8 382.6 245.7C367.2 250.7 356.2 251.6 310.4 251.6C269.1 251.6 267.2 251.5 264.9 249.3C261.9 246.2 260.9 242.0 261.9 236.5C262.5 233.1 265.1 229.8 274.3 220.7C297.5 197.8 309.2 172.8 311.0 142.6C314.2 88.0 278.4 38.7 224.8 24.0C211.2 20.3 180.3 20.3 167.0 24.0C133.3 33.3 106.5 55.8 91.2 87.3C88.7 92.5 85.7 100.4 84.5 104.8C83.4 109.3 81.8 113.7 81.0 114.5C79.3 116.4 58.2 120.2 42.9 121.4C37.0 121.8 31.3 122.7 30.2 123.2C26.8 124.9 26.5 128.6 29.3 134.0C37.4 150.0 55.7 168.8 77.5 183.5C92.0 193.2 102.2 202.7 106.0 210.0C108.7 215.3 108.7 224.9 106.0 230.1C104.9 232.4 98.0 240.1 90.7 247.4C83.4 254.8 74.0 265.5 69.8 271.4C31.6 324.8 35.9 391.7 80.2 434.0C109.2 461.7 157.7 481.0 215.4 488.0C236.4 490.5 288.2 489.5 310.7 486.2Z" fill="url(#shell)" mask="url(#cut)"/>
+  <use href="#frame" fill="none" stroke="url(#glass)" stroke-width="19" stroke-linecap="round"/>
+</svg>

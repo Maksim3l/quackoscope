@@ -20,5 +20,55 @@ dist-ssr
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
 *.sw?
+
+# ---------------------------------------------------------------------------
+# Binary artifacts: never commit compiled output to this repository.
+#
+# Policy: this repo holds source, contract, and generated *text*. Every binary
+# it needs is produced by a build, and the openDAQ SDK binaries live in the
+# openDAQ build tree recorded in manifest.json — they are referenced by path,
+# never vendored here.
+# ---------------------------------------------------------------------------
+
+# Native and managed binaries
+*.dll
+*.pdb
+*.exe
+*.lib
+*.exp
+*.ilk
+*.obj
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.pyd
+
+# Package artifacts (WP-01 scope explicitly excludes wheels and NuGet feeds)
+*.nupkg
+*.snupkg
+*.whl
+
+# Build output directories
+bin/
+obj/
+target/
+build/
+Debug/
+Release/
+x64/
+x86/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# MSBuild / Visual Studio local state
+*.user
+*.userprefs
+.vs/
