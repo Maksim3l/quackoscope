@@ -7,13 +7,14 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "serve-spa-from-host": "pnpm build && \"hosts/cpp/build/Release/quackoscope-host-cpp\" --manifest manifest.json",
+    "verify-static-file-serving-stays-inside-dist": "python tools/host-verification/verify-static-file-serving-stays-inside-dist.py"
   },
   "dependencies": {
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "uplot": "^1.6.32"
   },
   "devDependencies": {
     "@types/react": "^19.1.8",

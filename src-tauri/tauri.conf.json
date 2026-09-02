@@ -4,10 +4,13 @@
   "version": "0.1.0",
   "identifier": "com.lokna.quackoscope",
   "build": {
-    "beforeDevCommand": "pnpm dev",
-    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": {
+      "script": "pnpm serve-spa-from-host",
+      "wait": false
+    },
+    "devUrl": "http://127.0.0.1:7788",
     "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../dist"
+    "frontendDist": "http://127.0.0.1:7788"
   },
   "app": {
     "windows": [
