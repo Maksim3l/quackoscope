@@ -23,27 +23,157 @@
 // The emitted snippet's language comes from the source file's extension, so a
 // region marked in a .py host source lands under "python" with no extra wiring.
 //
-// EXIT CODE: 0 only when every operation id the frontend puts in an `op` prop
-// resolves to a non-empty, closed, resolvable set of regions. Any failure
-// prints the offending id and file and exits 1 without writing the bundle.
+// WHERE THE CLOSED SET OF CAPABILITY IDS COMES FROM
+// generated/wire/capability-baseline.json, read at startup and never retyped.
+// This script used to carry its own eight-entry list of capability ids. The
+// contract grew to twelve, the list did not, and every region marked
+// device.mode, device.lock, module.read or module.load was rejected as "not one
+// of the contract's capability ids" - fifty failures that broke `pnpm build`,
+// because a hand-maintained copy of the contract is a second thing that can
+// drift. hosts/csharp/src/Service/CapabilityBaselineArtifact.cs and
+// hosts/rust/src/service/handshake.rs already read this same artifact and refuse
+// to start when their own view disagrees with it; this script does the same and
+// refuses to write a bundle.
+//
+//   --capability-baseline <path>   read the baseline from somewhere else
+//
+// EXIT CODE: 0 only when the capability baseline reads and every operation id
+// the frontend puts in an `op` prop resolves to a non-empty, closed, resolvable
+// set of regions. Any failure prints the offending id and file and exits 1
+// without writing the bundle.
 
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, statSync, existsSync } from "node:fs";
 import { join, relative, resolve, dirname, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-// Section 1.4 of the contract: the closed set of operation capability ids.
-const CONTRACT_CAPABILITY_IDS = [
-  "device.scan",
-  "device.connect",
-  "tree.read",
-  "property.read",
-  "property.write",
-  "function_block.add",
-  "streaming.decimated",
-  "streaming.raw",
-];
+// The contract compiler's own output. tools/contract-compiler/compile_contract_to_generated_targets.py
+// writes it from contract/contract.yaml, so it is the contract's capability ids
+// and never a transcription of them.
+const CAPABILITY_BASELINE_REPOSITORY_RELATIVE_PATH = "generated/wire/capability-baseline.json";
+
+/**
+ * Reads generated/wire/capability-baseline.json and returns the capability ids
+ * it carries, in contract order.
+ *
+ * Checks the artifact's own self-description against what it actually lists -
+ * the same checks hosts/csharp/src/Service/CapabilityBaselineArtifact.cs makes
+ * before it lets the C# host bind a port - and throws with the literal path and
+ * the literal values when anything disagrees. Nothing is defaulted and nothing
+ * is guessed: an unreadable baseline stops this script rather than silently
+ * narrowing the closed set, which is exactly the failure this replaces.
+ *
+ * @param {string} baselinePath
+ * @returns {{ path: string, contractName: string, protocolVersion: string, capabilityIds: string[], wireMethodsByCapabilityId: Map<string, string[]> }}
+ */
+function readCapabilityBaseline(baselinePath) {
+  if (!existsSync(baselinePath)) {
+    throw new Error(
+      `${baselinePath} does not exist, so extract-opendaq-snippets-from-host-sources has no closed set of ` +
+        `capability ids to check the quack-snippet markers against and refuses to write a bundle. ` +
+        `Regenerate it with: python tools/contract-compiler/compile_contract_to_generated_targets.py`,
+    );
+  }
+
+  const text = readFileSync(baselinePath, "utf8");
+  let document;
+  try {
+    document = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`${baselinePath} is ${text.length} bytes and is not valid JSON: ${error.message}`);
+  }
+
+  for (const key of ["contract_name", "protocol_version"]) {
+    if (typeof document[key] !== "string") {
+      throw new Error(`${baselinePath} has no string "${key}"`);
+    }
+  }
+  if (!Array.isArray(document.capabilities)) {
+    throw new Error(`${baselinePath} has no "capabilities" array`);
+  }
+
+  const capabilityIds = [];
+  const wireMethodsByCapabilityId = new Map();
+  const wireMethodNames = [];
+  for (const capability of document.capabilities) {
+    const id = capability?.id;
+    if (typeof id !== "string") {
+      throw new Error(`a capability in ${baselinePath} has no string "id": ${JSON.stringify(capability)}`);
+    }
+    if (wireMethodsByCapabilityId.has(id)) {
+      throw new Error(`${baselinePath} lists capability "${id}" twice`);
+    }
+    const owned = Array.isArray(capability.wire_methods) ? capability.wire_methods : [];
+    if (owned.length === 0) {
+      throw new Error(
+        `capability "${id}" in ${baselinePath} owns no wire method, so no host could ever declare it`,
+      );
+    }
+    for (const method of owned) {
+      if (wireMethodNames.includes(method)) {
+        throw new Error(
+          `${baselinePath} gives wire method "${method}" to more than one capability, so this script cannot ` +
+            `say which capability owns it`,
+        );
+      }
+      wireMethodNames.push(method);
+    }
+    capabilityIds.push(id);
+    wireMethodsByCapabilityId.set(id, owned);
+  }
+
+  for (const [key, actual, what] of [
+    ["capability_count", capabilityIds.length, "capability ids"],
+    ["wire_method_count", wireMethodNames.length, "wire method names"],
+  ]) {
+    if (typeof document[key] !== "number") {
+      throw new Error(`${baselinePath} has no number "${key}"`);
+    }
+    if (document[key] !== actual) {
+      throw new Error(
+        `${baselinePath} says ${key} = ${document[key]} but lists ${actual} ${what}: ` +
+          `${(what === "capability ids" ? capabilityIds : wireMethodNames).join(", ")}`,
+      );
+    }
+  }
+  if (capabilityIds.length === 0) {
+    throw new Error(`${baselinePath} declares no capability at all, so every quack-snippet marker would be rejected`);
+  }
+
+  return {
+    path: baselinePath,
+    contractName: document.contract_name,
+    protocolVersion: document.protocol_version,
+    capabilityIds,
+    wireMethodsByCapabilityId,
+  };
+}
+
+function parseCapabilityBaselinePathArgument(argv) {
+  const flagIndex = argv.indexOf("--capability-baseline");
+  if (flagIndex === -1) {
+    return { path: resolve(REPOSITORY_ROOT, CAPABILITY_BASELINE_REPOSITORY_RELATIVE_PATH), source: "default" };
+  }
+  const value = argv[flagIndex + 1];
+  if (value === undefined) {
+    throw new Error(`--capability-baseline was given with no path after it`);
+  }
+  return { path: resolve(value), source: "--capability-baseline" };
+}
+
+const capabilityBaselineArgument = parseCapabilityBaselinePathArgument(process.argv.slice(2));
+let capabilityBaseline;
+try {
+  capabilityBaseline = readCapabilityBaseline(capabilityBaselineArgument.path);
+} catch (error) {
+  console.error(`CAPABILITY BASELINE UNREADABLE, no snippet bundle was written:\n  ${error.message}`);
+  process.exit(1);
+}
+
+// The closed set of operation capability ids, as the contract compiler emitted
+// them. Not a copy of the contract - the contract compiler's own output.
+const CONTRACT_CAPABILITY_IDS = capabilityBaseline.capabilityIds;
 
 // Operation ids the frontend declares that make no openDAQ call at all. They
 // are not gaps and not missing snippets, so the bundle carries the reason and
@@ -295,6 +425,23 @@ console.log(`repository root:  ${REPOSITORY_ROOT}`);
 console.log(`host sources:     ${HOST_SOURCE_ROOT}`);
 console.log(`frontend sources: ${FRONTEND_SOURCE_ROOT}`);
 console.log(`bundle written to: ${BUNDLE_PATH}`);
+console.log("");
+
+console.log(
+  `read the capability baseline (${capabilityBaselineArgument.source} path): ${capabilityBaseline.path}`,
+);
+console.log(
+  `  contract ${capabilityBaseline.contractName} protocol_version ${capabilityBaseline.protocolVersion}, ` +
+    `${capabilityBaseline.capabilityIds.length} capability ids, ` +
+    `${[...capabilityBaseline.wireMethodsByCapabilityId.values()].flat().length} wire method names`,
+);
+for (const id of capabilityBaseline.capabilityIds) {
+  console.log(`  ${id.padEnd(22)} owns ${capabilityBaseline.wireMethodsByCapabilityId.get(id).join(", ")}`);
+}
+console.log(
+  `  the closed set a quack-snippet capability= may name is exactly these ${CONTRACT_CAPABILITY_IDS.length} ids; ` +
+    `this script keeps no list of its own`,
+);
 console.log("");
 
 const hostSourceFiles = listSourceFiles(HOST_SOURCE_ROOT, new Set(Object.keys(LANGUAGE_BY_FILE_EXTENSION)));

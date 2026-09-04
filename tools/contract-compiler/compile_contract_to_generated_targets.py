@@ -102,14 +102,25 @@ def main(argv: list[str] | None = None) -> int:
             f"(default: {DEFAULT_OUTPUT_DIRECTORY})"
         ),
     )
+    parser.add_argument(
+        "--contract",
+        type=Path,
+        default=CONTRACT_YAML_PATH,
+        help=(
+            "the contract to compile. Paired with --output-directory this compiles a "
+            "contract that is not the repository's, which is how a change to "
+            "contract.yaml can be tried against the tools that read the compiler's "
+            f"output without touching either (default: {CONTRACT_YAML_PATH})"
+        ),
+    )
     arguments = parser.parse_args(argv)
 
     try:
-        contract = load_contract(CONTRACT_YAML_PATH)
+        contract = load_contract(arguments.contract)
         files = build_all_generated_files(contract)
     except ContractLintFailure as failure:
         print(
-            f"CONTRACT LINT FAILURE while compiling {CONTRACT_YAML_PATH}\n{failure}",
+            f"CONTRACT LINT FAILURE while compiling {arguments.contract}\n{failure}",
             file=sys.stderr,
         )
         return 1
@@ -123,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     write_generated_files(files, arguments.output_directory)
     print(
-        f"contract compiled: {CONTRACT_YAML_PATH} -> "
+        f"contract compiled: {arguments.contract} -> "
         f"{arguments.output_directory} ({len(files)} files, "
         f"{len(targets_written)} targets)"
     )

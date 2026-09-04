@@ -3,7 +3,15 @@ the acronym table and the keyword collisions of contract section 1.1.
 
     python tools/contract-compiler/assert_operation_names_match_casing_table.py
 
-Every expectation below is transcribed BY HAND from the section 1.1 table:
+    python tools/contract-compiler/assert_operation_names_match_casing_table.py \
+        --contract <path to a contract.yaml> \
+        --expected-names <path to a transcribed-names yaml>
+
+WHERE THE EXPECTATIONS COME FROM, AND WHY THEY ARE NOT READ OUT OF THE COMPILER
+
+Every expected name lives in
+tools/contract-compiler/operation-and-event-names-transcribed-from-contract-section-1-1.yaml,
+transcribed BY HAND from the section 1.1 join table:
 
     | Target | Join        | Getter convention | Async convention   |
     | wire   | snake_case  | keep get_ prefix  | n/a                |
@@ -12,89 +20,51 @@ Every expectation below is transcribed BY HAND from the section 1.1 table:
     | Python | snake_case  | @property where a pair exists, else get_ prefix | async def |
     | Rust   | snake_case  | no prefix on getters, set_ on setters | async fn |
 
-    Acronym tokens, always cased as a unit: id, ids, io, lt, ns, rpc, ui, csv.
-    C# keeps two-letter acronyms upper, longer ones Pascal.
-    Keyword collisions to watch: type, id, object, input, next, match, ref, async.
+None of it is read back out of the generator. This assertion exists to catch the
+compiler agreeing with itself, so deriving the expectations from the compiler's
+own output - the cure every other hand-maintained table in this repository got,
+which is to read generated/wire/capability-baseline.json and refuse to run on
+disagreement - would defeat its entire purpose here.
 
-None of it is read back out of the generator, so a generator that drifts from
-1.1 fails here rather than quietly producing a different name.
+HOW THAT HAND-WRITTEN TABLE IS STOPPED FROM DRIFTING ANYWAY
+
+assert_the_expected_rows_are_exactly_the_contract_rows() below checks that the
+transcribed table's operation keys are EXACTLY contract.yaml's wire method names,
+in the same order, and the same for events. A row contract.yaml grew that nobody
+transcribed fails by name; a row here that contract.yaml dropped fails by name.
+So the table cannot silently fall behind: it can only fail loudly and be
+transcribed.
+
+FAILURE IS PRINTED ON BOTH STREAMS, ON PURPOSE
+
+This script prints roughly 250 passing lines on stdout. A failure printed on
+stderr alone means `python ... | tail` shows a green-looking tail while the
+process exits 1. Every failure is therefore printed on stdout AND on stderr, and
+the last line of stdout on a failing run is a banner naming the count, so no
+pipeline that reads only stdout can mistake a failing run for a passing one.
+
+EXIT CODE: 0 only when every assertion matched. 1 otherwise.
 """
 
 from __future__ import annotations
 
+import argparse
 import copy
 import sys
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from contract_loader import load_contract, snake_case_wire_name
+from contract_loader import CONTRACT_YAML_PATH, load_contract, snake_case_wire_name
 from name_casing import build_symbol_name, field_symbol_name
 from symbol_inventory import build_symbol_list
 
-# --- transcribed from section 1.4's operation table, joined per 1.1 ---------
-#
-# C# takes the Async suffix on all 18 because every operation is a network round
-# trip. C# and Python collapse a getter/setter pair into a property, but the
-# contract's only pair, get/set_property_value, cannot collapse: the getter takes
-# node_id and property_id and a zero-argument accessor cannot carry those. So
-# both keep the get_ prefix here. Rust drops a leading "get" token, which is why
-# get_component_tree is component_tree but the getter list_function_block_types,
-# whose token list does not begin with "get", is unchanged.
-EXPECTED_OPERATION_NAMES = {
-    #  wire method name          wire                        cpp                       csharp                         python                      rust
-    "scan_available_devices":  ("scan_available_devices",   "scanAvailableDevices",   "ScanAvailableDevicesAsync",   "scan_available_devices",   "scan_available_devices"),
-    "connect_device":          ("connect_device",           "connectDevice",          "ConnectDeviceAsync",          "connect_device",           "connect_device"),
-    "disconnect_device":       ("disconnect_device",        "disconnectDevice",       "DisconnectDeviceAsync",       "disconnect_device",        "disconnect_device"),
-    "get_component_tree":      ("get_component_tree",       "getComponentTree",       "GetComponentTreeAsync",       "get_component_tree",       "component_tree"),
-    "get_property_value":      ("get_property_value",       "getPropertyValue",       "GetPropertyValueAsync",       "get_property_value",       "property_value"),
-    "get_property_descriptors":("get_property_descriptors", "getPropertyDescriptors", "GetPropertyDescriptorsAsync", "get_property_descriptors", "property_descriptors"),
-    "set_property_value":      ("set_property_value",       "setPropertyValue",       "SetPropertyValueAsync",       "set_property_value",       "set_property_value"),
-    "list_function_block_types":("list_function_block_types","listFunctionBlockTypes", "ListFunctionBlockTypesAsync", "list_function_block_types","list_function_block_types"),
-    "add_function_block":      ("add_function_block",       "addFunctionBlock",       "AddFunctionBlockAsync",       "add_function_block",       "add_function_block"),
-    "remove_function_block":   ("remove_function_block",    "removeFunctionBlock",    "RemoveFunctionBlockAsync",    "remove_function_block",    "remove_function_block"),
-    "subscribe_signal":        ("subscribe_signal",         "subscribeSignal",        "SubscribeSignalAsync",        "subscribe_signal",         "subscribe_signal"),
-    "unsubscribe_signal":      ("unsubscribe_signal",       "unsubscribeSignal",      "UnsubscribeSignalAsync",      "unsubscribe_signal",       "unsubscribe_signal"),
-    "read_samples_raw":        ("read_samples_raw",         "readSamplesRaw",         "ReadSamplesRawAsync",         "read_samples_raw",         "read_samples_raw"),
-    # The five rows the component-state, operation-mode, lock and Modules work
-    # added. get_device_operation_modes is the second getter whose leading
-    # "get" rust drops; lock_device and unlock_device do NOT collide with C#'s
-    # "lock" keyword, because reserved_word_escaped matches the whole wire name
-    # and the whole name is lock_device. list_loaded_modules begins with "list",
-    # so rust leaves it alone exactly as it leaves list_function_block_types.
-    "get_device_operation_modes": ("get_device_operation_modes", "getDeviceOperationModes", "GetDeviceOperationModesAsync", "get_device_operation_modes", "device_operation_modes"),
-    "set_device_operation_mode":  ("set_device_operation_mode",  "setDeviceOperationMode",  "SetDeviceOperationModeAsync",  "set_device_operation_mode",  "set_device_operation_mode"),
-    "lock_device":               ("lock_device",               "lockDevice",             "LockDeviceAsync",             "lock_device",              "lock_device"),
-    "unlock_device":             ("unlock_device",             "unlockDevice",           "UnlockDeviceAsync",           "unlock_device",            "unlock_device"),
-    "list_loaded_modules":       ("list_loaded_modules",       "listLoadedModules",      "ListLoadedModulesAsync",      "list_loaded_modules",      "list_loaded_modules"),
-}
-
-TARGET_ORDER = ["wire", "cpp", "csharp", "python", "rust"]
-
-# --- transcribed from section 1.5's event table ----------------------------
-EXPECTED_EVENT_NAMES = {
-    #  wire event name                wire                           cpp                          csharp                       python                         rust
-    "component_added":             ("component_added",             "componentAdded",             "ComponentAdded",             "component_added",             "component_added"),
-    "component_removed":           ("component_removed",           "componentRemoved",           "ComponentRemoved",           "component_removed",           "component_removed"),
-    "property_changed":            ("property_changed",            "propertyChanged",            "PropertyChanged",            "property_changed",            "property_changed"),
-    "property_descriptor_changed": ("property_descriptor_changed", "propertyDescriptorChanged",  "PropertyDescriptorChanged",  "property_descriptor_changed", "property_descriptor_changed"),
-    "device_disconnected":         ("device_disconnected",         "deviceDisconnected",         "DeviceDisconnected",         "device_disconnected",         "device_disconnected"),
-}
-
-# The closed acronym token list of 1.1, in the order 1.1 gives it.
-EXPECTED_ACRONYM_TOKENS = ["id", "ids", "io", "lt", "ns", "rpc", "ui", "csv"]
-
-# The keyword collisions 1.1 says to watch for.
-KEYWORD_COLLISIONS_TO_WATCH = [
-    "type",
-    "id",
-    "object",
-    "input",
-    "next",
-    "match",
-    "ref",
-    "async",
-]
+DEFAULT_EXPECTED_NAMES_PATH = (
+    Path(__file__).resolve().parent
+    / "operation-and-event-names-transcribed-from-contract-section-1-1.yaml"
+)
 
 # The shape each reserved_word_strategy imposes on an escaped identifier.
 RESERVED_WORD_STRATEGY_SHAPES = {
@@ -107,6 +77,106 @@ RESERVED_WORD_STRATEGY_SHAPES = {
 
 class CasingMismatch(Exception):
     pass
+
+
+class TranscribedNamesUnusable(Exception):
+    """The hand-written expectations file is absent or not shaped like a table."""
+
+
+def load_transcribed_names(path: Path) -> dict:
+    """Reads the hand-written section 1.1 expectations and checks their shape.
+
+    Says exactly what it read and from where, so a run against a different file
+    (the drift test does exactly that) cannot be mistaken for a normal run.
+    """
+    print(f"reading the hand-transcribed section 1.1 expectations: {path}")
+    if not path.is_file():
+        raise TranscribedNamesUnusable(
+            f"{path} does not exist, so this assertion has no independent opinion "
+            "about what the compiler should produce and refuses to run. It is a "
+            "hand-written file, NOT generated output: restore it from git rather "
+            "than regenerating anything."
+        )
+    raw_text = path.read_text(encoding="utf-8")
+    document = yaml.safe_load(raw_text)
+
+    for key in ("targets_in_column_order", "operations", "events", "acronym_tokens",
+                "keyword_collisions_to_watch"):
+        if key not in document:
+            raise TranscribedNamesUnusable(f"{path} has no '{key}' key")
+
+    targets = list(document["targets_in_column_order"])
+    for section in ("operations", "events"):
+        for wire_name, row in document[section].items():
+            if not isinstance(row, list) or len(row) != len(targets):
+                raise TranscribedNamesUnusable(
+                    f"{path}: {section} row {wire_name!r} has {len(row) if isinstance(row, list) else 'no'} "
+                    f"columns, and targets_in_column_order names {len(targets)}: {targets}"
+                )
+
+    print(
+        f"  parsed {len(raw_text)} bytes: {len(document['operations'])} operation rows, "
+        f"{len(document['events'])} event rows, {len(document['acronym_tokens'])} acronym "
+        f"tokens, {len(document['keyword_collisions_to_watch'])} keyword collisions, "
+        f"columns {targets}"
+    )
+    return {
+        "path": path,
+        "targets": targets,
+        "operations": {name: list(row) for name, row in document["operations"].items()},
+        "events": {name: list(row) for name, row in document["events"].items()},
+        "acronym_tokens": list(document["acronym_tokens"]),
+        "keyword_collisions_to_watch": list(document["keyword_collisions_to_watch"]),
+    }
+
+
+def assert_the_expected_rows_are_exactly_the_contract_rows(
+    what: str,
+    contract_wire_names: list[str],
+    expected_rows: dict[str, list[str]],
+    expected_names_path: Path,
+    contract_path: Path,
+    mismatches: list[str],
+) -> None:
+    """The drift guard: the transcribed row set must equal the contract's, exactly.
+
+    Names every row that is on one side and not the other, so a failing run says
+    which row somebody has to go and transcribe rather than only that two lists
+    differ.
+    """
+    transcribed = list(expected_rows)
+    in_contract_without_a_row = [n for n in contract_wire_names if n not in expected_rows]
+    transcribed_but_not_in_contract = [n for n in transcribed if n not in contract_wire_names]
+
+    for name in in_contract_without_a_row:
+        mismatches.append(
+            f"{what} '{name}' is declared in {contract_path} but has NO transcribed row "
+            f"in {expected_names_path}. The contract grew and the hand-written section "
+            f"1.1 expectations did not: add a '{name}' row there, transcribed from "
+            f"section 1.1 by hand, naming the wire, cpp, csharp, python and rust "
+            f"spelling. Do not copy it out of the compiler's output - this assertion "
+            f"is the independent second opinion that catches the compiler agreeing "
+            f"with itself."
+        )
+    for name in transcribed_but_not_in_contract:
+        mismatches.append(
+            f"{what} '{name}' has a transcribed row in {expected_names_path} but is NOT "
+            f"declared in {contract_path}. The contract dropped it and the hand-written "
+            f"expectations still carry it: delete that row."
+        )
+    if not in_contract_without_a_row and not transcribed_but_not_in_contract:
+        if transcribed != contract_wire_names:
+            mismatches.append(
+                f"the {what} rows of {expected_names_path} name the same set as "
+                f"{contract_path} but in a different order\n"
+                f"  contract.yaml order: {contract_wire_names}\n"
+                f"  transcribed order  : {transcribed}"
+            )
+        else:
+            print(
+                f"  the {len(transcribed)} transcribed {what} rows are exactly the "
+                f"{len(contract_wire_names)} {what}s of {contract_path}, in the same order"
+            )
 
 
 def expected_acronym_rendering(token: str, target_name: str, is_leading: bool) -> str:
@@ -125,38 +195,84 @@ def expected_acronym_rendering(token: str, target_name: str, is_leading: bool) -
     raise CasingMismatch(f"no 1.1 row for target {target_name!r}")
 
 
-def main() -> int:
-    contract = load_contract()
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Asserts every operation and event name the contract compiler produces "
+            "against expectations transcribed by hand from contract section 1.1."
+        )
+    )
+    parser.add_argument(
+        "--contract",
+        type=Path,
+        default=CONTRACT_YAML_PATH,
+        help=f"the contract to assert against (default: {CONTRACT_YAML_PATH})",
+    )
+    parser.add_argument(
+        "--expected-names",
+        type=Path,
+        default=DEFAULT_EXPECTED_NAMES_PATH,
+        help=(
+            "the hand-transcribed section 1.1 expectations "
+            f"(default: {DEFAULT_EXPECTED_NAMES_PATH})"
+        ),
+    )
+    arguments = parser.parse_args(argv)
+
+    try:
+        transcribed = load_transcribed_names(arguments.expected_names)
+    except TranscribedNamesUnusable as failure:
+        print(f"\nTRANSCRIBED NAMES UNUSABLE: {failure}")
+        print(f"\nTRANSCRIBED NAMES UNUSABLE: {failure}", file=sys.stderr)
+        return 1
+
+    expected_operation_names = transcribed["operations"]
+    expected_event_names = transcribed["events"]
+    expected_acronym_tokens = transcribed["acronym_tokens"]
+    keyword_collisions_to_watch = transcribed["keyword_collisions_to_watch"]
+    target_order = transcribed["targets"]
+    expected_names_path = transcribed["path"]
+
+    contract = load_contract(arguments.contract)
     targets = contract["casing"]["targets"]
     mismatches: list[str] = []
     assertions = 0
 
-    # --- 1. operation names, every operation in every target ---------------
+    # --- 0. the drift guard, run before a single name is compared ----------
     print(
-        f"asserting the produced name of {len(EXPECTED_OPERATION_NAMES)} operations "
-        f"in {len(TARGET_ORDER)} targets"
+        f"asserting the transcribed row sets of {expected_names_path} are exactly the "
+        f"rows of {arguments.contract}"
     )
-    header = "  " + "wire method".ljust(26) + "".join(t.ljust(29) for t in TARGET_ORDER)
-    print(header)
     contract_wire_names = [
         snake_case_wire_name(operation["tokens"]) for operation in contract["operations"]
     ]
-    if contract_wire_names != list(EXPECTED_OPERATION_NAMES):
-        mismatches.append(
-            "the operation table of contract.yaml is not the operation table this "
-            f"assertion was written against\n  contract.yaml: {contract_wire_names}\n"
-            f"  expected     : {list(EXPECTED_OPERATION_NAMES)}"
-        )
+    contract_event_names = [
+        snake_case_wire_name(event["tokens"]) for event in contract["events"]["items"]
+    ]
+    assertions += 2
+    assert_the_expected_rows_are_exactly_the_contract_rows(
+        "operation", contract_wire_names, expected_operation_names,
+        expected_names_path, arguments.contract, mismatches,
+    )
+    assert_the_expected_rows_are_exactly_the_contract_rows(
+        "event", contract_event_names, expected_event_names,
+        expected_names_path, arguments.contract, mismatches,
+    )
+
+    # --- 1. operation names, every operation in every target ---------------
+    print(
+        f"asserting the produced name of {len(expected_operation_names)} operations "
+        f"in {len(target_order)} targets"
+    )
+    header = "  " + "wire method".ljust(26) + "".join(t.ljust(29) for t in target_order)
+    print(header)
     for operation in contract["operations"]:
         wire_name = snake_case_wire_name(operation["tokens"])
-        expected_row = EXPECTED_OPERATION_NAMES.get(wire_name)
+        expected_row = expected_operation_names.get(wire_name)
         if expected_row is None:
-            mismatches.append(
-                f"operation {wire_name!r} is in contract.yaml but has no expected row"
-            )
-            continue
+            continue  # already reported by the drift guard, by name
         produced_row = []
-        for target_name, expected in zip(TARGET_ORDER, expected_row):
+        for target_name, expected in zip(target_order, expected_row):
             produced = build_symbol_name(
                 operation["tokens"],
                 operation["kind"],
@@ -174,18 +290,15 @@ def main() -> int:
 
     # --- 2. event names ----------------------------------------------------
     print(
-        f"asserting the produced name of {len(EXPECTED_EVENT_NAMES)} events in "
-        f"{len(TARGET_ORDER)} targets"
+        f"asserting the produced name of {len(expected_event_names)} events in "
+        f"{len(target_order)} targets"
     )
     for event in contract["events"]["items"]:
         wire_name = snake_case_wire_name(event["tokens"])
-        expected_row = EXPECTED_EVENT_NAMES.get(wire_name)
+        expected_row = expected_event_names.get(wire_name)
         if expected_row is None:
-            mismatches.append(
-                f"event {wire_name!r} is in contract.yaml but has no expected row"
-            )
-            continue
-        for target_name, expected in zip(TARGET_ORDER, expected_row):
+            continue  # already reported by the drift guard, by name
+        for target_name, expected in zip(target_order, expected_row):
             produced = build_symbol_name(
                 event["tokens"], "event", targets[target_name], is_operation=False
             )
@@ -195,23 +308,24 @@ def main() -> int:
                     f"event {wire_name!r} in target {target_name}: produced "
                     f"{produced!r}, section 1.1 requires {expected!r}"
                 )
-    print(f"  {len(EXPECTED_EVENT_NAMES)} events matched in every target")
+    print(f"  {len(expected_event_names)} events matched in every target")
 
     # --- 3. acronym tokens -------------------------------------------------
     declared_acronyms = contract["casing"]["acronym_tokens"]
     assertions += 1
-    if declared_acronyms != EXPECTED_ACRONYM_TOKENS:
+    if declared_acronyms != expected_acronym_tokens:
         mismatches.append(
-            f"casing.acronym_tokens is {declared_acronyms}, section 1.1 lists "
-            f"{EXPECTED_ACRONYM_TOKENS}"
+            f"casing.acronym_tokens in {arguments.contract} is {declared_acronyms}, "
+            f"the acronym_tokens transcribed from section 1.1 in "
+            f"{expected_names_path} are {expected_acronym_tokens}"
         )
     print(
-        f"asserting the rendering of all {len(EXPECTED_ACRONYM_TOKENS)} acronym tokens "
-        f"in both positions in {len(TARGET_ORDER)} targets"
+        f"asserting the rendering of all {len(expected_acronym_tokens)} acronym tokens "
+        f"in both positions in {len(target_order)} targets"
     )
-    for token in EXPECTED_ACRONYM_TOKENS:
+    for token in expected_acronym_tokens:
         rendered_row = []
-        for target_name in TARGET_ORDER:
+        for target_name in target_order:
             target = targets[target_name]
             # "alpha"/"beta" are ordinary tokens, chosen so no synthetic name
             # collides with a reserved word and the acronym rule is isolated.
@@ -248,12 +362,12 @@ def main() -> int:
 
     # --- 4. keyword collisions --------------------------------------------
     print(
-        f"asserting the escape of the {len(KEYWORD_COLLISIONS_TO_WATCH)} keyword "
+        f"asserting the escape of the {len(keyword_collisions_to_watch)} keyword "
         f"collisions 1.1 names, plus the field name 'default'"
     )
-    for word in KEYWORD_COLLISIONS_TO_WATCH + ["default"]:
+    for word in keyword_collisions_to_watch + ["default"]:
         rendered_row = []
-        for target_name in TARGET_ORDER:
+        for target_name in target_order:
             target = targets[target_name]
             produced = field_symbol_name(word, target)
             unescaped = build_symbol_name(
@@ -283,7 +397,7 @@ def main() -> int:
 
     # --- 5. symbol coverage -----------------------------------------------
     print("asserting covers_wire_methods over every symbol of every target")
-    for target_name in TARGET_ORDER:
+    for target_name in target_order:
         symbols = build_symbol_list(contract, target_name)
         calls = [s for s in symbols if s["kind"] == "call"]
         properties = [s for s in symbols if s["kind"] == "property"]
@@ -352,7 +466,7 @@ def main() -> int:
         "python": "acquiring",
         "rust": None,
     }
-    for target_name in TARGET_ORDER:
+    for target_name in target_order:
         symbols = build_symbol_list(synthetic, target_name)
         collapsed = [
             symbol
@@ -392,21 +506,38 @@ def main() -> int:
                 )
 
     if mismatches:
-        print(
-            f"\nCASING TABLE MISMATCH: {len(mismatches)} of {assertions} assertions "
-            f"failed",
-            file=sys.stderr,
-        )
+        # Printed on BOTH streams. See "FAILURE IS PRINTED ON BOTH STREAMS" in
+        # the module docstring: this script's 250 passing lines go to stdout, so
+        # a failure on stderr alone lets `python ... | tail` look green.
+        report = [
+            "",
+            "=" * 78,
+            f"CASING TABLE MISMATCH: {len(mismatches)} of {assertions} assertions failed",
+            f"  contract        : {arguments.contract}",
+            f"  transcribed 1.1 : {expected_names_path}",
+            "=" * 78,
+        ]
         for mismatch in mismatches:
-            print(f"  {mismatch}", file=sys.stderr)
+            report.append(f"  {mismatch}")
+        report.append("=" * 78)
+        report.append(
+            f"FAILED: {len(mismatches)} of {assertions} casing assertions failed. "
+            "assert_operation_names_match_casing_table.py is exiting 1."
+        )
+        report.append("=" * 78)
+        for line in report:
+            print(line)
+        for line in report:
+            print(line, file=sys.stderr)
         return 1
 
     print(
         f"all {assertions} casing assertions matched section 1.1: "
-        f"{len(EXPECTED_OPERATION_NAMES)} operations and {len(EXPECTED_EVENT_NAMES)} "
-        f"events in {len(TARGET_ORDER)} targets, {len(EXPECTED_ACRONYM_TOKENS)} acronym "
-        f"tokens in both positions, {len(KEYWORD_COLLISIONS_TO_WATCH) + 1} keyword "
-        f"collisions"
+        f"{len(expected_operation_names)} operations and {len(expected_event_names)} "
+        f"events in {len(target_order)} targets, {len(expected_acronym_tokens)} acronym "
+        f"tokens in both positions, {len(keyword_collisions_to_watch) + 1} keyword "
+        f"collisions, and the transcribed rows of {expected_names_path} are exactly "
+        f"the rows of {arguments.contract}"
     )
     return 0
 
