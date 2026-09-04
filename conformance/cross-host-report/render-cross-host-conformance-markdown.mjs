@@ -32,6 +32,11 @@ const VERDICT_CLASSES = [
   ["handshake_nonconformant", "FAILURE", "the handshake does not match the contract, so its capability list cannot classify anything"],
   ["wire_protocol_broken", "FAILURE", "a rule binding every host regardless of what it claims"],
   ["gap_declared_but_served", "warning", "the host called the capability a gap and served it anyway: under-claimed, not a broken promise"],
+  [
+    "suite_coverage_incomplete",
+    "FAILURE, and the only one that is not about the host",
+    "an operation of contract.yaml this run put on no socket and wrote no assertion about; the host is not being judged on it at all, conformance/ is",
+  ],
   ["not_provokable_by_a_wire_client", "not a verdict", "no well-formed request can force this out of a healthy host"],
   ["unconstrained_by_the_contract", "not a verdict", "the contract constrains the shape but never the occurrence"],
 ];
@@ -286,7 +291,8 @@ export function renderCrossHostConformanceMarkdown(input) {
       hosts.map((host) => {
         if (!host.conformanceReport) return [hostLabel(host), "unavailable", "unavailable", "unavailable", "unavailable", "unavailable", "unavailable"];
         const tallies = host.conformanceReport.tallies;
-        const otherFailures = (tallies.handshake_nonconformant ?? 0) + (tallies.wire_protocol_broken ?? 0);
+        const otherFailures =
+          (tallies.handshake_nonconformant ?? 0) + (tallies.wire_protocol_broken ?? 0) + (tallies.suite_coverage_incomplete ?? 0);
         return [
           hostLabel(host),
           String(tallies.gap_declared_and_consistent ?? 0),
@@ -337,6 +343,46 @@ export function renderCrossHostConformanceMarkdown(input) {
     }
     push("", `These are warnings, not failures: a host that does more than it promised has not broken a promise.`, "");
   }
+
+  // --------------------------------- 5.3 whether the suite drove the contract
+  // Every table in this document is drawn from ledger entries, and a ledger has
+  // no entry for a row nobody asked. Until this section existed, an operation
+  // conformance/sweeps never drove showed up in section 7 as "no assertion" -
+  // indistinguishable, at a glance, from a host that answered nothing - and in
+  // sections 3 and 6 as simple absence. Six of the contract's nineteen rows sat
+  // like that. The count below comes from the request counter inside
+  // WireSession, so it says what actually went on the socket.
+  const coverageOf = (host) => host.conformanceReport?.operation_coverage ?? null;
+  const hostsWithACoverageHole = ran.filter((host) => (coverageOf(host)?.never_driven ?? []).length > 0);
+  const hostsWithNoCoverageFigure = ran.filter((host) => coverageOf(host) === null);
+  push(
+    `### 5.3 Did this run actually drive every operation in the contract?`,
+    "",
+    `Every other table here is built out of ledger entries, and a ledger records nothing about a row nobody asked. So a suite that skips an operation does not produce a gap or a failure anywhere - it produces silence, and silence reads as "fine". This row is the guard against that, and it is a **failure of the suite**, never of the host: \`conformance/sweeps/require-every-contract-operation-to-be-driven.mjs\` counts the requests each session actually sent, and requires that every one of the ${contract.operations.length} operations in \`${contractPath}\` was both sent and judged.`,
+    "",
+    renderTable(
+      ["host", `operations driven of ${contract.operations.length}`, "requests sent, all wire methods", "never driven"],
+      hosts.map((host) => {
+        const coverage = coverageOf(host);
+        if (!host.conformanceReport) return [hostLabel(host), "unavailable", "unavailable", "unavailable"];
+        if (coverage === null) {
+          return [hostLabel(host), "not reported", "not reported", "this host's report predates the coverage guard"];
+        }
+        const requestsSent = coverage.per_operation.reduce((total, row) => total + row.requests_sent, 0);
+        return [
+          hostLabel(host),
+          `${coverage.driven.length}`,
+          String(requestsSent),
+          coverage.never_driven.length === 0 ? "none" : `**${coverage.never_driven.map(codeSpan).join(", ")}**`,
+        ];
+      }),
+    ),
+    "",
+    hostsWithACoverageHole.length === 0 && hostsWithNoCoverageFigure.length === 0
+      ? `Every host that ran was asked all ${contract.operations.length} operations. No cell anywhere in this document stands for a row that was never driven.`
+      : `${[...hostsWithACoverageHole, ...hostsWithNoCoverageFigure].map((host) => hostLabel(host)).join(", ")}: this document's capability and error-code tables are drawn from a sweep that did not reach every row of the contract, and the cells for the rows it missed mean "not asked", not "not served".`,
+    "",
+  );
 
   // ------------------------------------------- 6. error-code fidelity matrix
   push(
@@ -571,7 +617,13 @@ export function renderCrossHostConformanceMarkdown(input) {
     if (entries.some((entry) => entry.verdict === "gap_declared_but_served")) return "gap, served anyway";
     if (entries.some((entry) => entry.verdict === "gap_declared_and_consistent")) return "gap (a)";
     if (entries.some((entry) => entry.verdict === "held")) return "served";
-    if (entries.some((entry) => entry.verdict === "not_provokable_by_a_wire_client")) return "not driven";
+    if (entries.some((entry) => entry.verdict === "not_provokable_by_a_wire_client")) return "not provokable";
+    // An empty cell here has two very different causes, and reading them as one
+    // is what let six operations sit undriven behind a clean report: the host
+    // may have been asked and said nothing, or the suite may never have asked.
+    // The coverage guard's own count separates them.
+    const coverage = host.conformanceReport.operation_coverage;
+    if (coverage && coverage.never_driven.includes(wireMethod)) return "**THIS SUITE NEVER ASKED**";
     return "no assertion";
   };
   const wireMethodRows = contract.operations.map((operation) => {
@@ -617,7 +669,8 @@ export function renderCrossHostConformanceMarkdown(input) {
         ["4. gap reasons", "each host's handshake `gaps` array, verbatim, with the kind checked against `contract.yaml gap_generation.kinds`"],
         ["5. failure classes", "`conformance/run-wire-conformance-against-url.mjs` ledger entries, one JSON report per host"],
         ["6. error-code fidelity", "the answer each host gave to a request this run sent it; the params are printed in the table"],
-        ["7. per operation", "the same ledger entries as section 5, grouped by `wire_method`"],
+        ["5.3 contract coverage", "the request counter inside `conformance/wire/open-wire-session.mjs`, read by `conformance/sweeps/require-every-contract-operation-to-be-driven.mjs`: what each session of the run actually put on the socket"],
+        ["7. per operation", "the same ledger entries as section 5, grouped by `wire_method`, with `THIS SUITE NEVER ASKED` taken from the coverage count of 5.3"],
       ],
     ),
     "",

@@ -1,9 +1,19 @@
-// Sweep 2: every operation in contract/contract.yaml, plus the closed error set,
-// the subscription lifecycle, event delivery and disconnect behaviour.
+// Sweep 2: the thirteen operations of contract/contract.yaml that were in the
+// table when this suite was written - device.scan, device.connect, tree.read,
+// property.read, property.write, function_block.add and streaming - plus the
+// closed error set.
 //
-// The operation list is READ from the contract, never written down here: the
-// sweep walks contract.operations and ends by asserting that it visited all of
-// them, so an operation added to contract.yaml cannot quietly go untested.
+// The four capabilities the contract grew afterwards - device.mode, device.lock,
+// module.read and module.load - are driven by sweep-device-operation-mode-device-lock-and-modules.mjs,
+// which follows the same idiom as this file and needs a second socket.
+//
+// Every operation name here is READ from the contract, never written down: the
+// visit() helper below looks each one up in contract.operationsByWireMethod.
+// WHETHER EVERY ROW OF THE TABLE WAS DRIVEN IS NOT DECIDED IN THIS FILE. It used
+// to be, from a hand-kept set at the bottom, and that set is exactly what let six
+// operations be added to contract.yaml and asked of no host at all. The question
+// is now answered after every sweep has run, from request counts taken on the
+// socket itself, by require-every-contract-operation-to-be-driven.mjs.
 //
 // For each operation the sweep asks one question first - did the handshake claim
 // this operation's capability? - and everything downstream follows from the
@@ -15,9 +25,26 @@
 import { findRecordViolations } from "../wire/validate-record-against-contract-type.mjs";
 import { judgeResponseEnvelope } from "./judge-response-envelope.mjs";
 
-const CONFORMANCE_UNKNOWN_NODE_ID = "/quackoscope-conformance-sweep/no-such-node";
+export const CONFORMANCE_UNKNOWN_NODE_ID = "/quackoscope-conformance-sweep/no-such-node";
 const CONFORMANCE_UNKNOWN_PROPERTY_ID = "QuackoscopeConformanceSweepNoSuchProperty";
 const CONFORMANCE_UNKNOWN_FUNCTION_BLOCK_TYPE_ID = "quackoscope-conformance-sweep-no-such-function-block-type";
+
+// A mode name outside contract.yaml types.Node.operation_mode, so
+// set_device_operation_mode must answer invalid_value to it.
+export const CONFORMANCE_UNKNOWN_OPERATION_MODE = "quackoscope-conformance-sweep-no-such-operation-mode";
+
+// Two spellings of one absent module file, because load_module_from_host_path
+// resolves its path on the HOST's filesystem and the suite, which addresses a
+// host by URL alone, cannot know that filesystem's syntax. Exactly one of these
+// is an absolute path on any given platform; the other is relative there, and a
+// host is entitled to refuse a relative path invalid_value rather than looking
+// for it. Both are sent, and the assertion is made on the pair. Neither can
+// collide with a real module: no openDAQ install puts one under a directory
+// named after this sweep.
+export const CONFORMANCE_ABSENT_MODULE_HOST_PATHS = {
+  posixAbsolute: "/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll",
+  windowsAbsolute: "C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll",
+};
 
 // Which node carries a read_only property, and which carries a writable numeric
 // one, differs between devices. Sampling only the first node with properties
@@ -29,7 +56,7 @@ const NODES_TO_SAMPLE_FOR_PROPERTIES = 8;
 const PROPERTY_READS_AT_MOST = 60;
 
 /** Builds params for a wire method from the contract's own param list. */
-export function paramsFromContract(operation, discovered) {
+export function paramsFromContract(operation, discovered, contract) {
   const params = {};
   for (const parameter of operation.params) {
     if (parameter.presence === "optional") continue;
@@ -63,6 +90,14 @@ export function paramsFromContract(operation, discovered) {
       case "subscription_id":
         params.subscription_id = discovered.lastSubscriptionId ?? "1";
         break;
+      case "mode":
+        // The mode a declared-gap host is asked for is one the contract itself
+        // enumerates, so its refusal is about the gap and not about the value.
+        params.mode = discovered.anAvailableOperationMode ?? contract.types.Node.fields.operation_mode.values[0];
+        break;
+      case "host_path":
+        params.host_path = CONFORMANCE_ABSENT_MODULE_HOST_PATHS.windowsAbsolute;
+        break;
       default:
         throw new Error(
           `conformance/ does not know how to supply the contract parameter "${parameter.name}" of ${operation.wireMethod}; contract.yaml grew a parameter this sweep has never seen`,
@@ -74,7 +109,7 @@ export function paramsFromContract(operation, discovered) {
 
 /** Drives a gapped operation and records class (a) or the under-claim warning. */
 export async function driveGappedOperation(ledger, contract, session, operation, discovered, gapsByCapability) {
-  const params = paramsFromContract(operation, discovered);
+  const params = paramsFromContract(operation, discovered, contract);
   let response;
   try {
     response = await session.request(operation.wireMethod, params);
@@ -180,7 +215,7 @@ export async function sweepEveryContractOperation(ledger, contract, session, han
   // device.scan
   // ------------------------------------------------------------------------
   await visit("scan_available_devices", async (operation) => {
-    const response = await session.request(operation.wireMethod, paramsFromContract(operation, discovered));
+    const response = await session.request(operation.wireMethod, paramsFromContract(operation, discovered, contract));
     const judged = judgeResponseEnvelope(ledger, contract, {
       response,
       wireMethod: operation.wireMethod,
@@ -884,20 +919,15 @@ export async function sweepEveryContractOperation(ledger, contract, session, han
     return null;
   });
 
-  // ------------------------------------------------------------------------
-  // every operation in the contract table was visited
-  // ------------------------------------------------------------------------
-  const streamingMethods = ["subscribe_signal", "unsubscribe_signal", "disconnect_device"];
-  for (const wireMethod of streamingMethods) visitedWireMethods.add(wireMethod);
-  const unvisited = contract.operations.map((operation) => operation.wireMethod).filter((wireMethod) => !visitedWireMethods.has(wireMethod));
-  ledger.recordWireProtocolAssertion({
-    title: "the sweep visited every operation in contract.yaml",
-    contractCitation: `contract.yaml operations: ${contract.operations.length} entries`,
-    expected: `all ${contract.operations.length} wire methods driven or accounted for`,
-    actual: unvisited.length === 0 ? `all ${contract.operations.length} visited` : `never driven: ${unvisited.join(", ")}`,
-    held: unvisited.length === 0,
-  });
-
+  // Whether every operation of the contract was driven is NOT decided here any
+  // more. It used to be, from the visitedWireMethods set above plus three names
+  // added by hand for the operations other sweeps drive - and that hand-kept
+  // list is precisely what let six operations be added to contract.yaml and
+  // never asked of a single host. The question is now answered after every sweep
+  // has run, from request counts taken on the socket itself and from the ledger,
+  // by sweeps/require-every-contract-operation-to-be-driven.mjs. The set below
+  // stays because it is what tells THIS sweep which rows it has already handled.
+  discovered.wireMethodsVisitedByThisSweep = [...visitedWireMethods];
   return discovered;
 }
 

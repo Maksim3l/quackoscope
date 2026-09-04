@@ -13,10 +13,11 @@
 //
 // --declare
 //   as-upstream-sent-it       leave the capability list alone
-//   every-baseline-capability claim all 8 baseline capabilities and declare no
+//   every-baseline-capability claim every baseline capability contract.yaml
+//                             declares, read from the file at run time, and no
 //                             gaps. The upstream host does not serve them all,
 //                             so the suite must report failure class (b).
-//   no-capability-at-all      claim nothing and declare all 8 as gaps, with a
+//   no-capability-at-all      claim nothing and declare every one of them a gap, with a
 //                             reason. The upstream host DOES serve most of
 //                             them, which is under-claiming: the suite must
 //                             report warnings and still pass.

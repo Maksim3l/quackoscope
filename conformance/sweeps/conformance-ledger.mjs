@@ -26,6 +26,17 @@
 //                                Under-claiming, not a broken promise: reported
 //                                as a warning so that "declares everything as a
 //                                gap" still passes.
+//   SUITE COVERAGE INCOMPLETE    an operation in contract.yaml that this run put
+//                                on no socket and wrote no assertion about. It
+//                                is a FAILURE, and it is the only verdict here
+//                                that blames the SUITE rather than the host: a
+//                                host cannot be judged on a row nobody asked it.
+//                                It is kept apart from wire_protocol_broken for
+//                                exactly that reason - a report saying "this
+//                                host broke the wire protocol" when the truth is
+//                                "conformance/ never drove this row" names the
+//                                wrong culprit. See
+//                                sweeps/require-every-contract-operation-to-be-driven.mjs.
 //
 // And two non-verdicts, recorded so the report says what it could not reach
 // rather than silently omitting it:
@@ -44,6 +55,7 @@ export const VERDICT_CAPABILITY_CLAIMED_AND_BROKEN = "capability_claimed_and_bro
 export const VERDICT_WIRE_PROTOCOL_BROKEN = "wire_protocol_broken";
 export const VERDICT_HANDSHAKE_NONCONFORMANT = "handshake_nonconformant";
 export const VERDICT_GAP_DECLARED_BUT_SERVED = "gap_declared_but_served";
+export const VERDICT_SUITE_COVERAGE_INCOMPLETE = "suite_coverage_incomplete";
 export const VERDICT_NOT_PROVOKABLE_BY_A_WIRE_CLIENT = "not_provokable_by_a_wire_client";
 export const VERDICT_UNCONSTRAINED_BY_THE_CONTRACT = "unconstrained_by_the_contract";
 
@@ -51,6 +63,7 @@ const FAILING_VERDICTS = new Set([
   VERDICT_CAPABILITY_CLAIMED_AND_BROKEN,
   VERDICT_WIRE_PROTOCOL_BROKEN,
   VERDICT_HANDSHAKE_NONCONFORMANT,
+  VERDICT_SUITE_COVERAGE_INCOMPLETE,
 ]);
 
 const WARNING_VERDICTS = new Set([VERDICT_GAP_DECLARED_BUT_SERVED]);
@@ -156,6 +169,25 @@ export class ConformanceLedger {
       gap_reason_declared_by_host: gapReason,
       refusal_error_code: errorCode,
       verdict,
+    });
+  }
+
+  /**
+   * An operation of contract.yaml that this run did not drive and did not write
+   * a single assertion about. The subject is conformance/, not the host, so it
+   * carries no capability and never consults the declared list: a row nobody
+   * asked cannot be a gap the host declared, nor a promise the host broke.
+   */
+  recordSuiteCoverageAssertion({ title, expected, actual, held, wireMethod = null, contractCitation }) {
+    return this.push({
+      title,
+      scope: "suite_coverage",
+      capability: null,
+      wire_method: wireMethod,
+      contract_citation: contractCitation,
+      expected,
+      actual,
+      verdict: held ? VERDICT_HELD : VERDICT_SUITE_COVERAGE_INCOMPLETE,
     });
   }
 

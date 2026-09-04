@@ -38,6 +38,14 @@ export const WRONG_INPUT_SENTINELS = {
   unparseableSubscriptionId: "not-a-subscription-id",
   unknownSubscriptionId: "4294967295",
   methodNoContractDeclares: "quackoscope_cross_host_report_unknown_method",
+  unknownOperationMode: "quackoscope-cross-host-report-no-such-operation-mode",
+  // Two spellings of one absent module file. load_module_from_host_path resolves
+  // its path on the HOST's filesystem, and exactly one of these is an absolute
+  // path on any given platform, so which of the two a host treats as absolute -
+  // and what it answers to the other - is itself one of the divergences this
+  // table exists to show.
+  absentModulePathSpelledForPosix: "/quackoscope-cross-host-report/no-such-directory/no-such-module.module.dll",
+  absentModulePathSpelledForWindows: "C:/quackoscope-cross-host-report/no-such-directory/no-such-module.module.dll",
 };
 
 const CONNECTION_STRING_WHEN_A_HOST_SERVES_NO_SCAN = "daqref://device0";
@@ -53,6 +61,7 @@ export function identicalWrongInputCases() {
   const { unknownNodeId, unknownPropertyId, unknownFunctionBlockTypeId } = WRONG_INPUT_SENTINELS;
   const { unknownConnectionString, unparseableSubscriptionId, unknownSubscriptionId, methodNoContractDeclares } =
     WRONG_INPUT_SENTINELS;
+  const { unknownOperationMode, absentModulePathSpelledForPosix, absentModulePathSpelledForWindows } = WRONG_INPUT_SENTINELS;
   return [
     {
       id: "get_component_tree_with_no_device_connected",
@@ -81,6 +90,37 @@ export function identicalWrongInputCases() {
       wireMethod: "subscribe_signal",
       params: { signal_id: unknownNodeId, pixel_columns: 64 },
       wrongInputInWords: "a subscription to an unknown signal, with no device connected",
+    },
+
+    // The four device-row and module operations, asked before any device is
+    // connected. contract.yaml gives get_device_operation_modes both not_found
+    // and not_connected and never says which a node id belongs to in this state;
+    // it gives list_loaded_modules not_connected but calls the module list a
+    // fact about the host PROCESS; and it gives load_module_from_host_path four
+    // codes at once for a path that is absent on a session with no instance.
+    // Which of those each binding picks is precisely this table's question.
+    {
+      id: "get_device_operation_modes_of_an_unknown_node_with_no_device_connected",
+      phase: "before_this_session_connected_any_device",
+      wireMethod: "get_device_operation_modes",
+      params: { node_id: unknownNodeId },
+      wrongInputInWords: "the operation modes of an unknown node, with no device connected: not_found and not_connected are both true of it",
+    },
+    {
+      id: "list_loaded_modules_with_no_device_connected",
+      phase: "before_this_session_connected_any_device",
+      wireMethod: "list_loaded_modules",
+      params: {},
+      wrongInputInWords: "the loaded module list, on a session that has connected no device",
+      contractIsSilentHere:
+        "contract.yaml operations[list_loaded_modules].errors includes not_connected, but the row's own comment calls the module list a fact about the host PROCESS - the reference reads instance.module_manager.modules, not a device - so answering the list here is as conformant as refusing not_connected",
+    },
+    {
+      id: "load_module_from_host_path_of_an_absent_file_with_no_device_connected",
+      phase: "before_this_session_connected_any_device",
+      wireMethod: "load_module_from_host_path",
+      params: { host_path: absentModulePathSpelledForWindows },
+      wrongInputInWords: `a load of "${absentModulePathSpelledForWindows}", which exists on no host, with no device connected: not_found and not_connected are both true of it`,
     },
 
     {
@@ -154,6 +194,64 @@ export function identicalWrongInputCases() {
       wireMethod: "read_samples_raw",
       params: { signal_id: unknownNodeId, count: 16 },
       wrongInputInWords: "16 raw samples from a signal that does not exist",
+    },
+    {
+      id: "get_device_operation_modes_of_a_node_that_does_not_exist",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "get_device_operation_modes",
+      params: { node_id: unknownNodeId },
+      wrongInputInWords: "the available operation modes of a node that does not exist",
+    },
+    {
+      id: "set_device_operation_mode_to_a_mode_name_outside_the_enum",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "set_device_operation_mode",
+      params: { node_id: unknownNodeId, mode: unknownOperationMode },
+      wrongInputInWords: `a move to the mode "${unknownOperationMode}", which types.Node.operation_mode does not enumerate, on a node that does not exist: not_found and invalid_value are both true of it`,
+    },
+    {
+      id: "lock_device_naming_a_node_that_does_not_exist",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "lock_device",
+      params: { node_id: unknownNodeId },
+      wrongInputInWords: "a lock of a device node that does not exist",
+    },
+    {
+      id: "unlock_device_naming_a_node_that_does_not_exist",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "unlock_device",
+      params: { node_id: unknownNodeId },
+      wrongInputInWords: "an unlock of a device node that does not exist",
+    },
+    {
+      id: "unlock_device_with_force_true_naming_a_node_that_does_not_exist",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "unlock_device",
+      params: { node_id: unknownNodeId, force: true },
+      wrongInputInWords: "a FORCED unlock of a device node that does not exist: the node is absent and the forced path may also be unreachable, and unsupported covers the second while not_found covers the first",
+    },
+    {
+      id: "load_module_from_host_path_spelled_absolute_for_posix",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "load_module_from_host_path",
+      params: { host_path: absentModulePathSpelledForPosix },
+      wrongInputInWords: `a load of "${absentModulePathSpelledForPosix}", a path that is absolute on POSIX and relative on Windows, and names no file on either`,
+      contractIsSilentHere:
+        'contract.yaml operations[load_module_from_host_path] requires host_path to be "Absolute, and resolved on the host\'s filesystem" but never says what a host does with a path that is not absolute on ITS platform: refusing invalid_value for the spelling and answering not_found for the missing file are both inside the declared subset',
+    },
+    {
+      id: "load_module_from_host_path_spelled_absolute_for_windows",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "load_module_from_host_path",
+      params: { host_path: absentModulePathSpelledForWindows },
+      wrongInputInWords: `a load of "${absentModulePathSpelledForWindows}", a path that is absolute on Windows and relative on POSIX, and names no file on either`,
+    },
+    {
+      id: "load_module_from_host_path_with_the_empty_string",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "load_module_from_host_path",
+      params: { host_path: "" },
+      wrongInputInWords: "a load of the empty path, which is both nothing-is-there and not-a-loadable-module",
     },
     {
       id: "disconnect_device_naming_a_node_that_does_not_exist",

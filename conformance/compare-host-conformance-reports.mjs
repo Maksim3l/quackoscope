@@ -184,6 +184,20 @@ function compareHostConformanceReports() {
     console.log(`${verdict.padEnd(34)}${reports.map(({ report }) => String(report.tallies[verdict] ?? 0).padEnd(columnWidth)).join("")}`);
   }
 
+  console.log("\n=== how much of the contract each run actually drove =========================");
+  for (const { report } of reports) {
+    const coverage = report.operation_coverage ?? null;
+    const name = report.implementation?.name ?? report.target_url;
+    if (coverage === null) {
+      console.log(`${String(name).padEnd(34)}operation coverage not reported: that run predates the coverage guard`);
+      continue;
+    }
+    console.log(
+      `${String(name).padEnd(34)}${coverage.driven.length} of ${coverage.operations_in_the_contract} operations driven` +
+        `${coverage.never_driven.length === 0 ? "" : `; NEVER DRIVEN: ${coverage.never_driven.join(", ")} - a hole in conformance/sweeps, not a fault of this host`}`,
+    );
+  }
+
   console.log("\n=== per wire method, across hosts ===========================================");
   // Only the contract's own operation table is tabulated. The sweep also sends a
   // method name that is deliberately not in the contract, and that row belongs
@@ -198,7 +212,12 @@ function compareHostConformanceReports() {
       if (entries.some((entry) => entry.verdict === "gap_declared_but_served")) return "gap, served";
       if (entries.some((entry) => entry.verdict === "gap_declared_and_consistent")) return "gap (a)";
       if (entries.some((entry) => entry.verdict === "held")) return "served";
-      if (entries.some((entry) => entry.verdict === "not_provokable_by_a_wire_client")) return "not driven";
+      if (entries.some((entry) => entry.verdict === "not_provokable_by_a_wire_client")) return "not provokable";
+      // A row with no entry at all has two very different causes: the host was
+      // asked and said nothing, or the suite never asked. The coverage figure
+      // the run wrote into its own report separates them, and a bare "-" here
+      // for the second is how six operations sat unasked behind a clean table.
+      if ((report.operation_coverage?.never_driven ?? []).includes(wireMethod)) return "SUITE NEVER ASKED";
       if (entries.length === 0) return "-";
       return "served";
     };

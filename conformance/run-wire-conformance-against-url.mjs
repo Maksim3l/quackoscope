@@ -23,7 +23,9 @@ import { openWireSession } from "./wire/open-wire-session.mjs";
 import { ConformanceLedger } from "./sweeps/conformance-ledger.mjs";
 import { sweepHandshake } from "./sweeps/sweep-handshake-against-contract-1-6.mjs";
 import { sweepEveryContractOperation } from "./sweeps/sweep-every-contract-operation.mjs";
+import { sweepDeviceOperationModeDeviceLockAndModules } from "./sweeps/sweep-device-operation-mode-device-lock-and-modules.mjs";
 import { sweepSubscriptionLifecycleAndBinaryFrames } from "./sweeps/sweep-subscription-lifecycle-and-binary-frames.mjs";
+import { requireEveryContractOperationToBeDriven } from "./sweeps/require-every-contract-operation-to-be-driven.mjs";
 import {
   sweepDisconnectBehaviour,
   sweepEventDelivery,
@@ -97,6 +99,7 @@ const VERDICT_TAGS = {
   wire_protocol_broken: "  FAIL WIRE PROTOCOL   ",
   handshake_nonconformant: "  FAIL HANDSHAKE       ",
   gap_declared_but_served: "  WARN GAP BUT SERVED  ",
+  suite_coverage_incomplete: "  FAIL SUITE COVERAGE  ",
   not_provokable_by_a_wire_client: "  NOT PROVOKABLE       ",
   unconstrained_by_the_contract: "  UNCONSTRAINED        ",
 };
@@ -180,6 +183,11 @@ async function runWireConformanceAgainstUrl() {
   console.log(`message ordinal 1 arrived, ${firstMessage.text.length} bytes:\n${firstMessage.text}\n`);
 
   const ledger = new ConformanceLedger({ targetUrl: options.url, contract });
+  // Every session this run opens, in the order it opens them. The coverage guard
+  // counts the requests they sent; sweep 3 opens a second one, because the
+  // read_only wording of lock_device can only be asserted from a client that is
+  // not the lock holder.
+  const sessionsOpened = [session];
 
   console.log("--- sweep 1: the handshake, against contract 1.6 -----------------------------");
   const handshakeResult = sweepHandshake(ledger, contract, firstMessage);
@@ -205,17 +213,58 @@ async function runWireConformanceAgainstUrl() {
     discovered = await sweepEveryContractOperation(ledger, contract, session, handshakeResult, options);
     printNewEntries();
 
-    console.log("\n--- sweep 3: the subscription lifecycle and the binary sample plane ----------");
+    console.log("\n--- sweep 3: device operation mode, device lock, loaded modules --------------");
+    const sweepThree = await sweepDeviceOperationModeDeviceLockAndModules(
+      ledger,
+      contract,
+      session,
+      handshakeResult,
+      discovered,
+      options,
+    );
+    sessionsOpened.push(...sweepThree.sessionsOpenedByThisSweep);
+    printNewEntries();
+
+    console.log("\n--- sweep 4: the subscription lifecycle and the binary sample plane ----------");
     await sweepSubscriptionLifecycleAndBinaryFrames(ledger, contract, session, handshakeResult, discovered);
     printNewEntries();
 
-    console.log("\n--- sweep 4: wire-protocol rules, event delivery, disconnect behaviour -------");
+    console.log("\n--- sweep 5: wire-protocol rules, event delivery, disconnect behaviour -------");
     await sweepWireProtocolRules(ledger, contract, session);
     await sweepDisconnectBehaviour(ledger, contract, session, handshakeResult, discovered);
     sweepEventDelivery(ledger, contract, session);
     printNewEntries();
   } else {
     console.log("\nthe handshake was not a usable JSON object, so no operation sweep was attempted.");
+  }
+
+  console.log("\n--- the coverage guard: did this run drive every operation in the contract? ---");
+  // The guard asks whether conformance/sweeps has a case for every row of the
+  // contract, and it can only ask that of a run whose sweeps actually ran. A
+  // handshake this suite could not read stops them all, and reporting that as
+  // "the suite has no case for these 19 operations" would blame conformance/ for
+  // a host's broken first message - which the handshake verdict already covers.
+  let operationCoverage = { driven: [], undriven: contract.operations.map((operation) => operation.wireMethod), perOperation: [] };
+  if (handshakeResult.usable) {
+    operationCoverage = requireEveryContractOperationToBeDriven(ledger, contract, sessionsOpened);
+    printNewEntries();
+  } else {
+    console.log(
+      `not asked: the handshake from ${options.url} was not a usable JSON object, so no sweep ran and none of the ` +
+        `${contract.operations.length} operations was put on the socket. That is a handshake failure, already recorded above, ` +
+        "and not a hole in conformance/sweeps.",
+    );
+  }
+  console.log(
+    `operation coverage: ${operationCoverage.driven.length} of ${contract.operations.length} driven` +
+      `${operationCoverage.undriven.length === 0 ? "" : `; NEVER DRIVEN: ${operationCoverage.undriven.join(", ")}`}`,
+  );
+  for (const row of operationCoverage.perOperation) {
+    console.log(
+      `  ${row.driven ? "driven      " : "NEVER DRIVEN"} ${row.wire_method.padEnd(28)} ` +
+        `${String(row.requests_sent).padStart(3)} request(s) sent, ${String(row.ledger_entries).padStart(3)} ledger entry/entries` +
+        `${row.declared_undrivable_with_a_reason ? ", and the sweep recorded why a wire client cannot reach it" : ""}`,
+    );
   }
 
   session.close();
@@ -229,6 +278,7 @@ async function runWireConformanceAgainstUrl() {
     capability_claimed_and_broken: failures.filter((entry) => entry.verdict === "capability_claimed_and_broken"),
     handshake_nonconformant: failures.filter((entry) => entry.verdict === "handshake_nonconformant"),
     wire_protocol_broken: failures.filter((entry) => entry.verdict === "wire_protocol_broken"),
+    suite_coverage_incomplete: failures.filter((entry) => entry.verdict === "suite_coverage_incomplete"),
   };
 
   console.log("\n=== verdict ==================================================================");
@@ -244,6 +294,10 @@ async function runWireConformanceAgainstUrl() {
   console.log(`class (b) claimed then broke        ${failuresByClass.capability_claimed_and_broken.length}   REAL failures: the host advertised the capability and then broke it`);
   console.log(`          handshake nonconformant   ${failuresByClass.handshake_nonconformant.length}`);
   console.log(`          wire protocol broken      ${failuresByClass.wire_protocol_broken.length}`);
+  console.log(
+    `          suite coverage incomplete ${failuresByClass.suite_coverage_incomplete.length}   ` +
+      `THIS SUITE's fault, not the host's: ${operationCoverage.driven.length} of ${contract.operations.length} contract operations were driven`,
+  );
   console.log(`          gap declared but served   ${warnings.length}   warnings: under-claimed, not a broken promise`);
 
   if (failures.length > 0) {
@@ -278,6 +332,12 @@ async function runWireConformanceAgainstUrl() {
     declared_capabilities: handshakeResult.declaredCapabilities,
     computed_gap_capabilities: handshakeResult.computedGapIds ?? [],
     connection_string_used: discovered.connectionString ?? options.connectionString,
+    operation_coverage: {
+      operations_in_the_contract: contract.operations.length,
+      driven: operationCoverage.driven,
+      never_driven: operationCoverage.undriven,
+      per_operation: operationCoverage.perOperation,
+    },
     tallies: tally,
     failure_count: failures.length,
     warning_count: warnings.length,

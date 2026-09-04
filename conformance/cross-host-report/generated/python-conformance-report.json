@@ -1,9 +1,9 @@
 {
   "suite": "quackoscope wire conformance",
-  "target_url": "ws://127.0.0.1:8042/ws",
-  "started_at": "2026-09-04T06:29:19.843Z",
-  "finished_at": "2026-09-04T06:29:22.765Z",
-  "duration_ms": 2922,
+  "target_url": "ws://127.0.0.1:8102/ws",
+  "started_at": "2026-09-04T09:43:46.449Z",
+  "finished_at": "2026-09-04T09:43:49.415Z",
+  "duration_ms": 2966,
   "contract_path": "C:\\Users\\opendaq\\Projects\\quackoscope\\contract\\contract.yaml",
   "contract_name": "quackoscope-wire-contract",
   "contract_protocol_version": "1.0",
@@ -77,14 +77,193 @@
     "streaming.raw"
   ],
   "connection_string_used": "daqref://device0",
-  "tallies": {
-    "held": 139,
-    "gap_declared_and_consistent": 5,
-    "unconstrained_by_the_contract": 5,
-    "wire_protocol_broken": 1,
-    "not_provokable_by_a_wire_client": 3
+  "operation_coverage": {
+    "operations_in_the_contract": 19,
+    "driven": [
+      "scan_available_devices",
+      "connect_device",
+      "disconnect_device",
+      "get_component_tree",
+      "get_property_value",
+      "get_property_descriptors",
+      "set_property_value",
+      "list_function_block_types",
+      "add_function_block",
+      "remove_function_block",
+      "subscribe_signal",
+      "unsubscribe_signal",
+      "read_samples_raw",
+      "get_device_operation_modes",
+      "set_device_operation_mode",
+      "lock_device",
+      "unlock_device",
+      "list_loaded_modules",
+      "load_module_from_host_path"
+    ],
+    "never_driven": [],
+    "per_operation": [
+      {
+        "wire_method": "scan_available_devices",
+        "capability": "device.scan",
+        "requests_sent": 1,
+        "ledger_entries": 2,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "connect_device",
+        "capability": "device.connect",
+        "requests_sent": 2,
+        "ledger_entries": 2,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "disconnect_device",
+        "capability": "device.connect",
+        "requests_sent": 2,
+        "ledger_entries": 7,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "get_component_tree",
+        "capability": "tree.read",
+        "requests_sent": 7,
+        "ledger_entries": 9,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "get_property_value",
+        "capability": "property.read",
+        "requests_sent": 41,
+        "ledger_entries": 47,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "get_property_descriptors",
+        "capability": "property.read",
+        "requests_sent": 5,
+        "ledger_entries": 10,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "set_property_value",
+        "capability": "property.write",
+        "requests_sent": 7,
+        "ledger_entries": 17,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "list_function_block_types",
+        "capability": "function_block.add",
+        "requests_sent": 1,
+        "ledger_entries": 2,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "add_function_block",
+        "capability": "function_block.add",
+        "requests_sent": 1,
+        "ledger_entries": 2,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "remove_function_block",
+        "capability": "function_block.add",
+        "requests_sent": 1,
+        "ledger_entries": 2,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "subscribe_signal",
+        "capability": "streaming.decimated",
+        "requests_sent": 2,
+        "ledger_entries": 11,
+        "declared_undrivable_with_a_reason": true,
+        "driven": true
+      },
+      {
+        "wire_method": "unsubscribe_signal",
+        "capability": "streaming.decimated",
+        "requests_sent": 3,
+        "ledger_entries": 11,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "read_samples_raw",
+        "capability": "streaming.raw",
+        "requests_sent": 1,
+        "ledger_entries": 2,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "get_device_operation_modes",
+        "capability": "device.mode",
+        "requests_sent": 4,
+        "ledger_entries": 14,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "set_device_operation_mode",
+        "capability": "device.mode",
+        "requests_sent": 7,
+        "ledger_entries": 17,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "lock_device",
+        "capability": "device.lock",
+        "requests_sent": 4,
+        "ledger_entries": 14,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "unlock_device",
+        "capability": "device.lock",
+        "requests_sent": 5,
+        "ledger_entries": 15,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "list_loaded_modules",
+        "capability": "module.read",
+        "requests_sent": 2,
+        "ledger_entries": 5,
+        "declared_undrivable_with_a_reason": true,
+        "driven": true
+      },
+      {
+        "wire_method": "load_module_from_host_path",
+        "capability": "module.load",
+        "requests_sent": 4,
+        "ledger_entries": 16,
+        "declared_undrivable_with_a_reason": true,
+        "driven": true
+      }
+    ]
   },
-  "failure_count": 1,
+  "tallies": {
+    "held": 217,
+    "gap_declared_and_consistent": 5,
+    "unconstrained_by_the_contract": 6,
+    "not_provokable_by_a_wire_client": 5,
+    "capability_claimed_and_broken": 4
+  },
+  "failure_count": 4,
   "warning_count": 0,
   "entries": [
     {
@@ -1198,14 +1377,844 @@
       "verdict": "gap_declared_and_consistent"
     },
     {
-      "title": "the sweep visited every operation in contract.yaml",
+      "title": "get_device_operation_modes: the response carries exactly one of result or error",
       "scope": "wire_protocol",
       "capability": null,
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes /openDAQDevice/Dev/RefDev0 returns an array whose every element is a value of Node.operation_mode",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml operations[get_device_operation_modes].returns = array of string, semantic operation_mode_names, \"Every element is one of the values of Node.operation_mode\"; types.Node.operation_mode enumerates [unknown, idle, operation, safe_operation]",
+      "expected": "an array of strings drawn from [unknown, idle, operation, safe_operation]",
+      "actual": "3 mode(s): idle, operation, safe_operation",
+      "verdict": "held"
+    },
+    {
+      "title": "whether the device's current Node.operation_mode is one of the modes it lists as available",
+      "scope": "unconstrained",
+      "capability": null,
       "wire_method": null,
-      "contract_citation": "contract.yaml operations: 19 entries",
-      "expected": "all 19 wire methods driven or accounted for",
-      "actual": "never driven: get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, load_module_from_host_path",
-      "verdict": "wire_protocol_broken"
+      "contract_citation": "contract.yaml types.Node.operation_mode carries the CURRENT mode and operations[get_device_operation_modes] the AVAILABLE list, but nothing in the contract requires the current one to appear in the available one",
+      "expected": "no pass/fail is possible: the contract constrains the shape but not the occurrence",
+      "actual": "the contract relates the two only through the enum they both draw from, never by membership  observed: Node.operation_mode of /openDAQDevice/Dev/RefDev0 is \"safe_operation\"; get_device_operation_modes answered [idle, operation, safe_operation]",
+      "verdict": "unconstrained_by_the_contract"
+    },
+    {
+      "title": "get_device_operation_modes {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds /openDAQDevice/Dev/RefDev0\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml operations[get_device_operation_modes].errors = [not_found, not_connected, unsupported]",
+      "expected": "one of [not_found, not_connected, unsupported]",
+      "actual": "\"not_found\" - \"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds /openDAQDevice/Dev/RefDev0\"",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes on the unknown node \"/quackoscope-conformance-sweep/no-such-node\" is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml operations[get_device_operation_modes].errors = [not_found, not_connected, unsupported]",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /openDAQDevice/Dev/RefDev0",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"component \\\"/openDAQDevice/Dev/RefDev0/Srv\\\" is a folder, not a device; get_device_operation_modes acts on device rows only\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml operations[get_device_operation_modes].errors = [not_found, not_connected, unsupported]",
+      "expected": "one of [not_found, not_connected, unsupported]",
+      "actual": "\"unsupported\" - \"component \\\"/openDAQDevice/Dev/RefDev0/Srv\\\" is a folder, not a device; get_device_operation_modes acts on device rows only\"",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes on /openDAQDevice/Dev/RefDev0/Srv, a node of kind folder and not a device, is refused with unsupported",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml operations[get_device_operation_modes].errors = [not_found, not_connected, unsupported]; \"unsupported is node_id naming a component that is not a device: the node exists, so not_found would be a lie\"",
+      "expected": "error code \"unsupported\"",
+      "actual": "error unsupported: component \"/openDAQDevice/Dev/RefDev0/Srv\" is a folder, not a device; get_device_operation_modes acts on device rows only",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes on a second session that has connected no device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes on a second session that has connected no device: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_connected\",\"detail\":\"this session has connected no device; call connect_device first (a device another session connected is not visible here)\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes on a second session that has connected no device: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml operations[get_device_operation_modes].errors = [not_found, not_connected, unsupported]",
+      "expected": "one of [not_found, not_connected, unsupported]",
+      "actual": "\"not_connected\" - \"this session has connected no device; call connect_device first (a device another session connected is not visible here)\"",
+      "verdict": "held"
+    },
+    {
+      "title": "get_device_operation_modes for /openDAQDevice/Dev/RefDev0, asked from a session that has connected no device, is refused",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "get_device_operation_modes",
+      "contract_citation": "contract.yaml operations[get_device_operation_modes].errors = [not_found, not_connected, unsupported]. The contract lists both not_connected and not_found and never says which a node id that is real on another session must get, so both are accepted here - see the contract-vagueness notes",
+      "expected": "one of [not_connected, not_found]",
+      "actual": "error not_connected: this session has connected no device; call connect_device first (a device another session connected is not visible here)",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode /openDAQDevice/Dev/RefDev0 = \"idle\" is accepted and returns void",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml operations[set_device_operation_mode].returns = void; envelopes.result.result presence nullable",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "the mode written to /openDAQDevice/Dev/RefDev0 is visible as Node.operation_mode on a later tree read",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml types.Node.operation_mode: \"This is the current mode the reference appends to the row name\"; the AVAILABLE modes are get_device_operation_modes, so a set that is not visible on the node makes the two halves of device.mode disagree",
+      "expected": "get_component_tree reports operation_mode \"idle\" on /openDAQDevice/Dev/RefDev0",
+      "actual": "operation_mode \"idle\" (it was \"safe_operation\" before the write)",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode {\"node_id\":\"/openDAQDevice/Dev/RefDev0\",\"mode\":\"quackoscope-conformance-sweep-no-such-operation-mode\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode {\"node_id\":\"/openDAQDevice/Dev/RefDev0\",\"mode\":\"quackoscope-conformance-sweep-no-such-operation-mode\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"invalid_value\",\"detail\":\"operation mode \\\"quackoscope-conformance-sweep-no-such-operation-mode\\\" is not one of the values types.Node.operation_mode enumerates: idle, operation, safe_operation, unknown\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode {\"node_id\":\"/openDAQDevice/Dev/RefDev0\",\"mode\":\"quackoscope-conformance-sweep-no-such-operation-mode\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]",
+      "expected": "one of [not_found, invalid_value, read_only, unsupported]",
+      "actual": "\"invalid_value\" - \"operation mode \\\"quackoscope-conformance-sweep-no-such-operation-mode\\\" is not one of the values types.Node.operation_mode enumerates: idle, operation, safe_operation, unknown\"",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode with the mode name \"quackoscope-conformance-sweep-no-such-operation-mode\", which is outside types.Node.operation_mode, is refused with invalid_value",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]; \"invalid_value: a mode name outside Node.operation_mode's values, or one the device did not list as available\"",
+      "expected": "error code \"invalid_value\"",
+      "actual": "error invalid_value: operation mode \"quackoscope-conformance-sweep-no-such-operation-mode\" is not one of the values types.Node.operation_mode enumerates: idle, operation, safe_operation, unknown",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\",\"mode\":\"idle\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\",\"mode\":\"idle\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds /openDAQDevice/Dev/RefDev0\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\",\"mode\":\"idle\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]",
+      "expected": "one of [not_found, invalid_value, read_only, unsupported]",
+      "actual": "\"not_found\" - \"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds /openDAQDevice/Dev/RefDev0\"",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode on the unknown node \"/quackoscope-conformance-sweep/no-such-node\" is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /openDAQDevice/Dev/RefDev0",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\",\"mode\":\"idle\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\",\"mode\":\"idle\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"component \\\"/openDAQDevice/Dev/RefDev0/Srv\\\" is a folder, not a device; set_device_operation_mode acts on device rows only\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\",\"mode\":\"idle\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]",
+      "expected": "one of [not_found, invalid_value, read_only, unsupported]",
+      "actual": "\"unsupported\" - \"component \\\"/openDAQDevice/Dev/RefDev0/Srv\\\" is a folder, not a device; set_device_operation_mode acts on device rows only\"",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode on /openDAQDevice/Dev/RefDev0/Srv, a node of kind folder and not a device, is refused with unsupported",
+      "scope": "capability_claimed",
+      "capability": "device.mode",
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]; \"unsupported is node_id naming a component that is not a device: the node exists, so not_found would be a lie\"",
+      "expected": "error code \"unsupported\"",
+      "actual": "error unsupported: component \"/openDAQDevice/Dev/RefDev0/Srv\" is a folder, not a device; set_device_operation_mode acts on device rows only",
+      "verdict": "held"
+    },
+    {
+      "title": "list_loaded_modules: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "list_loaded_modules",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "list_loaded_modules returns an array of contract-shaped ModuleInfo records, each carrying its ComponentTypeInfo rows",
+      "scope": "capability_claimed",
+      "capability": "module.read",
+      "wire_method": "list_loaded_modules",
+      "contract_citation": "contract.yaml operations[list_loaded_modules].returns = array of ModuleInfo; types.ModuleInfo id/name/component_types required and version nullable; types.ComponentTypeInfo id/name/kind required, kind an enum over [device, function_block, server, streaming]",
+      "expected": "every element a ModuleInfo whose component_types are all ComponentTypeInfo",
+      "actual": "17 module(s) carrying 34 component type(s) between them; ids: \"AudioDeviceModule\", \"BasicCsvRecorderModule\", \"EmptyModule\", \"LicensingModule\", \"mock_dep\", \"\", \"\", \"OpenDAQNativeStreamingClientModule\", \"OpenDAQNativeStreamingServerModule\", \"OpenDAQOPCUAClientModule\", \"OpenDAQOPCUAServerModule\", \"ParquetRecorderModule\", \"ReferenceDevice\", \"ReferenceFunctionBlock",
+      "verdict": "held"
+    },
+    {
+      "title": "list_loaded_modules on a second session that has connected no device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "list_loaded_modules",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "list_loaded_modules, asked from a session that has connected no device, either answers the list or refuses not_connected",
+      "scope": "capability_claimed",
+      "capability": "module.read",
+      "wire_method": "list_loaded_modules",
+      "contract_citation": "contract.yaml operations[list_loaded_modules].errors = [not_connected, internal] and params = []. The module list is a fact about the host PROCESS - the reference reads instance.module_manager.modules, not a device - and the contract never says which state not_connected belongs to, so both answers conform",
+      "expected": "an array of ModuleInfo, or error not_connected",
+      "actual": "result [{\"id\":\"AudioDeviceModule\",\"name\":\"AudioDeviceModule\",\"version\":\"3.41.0\",\"component_types\":[{\"id\":\"MiniAudio\",\"name\":\"Audio device\",\"kind\":\"device\",\"description\":null,\"connection_string_prefix\":\"minia",
+      "verdict": "held"
+    },
+    {
+      "title": "the \"internal\" error code of list_loaded_modules was not provoked",
+      "scope": "not_provokable",
+      "capability": "module.read",
+      "wire_method": "list_loaded_modules",
+      "contract_citation": "contract.yaml operations[list_loaded_modules].errors = [not_connected, internal]",
+      "expected": "no assertion: a well-formed wire client cannot force this without breaking the host from the outside",
+      "actual": "internal here is a module manager that raises while being enumerated; it takes no parameters at all, so there is no input a wire client can shape to force one",
+      "verdict": "not_provokable_by_a_wire_client"
+    },
+    {
+      "title": "load_module_from_host_path host_path \"/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\" (posixAbsolute): the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path host_path \"/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\" (posixAbsolute): the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"invalid_value\",\"detail\":\"params.host_path \\\"/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\\\" is not absolute. It names a file on the machine quackoscope-host-python runs on, not on the caller's, and a relative path would be resolved against this process's working directory C:\\\\Users\\\\opendaq\\\\Projects\\\\quackoscope, which the caller cannot see. The module directory this Instance was built with is C:/Users/opendaq/Projects/openDAQ/build/x64/msvc-26/full/bin/Release\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path host_path \"/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\" (posixAbsolute): the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "module.load",
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml operations[load_module_from_host_path].errors = [not_found, not_connected, invalid_value, internal]",
+      "expected": "one of [not_found, not_connected, invalid_value, internal]",
+      "actual": "\"invalid_value\" - \"params.host_path \\\"/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\\\" is not absolute. It names a file on the machine quackoscope-host-python runs on, not on the caller's, and a relative path would be resolved against this process's working directory C:\\\\Users\\\\opendaq\\\\Projects\\\\quackoscope, which the caller cannot see. The module directory this Instance was built with is C:/Users/opendaq/Projects/openDAQ/build/x64/msvc-26/full/bin/Release\"",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path host_path \"C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\" (windowsAbsolute): the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path host_path \"C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\" (windowsAbsolute): the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"Specified module path \\\"C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\\\" does not exist\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path host_path \"C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\" (windowsAbsolute): the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "module.load",
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml operations[load_module_from_host_path].errors = [not_found, not_connected, invalid_value, internal]",
+      "expected": "one of [not_found, not_connected, invalid_value, internal]",
+      "actual": "\"not_found\" - \"Specified module path \\\"C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\\\" does not exist\"",
+      "verdict": "held"
+    },
+    {
+      "title": "an absent module file is refused with not_found, in whichever of the two path spellings is absolute on this host's own platform",
+      "scope": "capability_claimed",
+      "capability": "module.load",
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml operations[load_module_from_host_path]: \"not_found: nothing at host_path on the HOST's disk. Under design (a) this is the most likely answer a user will ever see from this row - it is what a path copied off the client's own machine produces\". The suite addresses this host by URL and cannot know its path syntax, so both spellings are sent and the assertion is on the pair: whichever one is absolute there must land on \"no file there\", and the other may be refused invalid_value as a relative path.",
+      "expected": "at least one of \"/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\" and \"C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\" refused with \"not_found\"",
+      "actual": "windowsAbsolute answered not_found; posixAbsolute -> invalid_value, windowsAbsolute -> not_found",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path host_path \"\": the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path host_path \"\": the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"invalid_value\",\"detail\":\"params.host_path is empty; it must be an absolute path to a module file on the machine quackoscope-host-python runs on. That machine's module directory, the one this Instance was built with and swept at startup, is C:/Users/opendaq/Projects/openDAQ/build/x64/msvc-26/full/bin/Release\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path host_path \"\": the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "module.load",
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml operations[load_module_from_host_path].errors = [not_found, not_connected, invalid_value, internal]",
+      "expected": "one of [not_found, not_connected, invalid_value, internal]",
+      "actual": "\"invalid_value\" - \"params.host_path is empty; it must be an absolute path to a module file on the machine quackoscope-host-python runs on. That machine's module directory, the one this Instance was built with and swept at startup, is C:/Users/opendaq/Projects/openDAQ/build/x64/msvc-26/full/bin/Release\"",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path with the empty host_path is refused, never accepted",
+      "scope": "capability_claimed",
+      "capability": "module.load",
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml operations[load_module_from_host_path].errors = [not_found, not_connected, invalid_value, internal]; host_path is presence required and \"Absolute, and resolved on the host's filesystem\". The empty string is both nothing-is-there and not-a-loadable-module, and the contract does not order not_found against invalid_value, so either conforms and which one a host picks is recorded rather than judged.",
+      "expected": "one of [not_found, invalid_value]",
+      "actual": "error invalid_value: params.host_path is empty; it must be an absolute path to a module file on the machine quackoscope-host-python runs on. That machine's module directory, the one this Instance was built with and swept at startup, is C:/Users/opendaq/Projects/openDAQ/build/x64/msvc-26/full/bin/Release",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path on a second session that has connected no device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path on a second session that has connected no device: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"Specified module path \\\"C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\\\" does not exist\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path on a second session that has connected no device: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "module.load",
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml operations[load_module_from_host_path].errors = [not_found, not_connected, invalid_value, internal]",
+      "expected": "one of [not_found, not_connected, invalid_value, internal]",
+      "actual": "\"not_found\" - \"Specified module path \\\"C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\\\" does not exist\"",
+      "verdict": "held"
+    },
+    {
+      "title": "load_module_from_host_path for an absent file, asked from a session that has connected no device, is refused with a code from its own subset",
+      "scope": "capability_claimed",
+      "capability": "module.load",
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml operations[load_module_from_host_path].errors = [not_found, not_connected, invalid_value, internal]; \"not_connected: no instance, so no module manager to load into. Same condition list_loaded_modules answers not_connected to.\" Whether a host has an instance before any device is connected is not something the contract settles, so not_connected, not_found and invalid_value are all conforming answers here",
+      "expected": "one of [not_found, not_connected, invalid_value, internal]",
+      "actual": "error not_found: Specified module path \"C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll\" does not exist",
+      "verdict": "held"
+    },
+    {
+      "title": "the success path of load_module_from_host_path was not driven, and neither was the invalid_value that a real non-module file produces",
+      "scope": "not_provokable",
+      "capability": "module.load",
+      "wire_method": "load_module_from_host_path",
+      "contract_citation": "contract.yaml operations[load_module_from_host_path]: the row \"makes the host process dlopen a file off its own disk and run that file's initialisation, which is arbitrary code execution inside the host\"; returns = ModuleInfo",
+      "expected": "no assertion: a well-formed wire client cannot force this without breaking the host from the outside",
+      "actual": "two reasons, and the second is the harder one. (1) A load is PERMANENT for that host process: the module list, the device types and the function block types all change, and this same run asserts against all three, so a passing load would corrupt the sweep that follows it and every later comparison against that host. (2) The suite addresses a host by URL and knows nothing about its filesystem - a path off the machine running this suite is a path the host may not have - so it has no module file to name and no non-module file it can be sure exists there either. Driving this would need a host that offers a scratch module path over the wire, which contract.yaml does not have.",
+      "verdict": "not_provokable_by_a_wire_client"
+    },
+    {
+      "title": "lock_device {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "lock_device {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds /openDAQDevice/Dev/RefDev0\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "lock_device {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml operations[lock_device].errors = [not_found, read_only, unsupported]",
+      "expected": "one of [not_found, read_only, unsupported]",
+      "actual": "\"not_found\" - \"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds /openDAQDevice/Dev/RefDev0\"",
+      "verdict": "held"
+    },
+    {
+      "title": "lock_device on the unknown node \"/quackoscope-conformance-sweep/no-such-node\" is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml operations[lock_device].errors = [not_found, read_only, unsupported]",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /openDAQDevice/Dev/RefDev0",
+      "verdict": "held"
+    },
+    {
+      "title": "lock_device {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "lock_device {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"component \\\"/openDAQDevice/Dev/RefDev0/Srv\\\" is a folder, not a device; lock_device acts on device rows only\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "lock_device {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml operations[lock_device].errors = [not_found, read_only, unsupported]",
+      "expected": "one of [not_found, read_only, unsupported]",
+      "actual": "\"unsupported\" - \"component \\\"/openDAQDevice/Dev/RefDev0/Srv\\\" is a folder, not a device; lock_device acts on device rows only\"",
+      "verdict": "held"
+    },
+    {
+      "title": "lock_device on /openDAQDevice/Dev/RefDev0/Srv, a node of kind folder and not a device, is refused with unsupported",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml operations[lock_device].errors = [not_found, read_only, unsupported]; \"unsupported is node_id naming a component that is not a device: the node exists, so not_found would be a lie\"",
+      "expected": "error code \"unsupported\"",
+      "actual": "error unsupported: component \"/openDAQDevice/Dev/RefDev0/Srv\" is a folder, not a device; lock_device acts on device rows only",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds /openDAQDevice/Dev/RefDev0\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml operations[unlock_device].errors = [not_found, read_only, unsupported]",
+      "expected": "one of [not_found, read_only, unsupported]",
+      "actual": "\"not_found\" - \"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds /openDAQDevice/Dev/RefDev0\"",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device on the unknown node \"/quackoscope-conformance-sweep/no-such-node\" is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml operations[unlock_device].errors = [not_found, read_only, unsupported]",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /openDAQDevice/Dev/RefDev0",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"component \\\"/openDAQDevice/Dev/RefDev0/Srv\\\" is a folder, not a device; unlock_device acts on device rows only\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device {\"node_id\":\"/openDAQDevice/Dev/RefDev0/Srv\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml operations[unlock_device].errors = [not_found, read_only, unsupported]",
+      "expected": "one of [not_found, read_only, unsupported]",
+      "actual": "\"unsupported\" - \"component \\\"/openDAQDevice/Dev/RefDev0/Srv\\\" is a folder, not a device; unlock_device acts on device rows only\"",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device on /openDAQDevice/Dev/RefDev0/Srv, a node of kind folder and not a device, is refused with unsupported",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml operations[unlock_device].errors = [not_found, read_only, unsupported]; \"unsupported is node_id naming a component that is not a device: the node exists, so not_found would be a lie\"",
+      "expected": "error code \"unsupported\"",
+      "actual": "error unsupported: component \"/openDAQDevice/Dev/RefDev0/Srv\" is a folder, not a device; unlock_device acts on device rows only",
+      "verdict": "held"
+    },
+    {
+      "title": "lock_device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "lock_device /openDAQDevice/Dev/RefDev0 is accepted and returns void",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml operations[lock_device].returns = void",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_tree reports Node.locked true on /openDAQDevice/Dev/RefDev0 after this session's own lock_device",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml types.Node.locked: \"The EFFECTIVE lock state, inheritance already applied host-side: a device reports its own IDevice.locked\". lock_device and unlock_device are \"the actions behind the lock and unlock icons the tree already ships\", so a lock the tree does not show leaves the icon wrong.",
+      "expected": "Node.locked === true",
+      "actual": "Node.locked true",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_tree reports Node.locked true on /openDAQDevice/Dev/RefDev0 as the OTHER session sees it, while this run's first session holds the lock",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml types.Node.locked: \"The EFFECTIVE lock state, inheritance already applied host-side: a device reports its own IDevice.locked\". lock_device and unlock_device are \"the actions behind the lock and unlock icons the tree already ships\", so a lock the tree does not show leaves the icon wrong.",
+      "expected": "Node.locked === true",
+      "actual": "Node.locked true",
+      "verdict": "held"
+    },
+    {
+      "title": "set_property_value /openDAQDevice/Dev/RefDev0.NumberOfChannels from a session that does not hold the lock: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_property_value",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "set_property_value /openDAQDevice/Dev/RefDev0.NumberOfChannels, from a session that does not hold the lock on /openDAQDevice/Dev/RefDev0, is refused with read_only",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "set_property_value",
+      "contract_citation": "contract.yaml operations[set_device_operation_mode].errors names read_only \"the closed error set's expression of openDAQ refused the write because the component is protected, the same code set_property_value already uses for a locked target\"; types.Node.locked is the EFFECTIVE state, \"any other component reports the nearest ancestor device's\", so a property under a locked device is a locked target",
+      "expected": "error code \"read_only\"",
+      "actual": "the write of 3 was ACCEPTED while another session held the lock, result null",
+      "verdict": "capability_claimed_and_broken"
+    },
+    {
+      "title": "set_device_operation_mode {\"node_id\":\"/openDAQDevice/Dev/RefDev0\",\"mode\":\"idle\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "set_device_operation_mode from a session that does not hold the lock on /openDAQDevice/Dev/RefDev0 is refused with read_only",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "set_device_operation_mode",
+      "contract_citation": "contract.yaml operations[set_device_operation_mode].errors: \"read_only: the device is locked - the closed error set's expression of openDAQ refused the write because the component is protected, the same code set_property_value already uses for a locked target\"",
+      "expected": "error code \"read_only\"",
+      "actual": "accepted it, result null",
+      "verdict": "capability_claimed_and_broken"
+    },
+    {
+      "title": "lock_device {\"node_id\":\"/openDAQDevice/Dev/RefDev0\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "lock_device from a second session, on a device this run's first session already locked, is refused with read_only",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "lock_device",
+      "contract_citation": "contract.yaml operations[lock_device].errors: \"read_only is the device is already locked, and not by this session - openDAQ permits an unlock only by the user who locked it\"",
+      "expected": "error code \"read_only\"",
+      "actual": "accepted it, result null",
+      "verdict": "capability_claimed_and_broken"
+    },
+    {
+      "title": "unlock_device {\"node_id\":\"/openDAQDevice/Dev/RefDev0\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device from a second session, on a device this run's first session locked, is refused with read_only",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml operations[unlock_device]: \"IDevice.unlock() takes no arguments and refuses when another user holds the lock\"; errors: \"read_only is the refusal the reference reacts to by offering the forced unlock, so it is the exact signal that enables that control\"",
+      "expected": "error code \"read_only\"",
+      "actual": "accepted it, result null",
+      "verdict": "capability_claimed_and_broken"
+    },
+    {
+      "title": "unlock_device force true, from the session that does not hold the lock: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device force true, from the session that does not hold the lock, either takes the lock or answers unsupported",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml operations[unlock_device].params force, presence optional: \"the reference then offers a forced unlock, which is IDevicePrivate.force_unlock() - a different interface, reached by a cast\"; errors: \"unsupported covers both not a device and force: true on a host that cannot reach IDevicePrivate\"",
+      "expected": "a result envelope carrying null, or error code \"unsupported\"",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "unlock_device /openDAQDevice/Dev/RefDev0 by the session that locked it is accepted and returns void",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml operations[unlock_device].returns = void",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_tree reports Node.locked false on /openDAQDevice/Dev/RefDev0 after the holder's unlock_device, which is how this sweep leaves the device",
+      "scope": "capability_claimed",
+      "capability": "device.lock",
+      "wire_method": "unlock_device",
+      "contract_citation": "contract.yaml types.Node.locked: \"The EFFECTIVE lock state, inheritance already applied host-side: a device reports its own IDevice.locked\". lock_device and unlock_device are \"the actions behind the lock and unlock icons the tree already ships\", so a lock the tree does not show leaves the icon wrong.",
+      "expected": "Node.locked === false",
+      "actual": "Node.locked false",
+      "verdict": "held"
     },
     {
       "title": "subscribe_signal: the response carries exactly one of result or error",
@@ -1274,7 +2283,7 @@
       "wire_method": null,
       "contract_citation": "contract.yaml binary_frame.header declares domain_start a uint64 and says nothing about ordering between frames",
       "expected": "no pass/fail is possible: the contract constrains the shape but not the occurrence",
-      "actual": "the contract fixes the field's width and offset but never says successive frames must not go backwards, so this is observed, not asserted  observed: 3 frames, domain_start 1788503360426831 .. 1788503360711831, non-decreasing: true",
+      "actual": "the contract fixes the field's width and offset but never says successive frames must not go backwards, so this is observed, not asserted  observed: 3 frames, domain_start 1788515027053267 .. 1788515027334267, non-decreasing: true",
       "verdict": "unconstrained_by_the_contract"
     },
     {
@@ -1594,7 +2603,7 @@
       "wire_method": null,
       "contract_citation": "contract.yaml events.closed = true, items [component_added, component_removed, property_changed, property_descriptor_changed, device_disconnected]",
       "expected": "no event name outside the closed set",
-      "actual": "6 event(s) received, names seen: component_added, property_changed, component_removed",
+      "actual": "10 event(s) received, names seen: component_added, property_changed, component_removed",
       "verdict": "held"
     },
     {
@@ -1604,7 +2613,7 @@
       "wire_method": null,
       "contract_citation": "contract.yaml events.carries_id_field = false; \"They are not responses and are never correlated.\"",
       "expected": "no event envelope has an id key",
-      "actual": "6 event(s), none carrying an id",
+      "actual": "10 event(s), none carrying an id",
       "verdict": "held"
     },
     {
@@ -1613,8 +2622,8 @@
       "capability": null,
       "wire_method": null,
       "contract_citation": "contract.yaml events.items[].payload",
-      "expected": "6 conforming event payloads",
-      "actual": "6 event(s), every declared payload key present and correctly typed",
+      "expected": "10 conforming event payloads",
+      "actual": "10 event(s), every declared payload key present and correctly typed",
       "verdict": "held"
     },
     {
@@ -1626,6 +2635,16 @@
       "expected": "no pass/fail is possible: the contract constrains the shape but not the occurrence",
       "actual": "event occurrence is unconstrained by the contract, so silence is not a verdict  observed: pushed during this sweep: [component_added, property_changed, component_removed]; not pushed: [property_descriptor_changed, device_disconnected]",
       "verdict": "unconstrained_by_the_contract"
+    },
+    {
+      "title": "every one of the 19 operations in contract.yaml was put on the socket and judged",
+      "scope": "suite_coverage",
+      "capability": null,
+      "wire_method": null,
+      "contract_citation": "contract.yaml operations: 19 rows - scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_value, get_property_descriptors, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, read_samples_raw, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, load_module_from_host_path. Section 5 calls that table closed and says host coverage of it is 100%; a suite that reports a clean sweep while never asking one of its rows is reporting on a smaller contract than the one it read.",
+      "expected": "all 19 wire methods with at least one request sent on a session of this run AND at least one ledger entry naming them, or an explicit not_provokable_by_a_wire_client entry saying why this host's own data left the row undrivable",
+      "actual": "19 of 19 driven; requests sent per wire method: scan_available_devices=1, connect_device=2, disconnect_device=2, get_component_tree=7, get_property_value=41, get_property_descriptors=5, set_property_value=7, list_function_block_types=1, add_function_block=1, remove_function_block=1, subscribe_signal=2, unsubscribe_signal=3, read_samples_raw=1, get_device_operation_modes=4, set_device_operation_mode=7, lock_device=4, unlock_device=5, list_loaded_modules=2, load_module_from_host_path=4",
+      "verdict": "held"
     }
   ]
 }

@@ -29,7 +29,9 @@
 //
 // Exit codes:
 //   0  the report was written and no host failed
-//   1  the report was written and at least one host has a class (b) failure
+//   1  the report was written and at least one host has a class (b) failure, or
+//      the suite left an operation of contract.yaml undriven, which makes every
+//      table here a report on a smaller contract than the one it cites
 //   2  the run could not happen at all (no host started, unreadable contract)
 //   3  REFUSED: SDK-loading hosts do not agree on sdk.commit, so nothing was compared
 
@@ -636,18 +638,40 @@ async function generateCrossHostConformanceReport() {
   console.log(`  keyed to sdk.commit   ${manifest.commit}`);
   for (const host of ran) {
     const tallies = host.conformanceReport.tallies;
+    const coverage = host.conformanceReport.operation_coverage ?? null;
     console.log(
       `  ${host.hostKey.padEnd(8)} class (a) declared gap ${String(tallies.gap_declared_and_consistent ?? 0).padStart(2)}, ` +
         `class (b) claimed and failed ${String(tallies.capability_claimed_and_broken ?? 0).padStart(2)}, ` +
         `warnings ${String(host.conformanceReport.warning_count).padStart(2)}, ` +
-        `${host.interrogation?.answers.length ?? 0} wrong inputs answered`,
+        `${host.interrogation?.answers.length ?? 0} wrong inputs answered, ` +
+        `${coverage === null ? "operation coverage not reported by that run" : `${coverage.driven.length} of ${coverage.operations_in_the_contract} contract operations driven${coverage.never_driven.length === 0 ? "" : ` - NEVER DRIVEN: ${coverage.never_driven.join(", ")}`}`}`,
     );
   }
+
+  // Two different things can make this report untrustworthy, and only one of
+  // them is a host's fault. A class (b) failure is a host that advertised a
+  // capability and then broke it. A suite_coverage_incomplete entry is this
+  // suite never asking one of the contract's rows - and every table in the
+  // document is then drawn from a sweep smaller than the contract it cites,
+  // which is exactly how six operations rode along inside a report that exited
+  // 0. Both make the run non-clean, and the message below says which happened.
   const hostsWithClassBFailures = ran.filter((host) => (host.conformanceReport.tallies.capability_claimed_and_broken ?? 0) > 0);
-  const exitCode = hostsWithClassBFailures.length > 0 ? 1 : 0;
+  const hostsWithACoverageHole = ran.filter((host) => (host.conformanceReport.tallies.suite_coverage_incomplete ?? 0) > 0);
+  const exitCode = hostsWithClassBFailures.length > 0 || hostsWithACoverageHole.length > 0 ? 1 : 0;
   console.log(
-    `\n${hostsWithClassBFailures.length > 0 ? `${hostsWithClassBFailures.map((host) => host.hostKey).join(", ")} claimed a capability and then broke it` : "no host claimed a capability and then broke it"}. exit ${exitCode}`,
+    `\n${hostsWithClassBFailures.length > 0 ? `${hostsWithClassBFailures.map((host) => host.hostKey).join(", ")} claimed a capability and then broke it` : "no host claimed a capability and then broke it"}.`,
   );
+  if (hostsWithACoverageHole.length > 0) {
+    const neverDriven = [
+      ...new Set(hostsWithACoverageHole.flatMap((host) => host.conformanceReport.operation_coverage?.never_driven ?? [])),
+    ];
+    console.log(
+      `THE SUITE DID NOT DRIVE THE WHOLE CONTRACT against ${hostsWithACoverageHole.map((host) => host.hostKey).join(", ")}: ` +
+        `${neverDriven.join(", ")} went to no socket. That is a hole in conformance/sweeps, not a fault of those hosts, and every ` +
+        "table in the document above is then drawn from a sweep smaller than the contract it cites.",
+    );
+  }
+  console.log(`exit ${exitCode}`);
   return exitCode;
 }
 

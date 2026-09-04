@@ -12,6 +12,11 @@
 //   - responses keyed by correlation id
 //   - events, which carry no id
 //   - binary sample frames, decoded against contract.yaml binary_frame
+//   - how many requests were sent per wire method name, which is what
+//     conformance/sweeps/require-every-contract-operation-to-be-driven.mjs reads
+//     to decide whether an operation in contract.yaml was actually put on the
+//     socket. That count is taken here, at the point the frame is sent, so no
+//     list a sweep keeps of its own can claim coverage the wire never saw.
 
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -96,6 +101,8 @@ export class WireSession {
     this.eventsInArrivalOrder = [];
     this.responsesByCorrelationId = new Map();
     this.pendingResolvers = new Map();
+    // wire method name -> how many request envelopes this session sent for it.
+    this.requestsSentByWireMethod = new Map();
     this.malformedTextMessages = [];
     this.nextCorrelationId = 1;
     this.closed = false;
@@ -210,6 +217,7 @@ export class WireSession {
     }
     const correlationId = this.nextCorrelationId++;
     const envelope = { id: correlationId, method, params };
+    this.requestsSentByWireMethod.set(method, (this.requestsSentByWireMethod.get(method) ?? 0) + 1);
     const answered = new Promise((resolve, reject) => {
       this.pendingResolvers.set(correlationId, { resolve, reject });
       setTimeout(() => {
