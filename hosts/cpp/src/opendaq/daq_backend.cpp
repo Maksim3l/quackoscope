@@ -20,7 +20,9 @@
 // capability= names one or more capability ids from the contract's closed set
 // (device.scan, device.connect, tree.read, property.read, property.write,
 // function_block.add, streaming.decimated, streaming.raw, device.mode,
-// device.lock, module.read). shared= names a
+// device.lock, module.read, module.load, attribute.read, attribute.write,
+// server.add, server.discovery, recorder.control, property.batched_update,
+// configuration.save, configuration.load). shared= names a
 // mechanism several operations lean on -- kindOf, buildNode, wireValueType,
 // toDescriptor, fromJson, resolveProperty's getProperty, the component-state
 // reads, the device facet cast, the component-type mapping, the core-event
@@ -59,6 +61,7 @@
 #include <iostream>
 #include <map>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -116,6 +119,13 @@ const char* kindOf(const ComponentPtr& component)
         return "function_block";
     if (component.asPtrOrNull<ISignal>().assigned())
         return "signal";
+    // A server is a signal container, so without this arm it would fall through
+    // to "folder" and add_server would answer with a Node it cannot describe.
+    // It is tested after the four above because none of them can also be an
+    // IServer, and before the fallback because every IServer would otherwise
+    // reach it.
+    if (component.asPtrOrNull<IServer>().assigned())
+        return "server";
     // Everything else -- folders and plain components such as Synchronization --
     // is reported as a folder; the contract's kind set has no other container.
     return "folder";
@@ -220,9 +230,58 @@ std::optional<bool> effectiveDeviceLockState(const ComponentPtr& component)
     // quack-snippet end
 }
 
+// The IServer facet of one component, or an unassigned pointer when it does not
+// carry one. The shared region server-of-component;
+// set_server_discovery_enabled acts through it.
+ServerPtr serverOrNull(const ComponentPtr& component)
+{
+    // quack-snippet shared=server-of-component
+    // openDAQ declares enableDiscovery and disableDiscovery on IServer, not on
+    // IComponent, so a component has to be taken through its IServer facet
+    // before either can be called. A component that does not carry that facet
+    // still EXISTS, so refusing with not_found would be a lie; the contract's
+    // word for it is unsupported.
+    return component.asPtrOrNull<IServer>();
+    // quack-snippet end
+}
+
+// The IRecorder facet of one component, or an unassigned pointer when it does
+// not carry one. The shared region recorder-of-component: Node.recording reads its
+// state through it, and start_recording and stop_recording act through it.
+RecorderPtr recorderOrNull(const ComponentPtr& component)
+{
+    // quack-snippet shared=recorder-of-component
+    // openDAQ declares startRecording, stopRecording and getIsRecording on
+    // IRecorder, which a recorder function block carries IN ADDITION to
+    // IFunctionBlock. Whether a component is a recorder AT ALL is this cast and
+    // nothing else -- no kind, no type id and no property says so -- which is
+    // the same question the reference asks with
+    // daq.IRecorder.can_cast_from(node) before it builds its RecorderView.
+    return component.asPtrOrNull<IRecorder>();
+    // quack-snippet end
+}
+
+// Whether one component is inside a batched property update. The shared region
+// property-object-update-state; Node.updating carries what it reads.
+std::optional<bool> propertyObjectUpdatingState(const ComponentPtr& component)
+{
+    // quack-snippet shared=property-object-update-state
+    // getUpdating() is declared on IPropertyObject, which every openDAQ
+    // component carries, and it is true between a beginUpdate and its
+    // endUpdate. While it is true, a setPropertyValue against this component is
+    // HELD and not applied -- so a client that writes without looking at this
+    // is writing into a batch that nobody may ever end.
+    const auto object = component.asPtrOrNull<IPropertyObject>();
+    if (!object.assigned())
+        return std::nullopt;
+    return static_cast<bool>(object.getUpdating());
+    // quack-snippet end
+}
+
 // Everything openDAQ can say about the STATE of one component: whether it is
-// active, whether it is locked, its ComponentStatus and that status's message,
-// and -- for a device -- its ConnectionStatus and its current operation mode.
+// active, whether it is locked, whether it is mid-batch, whether it is
+// recording, its ComponentStatus and that status's message, and -- for a
+// device -- its ConnectionStatus and its current operation mode.
 //
 // The shared region component-state. component-node uses it, so it reaches
 // every Node this host emits: get_component_tree, connect_device,
@@ -230,13 +289,35 @@ std::optional<bool> effectiveDeviceLockState(const ComponentPtr& component)
 // travels with the row it annotates rather than costing a request of its own.
 void readComponentState(const ComponentPtr& component, service::Node& node)
 {
-    // quack-snippet shared=component-state uses=operation-mode-names,component-status-container,effective-device-lock-state
+    // quack-snippet shared=component-state uses=operation-mode-names,component-status-container,effective-device-lock-state,property-object-update-state,recorder-of-component
     // getActive() is the EFFECTIVE active flag: false either because this
     // component was deactivated or because a parent was.
     node.active = static_cast<bool>(component.getActive());
 
     // shared region effective-device-lock-state
     node.locked = effectiveDeviceLockState(component);
+
+    // shared region property-object-update-state
+    node.updating = propertyObjectUpdatingState(component);
+
+    // shared region recorder-of-component. null on every component that is not a
+    // recorder, which is what tells a client to draw no Start/Stop control at
+    // all rather than to draw a stopped one. A recorder that refuses to report
+    // its own state keeps recording null and costs the row nothing else, which
+    // is why this one read has a catch of its own.
+    if (const auto recorder = recorderOrNull(component); recorder.assigned())
+    {
+        try
+        {
+            node.recording = static_cast<bool>(recorder.getIsRecording());
+        }
+        catch (const DaqException& e)
+        {
+            std::cerr << "[opendaq] component \"" << toStd(component.getGlobalId())
+                      << "\" carries IRecorder but refused getIsRecording(), so Node.recording stays null: "
+                      << e.getErrorMessage() << "\n";
+        }
+    }
 
     // shared region component-status-container
     const auto statuses = componentStatuses(component);
@@ -611,6 +692,186 @@ BaseObjectPtr fromJson(const PropertyPtr& property, const service::Json& value)
 
     throw ServiceError(ErrorCode::InvalidValue,
                        "value " + value.dump() + " does not fit property \"" + toStd(property.getName()) + "\"");
+}
+
+// --- component attributes ---------------------------------------------------
+//
+// ATTRIBUTES ARE NOT PROPERTIES. A property lives in the component's property
+// bag and is read with getPropertyValue; an attribute is a fixed member of the
+// openDAQ interface itself -- IComponent::getName, ISignal::getPublic,
+// IInputPort::getRequiresSignal -- and is written with its own setter. The two
+// surfaces are separate in the reference too: generic_properties_treeview.py
+// draws one and generic_attributes_treeview.py the other.
+
+// The contract's ComponentAttribute.value_type has five members. bool, int and
+// float come straight from openDAQ's core type; string is the catch-all for a
+// value this wire carries no other member for, which is what the reference does
+// when it prints a value it has no editor for.
+const char* attributeWireValueType(const BaseObjectPtr& value)
+{
+    if (!value.assigned())
+        return "string";
+    switch (value.getCoreType())
+    {
+        case ctBool:  return "bool";
+        case ctInt:   return "int";
+        case ctFloat: return "float";
+        default:      return "string";
+    }
+}
+
+// Every attribute row of one component, in the order the reference's attributes
+// treeview builds them. The shared region component-attribute-rows:
+// get_component_attributes answers with these rows, and set_component_attribute
+// reads the same rows to learn whether a write is refused BEFORE it makes it.
+std::vector<service::ComponentAttribute> componentAttributeRows(const ComponentPtr& component)
+{
+    std::vector<service::ComponentAttribute> rows;
+
+    // Lower-cased, because IComponentPrivate::lockAttributes documents its list
+    // as not case sensitive.
+    std::set<std::string> lockedByOpenDaq;
+
+    // One row, with the two sources of read_only already combined:
+    // hasAWriter is false for the ids openDAQ offers no setter for at all, and
+    // openDaqAttributeName is the name openDAQ would report in
+    // getLockedAttributes() for the ids that do have one -- "" where openDAQ
+    // has no lockable attribute of that name.
+    const auto addRow = [&rows, &lockedByOpenDaq](const char* id,
+                                                  const char* label,
+                                                  service::Json value,
+                                                  const char* valueType,
+                                                  bool hasAWriter,
+                                                  const char* openDaqAttributeName)
+    {
+        service::ComponentAttribute row;
+        row.id = id;
+        row.name = label;
+        row.value = std::move(value);
+        row.value_type = valueType;
+        row.read_only =
+            !hasAWriter || lockedByOpenDaq.find(lowercased(openDaqAttributeName)) != lockedByOpenDaq.end();
+        rows.push_back(std::move(row));
+    };
+
+    // quack-snippet shared=component-attribute-rows
+    // THE ROW SET IS NOT FIXED. IComponent carries seven attributes; a cast to
+    // ISignal adds five more and a cast to IInputPort adds three, so which rows
+    // exist is decided by which interfaces this component actually has. A cast
+    // that does not succeed yields FEWER rows; it never yields a row whose
+    // value is null, which would claim the attribute exists and has no value.
+    //
+    // getLockedAttributes() is openDAQ's own statement that a named attribute
+    // may not be written on THIS component, and it is one of the two sources of
+    // read_only. The other is the id having no setter at all. Neither is ever
+    // "this host has no writer": that would be a capability gap, and reporting
+    // it here would blame openDAQ for an absence in the host.
+    for (const auto& locked : component.getLockedAttributes())
+        lockedByOpenDaq.insert(lowercased(toStd(locked)));
+
+    // The seven every component has. openDAQ's own lockable names for four of
+    // them are exactly "Name", "Description", "Active" and "Visible" --
+    // component_impl.h spells that set as COMPONENT_AVAILABLE_ATTRIBUTES.
+    addRow("name", "Name", toStd(component.getName()), "string", true, "Name");
+    addRow("description", "Description", toStd(component.getDescription()), "string", true, "Description");
+    addRow("active", "Active", static_cast<bool>(component.getActive()), "bool", true, "Active");
+    // The two ids openDAQ assigns and nothing can write.
+    addRow("global_id", "Global ID", toStd(component.getGlobalId()), "string", false, "");
+    addRow("local_id", "Local ID", toStd(component.getLocalId()), "string", false, "");
+
+    // Tags are a list of strings behind ITags, whose read side is getList().
+    service::Json tagList = service::Json::array();
+    if (const auto tags = component.getTags(); tags.assigned())
+        for (const auto& tag : tags.getList())
+            tagList.push_back(toStd(tag));
+    addRow("tags", "Tags", std::move(tagList), "string_list", true, "Tags");
+
+    addRow("visible", "Visible", static_cast<bool>(component.getVisible()), "bool", true, "Visible");
+
+    // Five more when this component is a signal.
+    if (const auto signal = component.asPtrOrNull<ISignal>(); signal.assigned())
+    {
+        addRow("public", "Public", static_cast<bool>(signal.getPublic()), "bool", true, "Public");
+
+        // What crosses the wire is the ID of the related signal and not the
+        // signal object, which is why these two wire ids carry the _id/_ids
+        // suffix that openDAQ's own member names do not.
+        const auto domainSignal = signal.getDomainSignal();
+        addRow("domain_signal_id",
+               "Domain Signal ID",
+               domainSignal.assigned() ? toStd(domainSignal.getGlobalId()) : std::string(),
+               "string",
+               false,
+               "DomainSignal");
+
+        service::Json relatedIds = service::Json::array();
+        if (const auto related = signal.getRelatedSignals(); related.assigned())
+            for (const auto& other : related)
+                relatedIds.push_back(toStd(other.getGlobalId()));
+        addRow("related_signal_ids",
+               "Related Signals IDs",
+               std::move(relatedIds),
+               "string_list",
+               false,
+               "RelatedSignals");
+
+        // getStreamed and getLastValue are the two reads a plain in-process
+        // signal can refuse: streaming state belongs to a mirrored signal, and
+        // a signal that has produced no packet has no last value. A refusal
+        // drops the row rather than reporting a value openDAQ did not give.
+        try
+        {
+            addRow("streamed", "Streamed", static_cast<bool>(signal.getStreamed()), "bool", false, "");
+        }
+        catch (const DaqException& e)
+        {
+            std::cerr << "[opendaq] signal \"" << toStd(signal.getGlobalId())
+                      << "\" refused getStreamed(), so no streamed attribute row is reported for it: "
+                      << e.getErrorMessage() << "\n";
+        }
+
+        try
+        {
+            const auto lastValue = signal.getLastValue();
+            addRow("last_value",
+                   "Last Value",
+                   lastValue.assigned() ? toJson(lastValue) : service::Json(nullptr),
+                   attributeWireValueType(lastValue),
+                   false,
+                   "");
+        }
+        catch (const DaqException& e)
+        {
+            std::cerr << "[opendaq] signal \"" << toStd(signal.getGlobalId())
+                      << "\" refused getLastValue(), so no last_value attribute row is reported for it: "
+                      << e.getErrorMessage() << "\n";
+        }
+    }
+
+    // Three more when it is an input port. A component is never both, so the
+    // second public row here cannot collide with the signal's.
+    if (const auto inputPort = component.asPtrOrNull<IInputPort>(); inputPort.assigned())
+    {
+        addRow("public", "Public", static_cast<bool>(inputPort.getPublic()), "bool", true, "Public");
+
+        const auto connected = inputPort.getSignal();
+        addRow("signal_id",
+               "Signal ID",
+               connected.assigned() ? toStd(connected.getGlobalId()) : std::string(),
+               "string",
+               false,
+               "");
+
+        addRow("requires_signal",
+               "Requires Signal",
+               static_cast<bool>(inputPort.getRequiresSignal()),
+               "bool",
+               false,
+               "");
+    }
+    // quack-snippet end
+
+    return rows;
 }
 
 }  // namespace
@@ -1975,6 +2236,472 @@ service::ModuleInfo DaqBackend::loadModuleFromHostPath(const std::string& hostPa
               << "answer differently from this point on" << std::endl;
 
     return entry;
+}
+
+// --- get_component_attributes ----------------------------------------------
+
+std::vector<service::ComponentAttribute> DaqBackend::getComponentAttributes(const std::string& nodeId)
+{
+    const auto component = impl_->resolve(nodeId);  // not_found when the id names nothing
+
+    std::vector<service::ComponentAttribute> rows;
+    try
+    {
+        // quack-snippet capability=attribute.read uses=component-attribute-rows
+        // One panel, one call. The attributes view is a panel over ONE selected
+        // component, so every row it draws is read here in a single pass by the
+        // shared region component-attribute-rows.
+        rows = componentAttributeRows(component);
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw translate(e);
+    }
+
+    std::cout << "[service] get_component_attributes " << nodeId << " (kind " << kindOf(component) << "): "
+              << rows.size() << " attribute row(s)";
+    for (const auto& row : rows)
+        std::cout << "\n[service]   " << row.id << " (" << row.name << ") = " << row.value.dump() << "  type "
+                  << row.value_type << ", read_only " << (row.read_only ? "true" : "false");
+    std::cout << std::endl;
+    return rows;
+}
+
+// --- set_component_attribute -----------------------------------------------
+
+void DaqBackend::setComponentAttribute(const std::string& nodeId,
+                                       const std::string& attributeId,
+                                       const service::Json& value)
+{
+    const auto component = impl_->resolve(nodeId);
+    const auto rows = componentAttributeRows(component);
+
+    const service::ComponentAttribute* row = nullptr;
+    std::string everyId;
+    for (const auto& candidate : rows)
+    {
+        everyId += (everyId.empty() ? "" : ", ") + candidate.id;
+        if (candidate.id == attributeId)
+            row = &candidate;
+    }
+
+    if (row == nullptr)
+        throw ServiceError(ErrorCode::NotFound,
+                           "component \"" + nodeId + "\" (kind " + kindOf(component) + ") reports no attribute \"" +
+                               attributeId + "\"; the attributes it reports are " + everyId);
+
+    // openDAQ answers a write to a LOCKED attribute with OPENDAQ_IGNORED, which
+    // is a SUCCESS code -- setName on a component whose "Name" is locked returns
+    // without an error and without changing anything (component_impl.h:541). So
+    // the refusal is read off getLockedAttributes() BEFORE the call and never
+    // inferred from what the call returns.
+    if (row->read_only)
+        throw ServiceError(ErrorCode::ReadOnly,
+                           "attribute \"" + attributeId + "\" of component \"" + nodeId +
+                               "\" is read_only: openDAQ reports it as locked, or it has no setter on the "
+                               "interface at all. Its current value is " + row->value.dump());
+
+    const auto refuseTheValue = [&](const char* wanted)
+    {
+        throw ServiceError(ErrorCode::InvalidValue,
+                           "attribute \"" + attributeId + "\" of component \"" + nodeId + "\" is a " +
+                               row->value_type + " and this request carried " + value.dump() + "; it must be " +
+                               wanted);
+    };
+
+    bool flag = false;
+    std::string text;
+    ListPtr<IString> stringList;
+
+    if (row->value_type == "bool")
+    {
+        if (!value.is_boolean())
+            refuseTheValue("true or false");
+        flag = value.get<bool>();
+    }
+    else if (row->value_type == "string")
+    {
+        if (!value.is_string())
+            refuseTheValue("a JSON string");
+        text = value.get<std::string>();
+    }
+    else if (row->value_type == "string_list")
+    {
+        if (!value.is_array())
+            refuseTheValue("a JSON array of strings");
+        stringList = List<IString>();
+        for (const auto& item : value)
+        {
+            if (!item.is_string())
+                refuseTheValue("a JSON array whose every element is a string");
+            stringList.pushBack(String(item.get<std::string>()));
+        }
+    }
+    else
+    {
+        // int and float are value types this host reports only for last_value,
+        // which is read_only and is refused above, so nothing can arrive here.
+        throw ServiceError(ErrorCode::InvalidValue,
+                           "attribute \"" + attributeId + "\" of component \"" + nodeId + "\" has value_type " +
+                               row->value_type + ", which quackoscope-host-cpp reports only on read-only rows");
+    }
+
+    try
+    {
+        // quack-snippet capability=attribute.write uses=component-attribute-rows step=2
+        // Each attribute has its OWN setter on the interface that declares it;
+        // there is no setAttribute(name, value) anywhere in openDAQ, which is
+        // why this is a branch on the id rather than one call. The reference
+        // reaches the same setters through Python's setattr, which is the same
+        // branch performed by the language.
+        if (attributeId == "name")
+            component.setName(String(text));
+        else if (attributeId == "description")
+            component.setDescription(String(text));
+        else if (attributeId == "active")
+            component.setActive(flag);
+        else if (attributeId == "visible")
+            component.setVisible(flag);
+        else if (attributeId == "public")
+        {
+            // Two interfaces declare `public`, and which one is meant is
+            // whichever this component carries.
+            if (const auto signal = component.asPtrOrNull<ISignal>(); signal.assigned())
+                signal.setPublic(flag);
+            else
+                component.asPtr<IInputPort>().setPublic(flag);
+        }
+        else if (attributeId == "tags")
+        {
+            // ITags itself is read-only; the whole-list write is on ITagsPrivate,
+            // which is reached by an interface query off the same tags object.
+            // This is the row the reference marks unlocked and then never
+            // writes, because its double-click handler has no list branch.
+            component.getTags().asPtr<ITagsPrivate>().replace(stringList);
+        }
+        else
+        {
+            throw ServiceError(ErrorCode::ReadOnly,
+                               "attribute \"" + attributeId + "\" of component \"" + nodeId +
+                                   "\" has no setter in quackoscope-host-cpp");
+        }
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw translate(e, MapContext::AttributeWrite);
+    }
+
+    // The read-back, because openDAQ may coerce and because a locked attribute
+    // is ignored rather than refused: what this prints is what the component
+    // now reports, not what the request asked for.
+    std::string readBack = "not reported";
+    for (const auto& after : componentAttributeRows(component))
+        if (after.id == attributeId)
+            readBack = after.value.dump();
+
+    std::cout << "[service] set_component_attribute " << nodeId << " " << attributeId << " := " << value.dump()
+              << "; openDAQ now reports " << readBack << std::endl;
+}
+
+// --- list_server_types ------------------------------------------------------
+
+std::vector<service::ComponentTypeInfo> DaqBackend::listServerTypes()
+{
+    DictPtr<IString, IServerType> types;
+    try
+    {
+        // quack-snippet capability=server.add uses=instance-with-module-path,component-type-info step=1
+        // What the INSTANCE will accept, which is a different question from what
+        // the loaded modules offer: IInstance::getAvailableServerTypes asks the
+        // instance, and list_loaded_modules asks each module in turn. Every
+        // value carries IComponentType, so the rows are mapped by the same
+        // shared region the Modules view uses.
+        types = impl_->instance.getAvailableServerTypes();
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw ServiceError(service::mapNativeErrorCode(static_cast<std::uint32_t>(e.getErrCode()),
+                                                       MapContext::ServerTypeList),
+                           e.getErrorMessage());
+    }
+
+    std::vector<service::ComponentTypeInfo> out;
+    appendComponentTypes(out, "server", DictPtr<IString, IBaseObject>(types));
+
+    std::cout << "[service] list_server_types: the openDAQ Instance accepts " << out.size() << " server type(s)";
+    for (const auto& type : out)
+        std::cout << "\n[service]   " << type.id << "  (name " << type.name << ", description "
+                  << (type.description ? *type.description : std::string("none")) << ")";
+    std::cout << std::endl;
+    return out;
+}
+
+// --- add_server -------------------------------------------------------------
+
+service::Node DaqBackend::addServer(const std::string& typeId)
+{
+    // Refused as unsupported before the call, exactly as add_function_block
+    // refuses an unknown type id, so that the instance never sees a type id it
+    // did not publish.
+    std::string everyTypeId;
+    bool known = false;
+    for (const auto& type : listServerTypes())
+    {
+        everyTypeId += (everyTypeId.empty() ? "" : ", ") + type.id;
+        if (type.id == typeId)
+            known = true;
+    }
+    if (!known)
+        throw ServiceError(ErrorCode::Unsupported,
+                           "\"" + typeId + "\" is not a server type this openDAQ Instance offers; it offers " +
+                               (everyTypeId.empty() ? std::string("none at all") : everyTypeId));
+
+    ServerPtr server;
+    try
+    {
+        // quack-snippet capability=server.add uses=instance-with-module-path,component-node step=2
+        // addServer takes the type id and a configuration object, and openDAQ
+        // builds the type's default configuration when that second argument is
+        // null. There is no parent: IDevice::onAddServer refuses every device
+        // but the root, which is why the reference's own AddServerDialog stores
+        // the selected component and then calls instance.add_server anyway.
+        // The server it returns is a COMPONENT, parented under the root
+        // device's "Srv" folder, so its global id is a node id like any other.
+        server = impl_->instance.addServer(String(typeId), nullptr);
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw ServiceError(service::mapNativeErrorCode(static_cast<std::uint32_t>(e.getErrCode()),
+                                                       MapContext::ServerAdd),
+                           e.getErrorMessage());
+    }
+
+    if (!server.assigned())
+        throw ServiceError(ErrorCode::Internal,
+                           "openDAQ's IInstance::addServer(\"" + typeId +
+                               "\") reported success but handed back no server object");
+
+    const service::Node node = impl_->buildNode(server.asPtr<IComponent>());
+    std::cout << "[service] add_server " << typeId << " -> node " << node.id << " (name " << node.name << ", kind "
+              << node.kind << ")" << std::endl;
+    return node;
+}
+
+// --- set_server_discovery_enabled -------------------------------------------
+
+void DaqBackend::setServerDiscoveryEnabled(const std::string& nodeId, bool enabled)
+{
+    const auto component = impl_->resolve(nodeId);
+
+    const auto server = serverOrNull(component);  // shared region server-of-component
+    if (!server.assigned())
+        throw ServiceError(ErrorCode::Unsupported,
+                           "component \"" + nodeId + "\" is a " + kindOf(component) +
+                               ", not a server, so set_server_discovery_enabled has nothing to act on");
+
+    try
+    {
+        // quack-snippet capability=server.discovery uses=server-of-component step=2
+        // openDAQ has TWO methods here and no boolean setter, and it has NO
+        // getter at all -- server.h declares stop, getId, enableDiscovery,
+        // getSignals, getStreaming and disableDiscovery, and nothing that
+        // reports whether discovery is currently on. That is why no Node field
+        // carries this state and why the contract's row is a setter with no
+        // matching getter.
+        if (enabled)
+            server.enableDiscovery();
+        else
+            server.disableDiscovery();
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw ServiceError(service::mapNativeErrorCode(static_cast<std::uint32_t>(e.getErrCode()),
+                                                       MapContext::ServerDiscoveryEnable),
+                           e.getErrorMessage());
+    }
+
+    std::cout << "[service] set_server_discovery_enabled " << nodeId << " (server id " << toStd(server.getId())
+              << ") -> " << (enabled ? "enableDiscovery()" : "disableDiscovery()")
+              << " returned without error; openDAQ reports no discovery state back, so this host cannot read the "
+              << "result of that call and does not claim to" << std::endl;
+}
+
+// --- start_recording, stop_recording ----------------------------------------
+
+void DaqBackend::startRecording(const std::string& nodeId)
+{
+    const auto component = impl_->resolve(nodeId);
+
+    const auto recorder = recorderOrNull(component);  // shared region recorder-of-component
+    if (!recorder.assigned())
+        throw ServiceError(ErrorCode::Unsupported,
+                           "component \"" + nodeId + "\" is a " + kindOf(component) +
+                               " that does not carry IRecorder, so start_recording has nothing to act on");
+
+    try
+    {
+        // quack-snippet capability=recorder.control uses=recorder-of-component step=1
+        // The write half of the reference's single Start/Stop button. openDAQ
+        // reports the state back through getIsRecording(), which is what
+        // Node.recording carries, so the button's caption comes from the tree
+        // read and not from what this session last sent.
+        recorder.startRecording();
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw ServiceError(service::mapNativeErrorCode(static_cast<std::uint32_t>(e.getErrCode()),
+                                                       MapContext::RecorderControl),
+                           e.getErrorMessage());
+    }
+
+    std::cout << "[service] start_recording " << nodeId << ": openDAQ now reports is_recording "
+              << (static_cast<bool>(recorder.getIsRecording()) ? "true" : "false") << std::endl;
+}
+
+void DaqBackend::stopRecording(const std::string& nodeId)
+{
+    const auto component = impl_->resolve(nodeId);
+
+    const auto recorder = recorderOrNull(component);  // shared region recorder-of-component
+    if (!recorder.assigned())
+        throw ServiceError(ErrorCode::Unsupported,
+                           "component \"" + nodeId + "\" is a " + kindOf(component) +
+                               " that does not carry IRecorder, so stop_recording has nothing to act on");
+
+    try
+    {
+        // quack-snippet capability=recorder.control uses=recorder-of-component step=2
+        recorder.stopRecording();
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw ServiceError(service::mapNativeErrorCode(static_cast<std::uint32_t>(e.getErrCode()),
+                                                       MapContext::RecorderControl),
+                           e.getErrorMessage());
+    }
+
+    std::cout << "[service] stop_recording " << nodeId << ": openDAQ now reports is_recording "
+              << (static_cast<bool>(recorder.getIsRecording()) ? "true" : "false") << std::endl;
+}
+
+// --- begin_batched_property_update, end_batched_property_update -------------
+
+void DaqBackend::beginBatchedPropertyUpdate(const std::string& nodeId)
+{
+    const auto object = impl_->resolvePropertyObject(nodeId);
+
+    try
+    {
+        // quack-snippet capability=property.batched_update step=1
+        // beginUpdate is RECURSIVE over the component's child property objects,
+        // so one call on a device puts that whole subtree into batch mode. It is
+        // a state of the COMPONENT and not of this socket: every session sees
+        // it, through Node.updating, and every session's set_property_value on
+        // that subtree is held until an endUpdate arrives.
+        object.beginUpdate();
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw ServiceError(service::mapNativeErrorCode(static_cast<std::uint32_t>(e.getErrCode()),
+                                                       MapContext::BatchedPropertyUpdateBegin),
+                           e.getErrorMessage());
+    }
+
+    std::cout << "[service] begin_batched_property_update " << nodeId << ": openDAQ now reports updating "
+              << (static_cast<bool>(object.getUpdating()) ? "true" : "false")
+              << "; every set_property_value on this component and its child property objects is HELD until "
+              << "end_batched_property_update" << std::endl;
+}
+
+void DaqBackend::endBatchedPropertyUpdate(const std::string& nodeId)
+{
+    const auto object = impl_->resolvePropertyObject(nodeId);
+
+    try
+    {
+        // quack-snippet capability=property.batched_update step=2
+        // endUpdate applies everything set since beginUpdate, and RAISES when no
+        // beginUpdate is open. The reference swallows exactly that with a bare
+        // `except RuntimeError: pass`; this host does not, because silence here
+        // would tell a user their batch was applied when nothing was.
+        object.endUpdate();
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw ServiceError(service::mapNativeErrorCode(static_cast<std::uint32_t>(e.getErrCode()),
+                                                       MapContext::BatchedPropertyUpdateEnd),
+                           e.getErrorMessage());
+    }
+
+    std::cout << "[service] end_batched_property_update " << nodeId << ": openDAQ now reports updating "
+              << (static_cast<bool>(object.getUpdating()) ? "true" : "false")
+              << "; the values written since the matching begin have been applied" << std::endl;
+}
+
+// --- save_instance_configuration_to_string ----------------------------------
+
+std::string DaqBackend::saveInstanceConfigurationToString()
+{
+    std::string configuration;
+    try
+    {
+        // quack-snippet capability=configuration.save uses=instance-with-module-path
+        // openDAQ serialises the configuration TO A STRING, and there is no path
+        // overload: device.h declares saveConfiguration(IString** configuration)
+        // and nothing else. So this host writes no file -- the string is what
+        // there is, and it is what crosses the wire.
+        configuration = toStd(impl_->instance.saveConfiguration());
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw ServiceError(service::mapNativeErrorCode(static_cast<std::uint32_t>(e.getErrCode()),
+                                                       MapContext::ConfigurationSave),
+                           e.getErrorMessage());
+    }
+
+    std::cout << "[service] save_instance_configuration_to_string: openDAQ serialised the instance into "
+              << configuration.size() << " characters of JSON" << std::endl;
+    return configuration;
+}
+
+// --- load_instance_configuration_from_string --------------------------------
+
+void DaqBackend::loadInstanceConfigurationFromString(const std::string& configuration)
+{
+    try
+    {
+        // quack-snippet capability=configuration.load uses=instance-with-module-path
+        // The second argument is IUpdateParameters and openDAQ applies its own
+        // defaults when it is null, which is what the reference's own _load_config
+        // path does. This host passes null: the contract's row carries no update
+        // parameters, because carrying the reference's editable board would need
+        // a recursive record type the wire does not have.
+        //
+        // This REPLACES the configuration of every device under the instance in
+        // one call, for every live session at once.
+        impl_->instance.loadConfiguration(String(configuration), nullptr);
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw ServiceError(service::mapNativeErrorCode(static_cast<std::uint32_t>(e.getErrCode()),
+                                                       MapContext::ConfigurationLoad),
+                           e.getErrorMessage());
+    }
+
+    std::cout << "[service] load_instance_configuration_from_string: openDAQ accepted " << configuration.size()
+              << " characters of JSON and applied them to the instance rooted at "
+              << toStd(impl_->instance.getRootDevice().getGlobalId()) << std::endl;
 }
 
 }  // namespace qs::opendaq

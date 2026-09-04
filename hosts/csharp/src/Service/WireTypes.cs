@@ -25,6 +25,17 @@ public sealed class ComponentNode
     public string ConnectionStatus;         // device rows only: connected | reconnecting | unrecoverable | removed
     public string OperationMode;            // device rows only: unknown | idle | operation | safe_operation
 
+    // IPropertyObject::getUpdating -- true while a beginUpdate is open and no
+    // endUpdate has closed it, during which every set_property_value against
+    // this component is HELD rather than applied.
+    public bool? Updating;
+
+    // IRecorder::getIsRecording. null means BOTH "this component is not a
+    // recorder" and "this host did not determine it", which is the conflation
+    // contract types.Node.recording names in as many words; the client draws no
+    // recorder control in either case.
+    public bool? Recording;
+
     public JsonNode ToWireJson()
     {
         var children = new JsonArray();
@@ -45,9 +56,35 @@ public sealed class ComponentNode
             ["component_status"] = ComponentStatus is null ? null : JsonValue.Create(ComponentStatus),
             ["component_status_message"] = ComponentStatusMessage is null ? null : JsonValue.Create(ComponentStatusMessage),
             ["connection_status"] = ConnectionStatus is null ? null : JsonValue.Create(ConnectionStatus),
-            ["operation_mode"] = OperationMode is null ? null : JsonValue.Create(OperationMode)
+            ["operation_mode"] = OperationMode is null ? null : JsonValue.Create(OperationMode),
+            ["updating"] = Updating is null ? null : JsonValue.Create(Updating.Value),
+            ["recording"] = Recording is null ? null : JsonValue.Create(Recording.Value)
         };
     }
+}
+
+// One row of the reference's ATTRIBUTES treeview, as contract
+// types.ComponentAttribute declares it. The set is not fixed: seven come off
+// IComponent, five more if the component casts to ISignal, three more if it
+// casts to IInputPort. A host that cannot perform a cast contributes fewer
+// rows; it never contributes a row whose value is null, which would claim the
+// attribute exists and has no value.
+public sealed class ComponentAttribute
+{
+    public string Id = "";                  // the frozen snake_case wire id, e.g. domain_signal_id
+    public string Name = "";                // the label the reference prints, e.g. "Domain Signal ID"
+    public JsonNode Value;
+    public string ValueType = "";           // bool | int | float | string | string_list
+    public bool ReadOnly;
+
+    public JsonNode ToWireJson() => new JsonObject
+    {
+        ["id"] = Id,
+        ["name"] = Name,
+        ["value"] = Value?.DeepClone(),
+        ["value_type"] = ValueType,
+        ["read_only"] = ReadOnly
+    };
 }
 
 // One component type a module offers, as contract types.ComponentTypeInfo

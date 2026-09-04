@@ -46,6 +46,33 @@ const std::vector<ContractOperation> kOperationTable = {
     // ALL-OF capability semantics they have to be separate for a host to be
     // able to serve the list without serving the loader.
     {"load_module_from_host_path", "module.load"},
+    // attribute.read and attribute.write are two capabilities over one panel
+    // for the same reason property.read and property.write are: reading and
+    // writing are separately grantable, and a host that can read attributes but
+    // not write them must be able to say so through the gap rather than by
+    // reporting read_only on every row, which would claim openDAQ locked them.
+    {"get_component_attributes", "attribute.read"},
+    {"set_component_attribute", "attribute.write"},
+    // server.discovery is separate from server.add because the discovery items
+    // act on a server row this session may not have created: a host that
+    // publishes servers from its own configuration can enable discovery on them
+    // without ever letting a client create one.
+    {"list_server_types", "server.add"},
+    {"add_server", "server.add"},
+    {"set_server_discovery_enabled", "server.discovery"},
+    {"start_recording", "recorder.control"},
+    {"stop_recording", "recorder.control"},
+    // property.batched_update is separate from property.write, and the
+    // direction of that split matters: folded together, a host that cannot
+    // reach beginUpdate would have to withhold property.write, which disables
+    // every property editor in the application.
+    {"begin_batched_property_update", "property.batched_update"},
+    {"end_batched_property_update", "property.batched_update"},
+    // configuration.save is separate from configuration.load because saving
+    // serialises and reads nothing else, while loading REPLACES the
+    // configuration of every device under the instance in one call.
+    {"save_instance_configuration_to_string", "configuration.save"},
+    {"load_instance_configuration_from_string", "configuration.load"},
 };
 
 // The reason this host declares for a capability it does not serve. A gap is

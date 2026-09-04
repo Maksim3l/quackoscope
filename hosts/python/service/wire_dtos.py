@@ -15,7 +15,8 @@ class Node:
     def __init__(self):
         self.id = ""
         self.name = ""
-        self.kind = ""          # "device" | "channel" | "function_block" | "signal" | "folder"
+        self.kind = ""          # "device" | "channel" | "function_block" | "signal"
+                                # | "folder" | "server"
         self.parent_id = None
         self.child_ids = []
         self.property_ids = []
@@ -27,6 +28,12 @@ class Node:
                                               # | "unrecoverable" | "removed"
         self.operation_mode = None            # device rows only; "unknown" | "idle"
                                               # | "operation" | "safe_operation"
+        self.updating = None                  # IPropertyObject.updating: a begin_batched_property_
+                                              # update is open on this component and every
+                                              # set_property_value against it is being HELD
+        self.recording = None                 # IRecorder.is_recording; null on every component
+                                              # that does not carry IRecorder at all, which is
+                                              # what tells a client to draw no Start/Stop control
 
 
 class ComponentTypeInfo:
@@ -71,6 +78,37 @@ class PropertyDescriptor:
         self.coercer = None     # EvalValue source, display only
 
 
+class ComponentAttribute:
+    """One row of the ATTRIBUTES panel, which is a different surface from the
+    properties panel and reads a different thing: an attribute is a fixed member
+    of the openDAQ interface itself (IComponent.name, ISignal.public,
+    IInputPort.requires_signal), reached with getattr/setattr, never through
+    get_property_value.
+
+    read_only is openDAQ's answer about the COMPONENT -- the reference's own
+    hardcoded Locked flag plus IComponent.locked_attributes -- and never this
+    host's answer about itself. A host with no writer declares no
+    attribute.write capability; it does not report read_only true.
+    """
+
+    def __init__(self):
+        self.id = ""
+        self.name = ""          # the label the reference prints: "Global ID", "Domain Signal ID"
+        self.value = None
+        self.value_type = ""    # "bool" | "int" | "float" | "string" | "string_list"
+        self.read_only = False
+
+
+def component_attribute_to_json(attribute):
+    return {
+        "id": attribute.id,
+        "name": attribute.name,
+        "value": attribute.value,
+        "value_type": attribute.value_type,
+        "read_only": attribute.read_only,
+    }
+
+
 def node_to_json(node):
     return {
         "id": node.id,
@@ -85,6 +123,8 @@ def node_to_json(node):
         "component_status_message": node.component_status_message,
         "connection_status": node.connection_status,
         "operation_mode": node.operation_mode,
+        "updating": node.updating,
+        "recording": node.recording,
     }
 
 

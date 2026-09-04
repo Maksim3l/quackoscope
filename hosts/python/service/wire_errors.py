@@ -171,6 +171,39 @@ _BY_NATIVE_MESSAGE = (
     # rejecting the value. Provoked with
     # set_property_value("GlobalSampleRate", "not-a-float") on daqref://device0.
     ("failed to set property value", INVALID_VALUE),
+    # ---- IDevice::addServer, the server.add operation ----
+    #
+    # openDAQ 3.41.0_bec37b44's own wording on this machine, provoked by calling
+    # instance.add_server("OpenDAQNativeStreaming", None) twice on one instance:
+    #     RuntimeError: Device "OpenDAQClient" already has an
+    #     OpenDAQNativeStreaming server capability.
+    # The first call succeeds and the second is refused. This is the contract's
+    # invalid_value for add_server -- "the type exists and the instance refused
+    # this addition" -- and NOT its internal, which the contract reserves for a
+    # failure that is "not about type_id at all - a port already bound, a
+    # permission refused". This refusal is entirely about type_id, so without
+    # this row it would fall through to internal and say "this host does not
+    # know what happened" about a refusal the host does understand.
+    ("server capability", INVALID_VALUE),
+    # ---- IPropertyObject::endUpdate, the property.batched_update pair ----
+    #
+    # openDAQ 3.41.0_bec37b44's own wording on this machine, provoked by calling
+    # end_update() twice on the IPropertyObject facet of daqref://device0:
+    #     RuntimeError: The object is not in updating state
+    # end_batched_property_update declares [not_found, not_connected,
+    # invalid_value], and a well-formed call the STATE refuses is exactly
+    # invalid_value. The host also checks IPropertyObject.updating before it
+    # calls, so this phrase is what catches the race where a second session ends
+    # the batch between that read and the call.
+    ("not in updating state", INVALID_VALUE),
+    # ---- IDevice::loadConfiguration, the configuration.load operation ----
+    #
+    # Also read off the running SDK, by handing load_configuration the string
+    # "not a configuration":
+    #     RuntimeError: Error when parsing or deserializing
+    # The contract names exactly this as invalid_value: "the string is not a
+    # configuration openDAQ will load - not parseable".
+    ("error when parsing or deserializing", INVALID_VALUE),
     # The bindings' wording for a failed interface cast, e.g. asking a folder
     # for IDevice. The object does not carry the facet the call needs.
     ("does not implement this interface", UNSUPPORTED),

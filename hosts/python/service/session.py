@@ -1,8 +1,9 @@
 """Quackoscope host (Python) -- service layer.
 
-The fourteen operations of the M1 contract this host serves, the per-session
-registries that decide what a session may address, and the data-plane path that
-turns a block of samples into one binary frame. Nothing here imports opendaq;
+The operations of the M1 contract this host serves -- exactly the wire methods
+SERVED_WIRE_METHODS names below -- the per-session registries that decide what a
+session may address, and the data-plane path that turns a block of samples into
+one binary frame. Nothing here imports opendaq;
 nothing here talks to a socket except through the connection object the
 transport hands over.
 """
@@ -13,7 +14,13 @@ import threading
 from transport import wire
 
 from .sample_decimator import decimate_to_pixel_columns
-from .wire_dtos import module_info_to_json, node_to_json, property_descriptor_to_json
+from .wire_dtos import (
+    component_attribute_to_json,
+    component_type_info_to_json,
+    module_info_to_json,
+    node_to_json,
+    property_descriptor_to_json,
+)
 from .wire_errors import (
     INTERNAL,
     INVALID_VALUE,
@@ -43,17 +50,34 @@ SERVED_WIRE_METHODS = (
     "unlock_device",
     "list_loaded_modules",
     "load_module_from_host_path",
+    "get_component_attributes",
+    "set_component_attribute",
+    "list_server_types",
+    "add_server",
+    "set_server_discovery_enabled",
+    "start_recording",
+    "stop_recording",
+    "begin_batched_property_update",
+    "end_batched_property_update",
+    "save_instance_configuration_to_string",
+    "load_instance_configuration_from_string",
 )
 
 # Which code stands for "this session cannot address that node", per operation.
 #
 # _require_node_reachable_from_session answers not_connected when the session
-# holds no device at all, because that is the truer statement -- but four of the
-# five new operations do not declare not_connected in
-# contract/contract.yaml, and answering a code outside an operation's declared
-# subset is a conformance defect. For those, the same condition is reported as
-# not_found: from the session's side the node genuinely does not exist, since a
-# device another session connected is not addressable here either.
+# holds no device at all, because that is the truer statement -- but several
+# operations do not declare not_connected in contract/contract.yaml, and
+# answering a code outside an operation's declared subset is a conformance
+# defect. For those, the same condition is reported as not_found: from the
+# session's side the node genuinely does not exist, since a device another
+# session connected is not addressable here either. The comment on each row is
+# that operation's declared subset, so the choice can be checked against the
+# contract without leaving this table.
+#
+# set_server_discovery_enabled is deliberately ABSENT: a server is added to the
+# shared openDAQ Instance and belongs to no session, so that row resolves its
+# node globally. _set_server_discovery_enabled says why where it does it.
 _UNREACHABLE_NODE_CODE_BY_WIRE_METHOD = {
     "get_component_tree": NOT_CONNECTED,        # errors [not_connected, not_found]
     "get_property_descriptors": NOT_CONNECTED,  # errors [not_found, not_connected]
@@ -65,14 +89,46 @@ _UNREACHABLE_NODE_CODE_BY_WIRE_METHOD = {
                                                 #         unsupported]
     "lock_device": NOT_FOUND,                   # errors [not_found, read_only, unsupported]
     "unlock_device": NOT_FOUND,                 # errors [not_found, read_only, unsupported]
+    "get_component_attributes": NOT_CONNECTED,  # errors [not_found, not_connected]
+    "set_component_attribute": NOT_FOUND,       # errors [not_found, read_only, invalid_value]
+    "begin_batched_property_update": NOT_CONNECTED,  # errors [not_found, not_connected]
+    "end_batched_property_update": NOT_CONNECTED,    # errors [not_found, not_connected,
+                                                     #         invalid_value]
+    "start_recording": NOT_FOUND,               # errors [not_found, unsupported, internal]
+    "stop_recording": NOT_FOUND,                # errors [not_found, unsupported, internal]
 }
 
 
-def _require_string(params, key):
+def _require_string(params, key, bad_type_code=INVALID_VALUE, wire_method=None, declared=None):
+    """A string parameter, or a refusal inside the operation's declared subset.
+
+    invalid_value is the honest code for a parameter of the wrong type and it is
+    the default. But several operations do not declare it -- get_component_
+    attributes declares [not_found, not_connected], start_recording declares
+    [not_found, unsupported, internal] -- and answering outside an operation's
+    declared subset is a conformance defect. Those callers pass the code they
+    may use, and the refusal then says what it was sent, what the subset is, and
+    why the code it answered is the one it answered.
+    """
     value = params.get(key)
-    if not isinstance(value, str):
+    if isinstance(value, str):
+        return value
+    if bad_type_code == INVALID_VALUE:
         raise ServiceError(INVALID_VALUE, "params.%s must be a string" % key)
-    return value
+    raise ServiceError(
+        bad_type_code,
+        "params.%s must be a string; it was %r (%s). contract/contract.yaml declares only [%s] "
+        "for %s, and invalid_value is not among them, so a parameter of the wrong type is "
+        "reported as %s"
+        % (
+            key,
+            value,
+            type(value).__name__,
+            ", ".join(declared or ()),
+            wire_method,
+            bad_type_code,
+        ),
+    )
 
 
 def _parse_whole_uint32(text):
@@ -241,6 +297,28 @@ class SessionHub:
             return self._list_loaded_modules(state, params)
         if method == "load_module_from_host_path":
             return self._load_module_from_host_path(state, params)
+        if method == "get_component_attributes":
+            return self._get_component_attributes(state, params)
+        if method == "set_component_attribute":
+            return self._set_component_attribute(state, params)
+        if method == "list_server_types":
+            return self._list_server_types(state, params)
+        if method == "add_server":
+            return self._add_server(state, params)
+        if method == "set_server_discovery_enabled":
+            return self._set_server_discovery_enabled(state, params)
+        if method == "start_recording":
+            return self._start_recording(state, params)
+        if method == "stop_recording":
+            return self._stop_recording(state, params)
+        if method == "begin_batched_property_update":
+            return self._begin_batched_property_update(state, params)
+        if method == "end_batched_property_update":
+            return self._end_batched_property_update(state, params)
+        if method == "save_instance_configuration_to_string":
+            return self._save_instance_configuration_to_string(state, params)
+        if method == "load_instance_configuration_from_string":
+            return self._load_instance_configuration_from_string(state, params)
         raise ServiceError(
             UNSUPPORTED,
             'unknown method "%s"; quackoscope-host-python serves %s'
@@ -264,8 +342,10 @@ class SessionHub:
                 "another session connected is not visible here)",
             )
 
-    def _require_node_reachable_from_session(self, state, params, key, wire_method):
-        node_id = _require_string(params, key)
+    def _require_node_reachable_from_session(
+        self, state, params, key, wire_method, bad_type_code=INVALID_VALUE, declared=None
+    ):
+        node_id = _require_string(params, key, bad_type_code, wire_method, declared)
         with self._lock:
             held = dict(state.device_node_ids_by_connection_string)
         for device_node_id in held.values():
@@ -526,6 +606,200 @@ class SessionHub:
         # its module directory are known.
         host_path = _require_string(params, "host_path")
         return module_info_to_json(self._backend.load_module_from_host_path(host_path))
+
+
+    # --- attribute.read / attribute.write -----------------------------------
+
+    def _get_component_attributes(self, state, params):
+        self._require_device_in_session(state, "get_component_attributes")
+        node_id = self._require_node_reachable_from_session(
+            state,
+            params,
+            "node_id",
+            "get_component_attributes",
+            NOT_FOUND,
+            ("not_found", "not_connected"),
+        )
+        return [
+            component_attribute_to_json(attribute)
+            for attribute in self._backend.get_component_attributes(node_id)
+        ]
+
+    def _set_component_attribute(self, state, params):
+        self._require_device_in_session(state, "set_component_attribute")
+        if "value" not in params:
+            raise ServiceError(INVALID_VALUE, "params.value is required")
+        node_id = self._require_node_reachable_from_session(
+            state, params, "node_id", "set_component_attribute"
+        )
+        attribute_id = _require_string(params, "attribute_id")
+        self._backend.set_component_attribute(node_id, attribute_id, params["value"])
+        return None
+
+    # --- server.add ---------------------------------------------------------
+
+    def _list_server_types(self, state, params):
+        # No device is required, for the same reason list_loaded_modules needs
+        # none: available_server_types is a fact about the openDAQ Instance this
+        # process built, and the add-server grid is exactly what a client opens
+        # BEFORE it has connected anything. The only not_connected this
+        # operation can answer is the one _look_up_session already raised for a
+        # socket that is gone.
+        return [
+            component_type_info_to_json(component_type)
+            for component_type in self._backend.list_server_types()
+        ]
+
+    def _add_server(self, state, params):
+        # No device either, and no parent_id: contract/contract.yaml carries no
+        # parent on this row because openDAQ's IDevice::onAddServer refuses
+        # every parent but the root device, so the parameter would have exactly
+        # one legal value.
+        type_id = _require_string(params, "type_id")
+        return node_to_json(self._backend.add_server(type_id))
+
+    # --- server.discovery ---------------------------------------------------
+
+    def _set_server_discovery_enabled(self, state, params):
+        # NOT scoped to the devices this session connected, and that is a
+        # decision rather than an oversight. A server is added to the shared
+        # openDAQ Instance -- add_server calls IDevice::addServer on the
+        # instance root, never on a session's device -- so a server node lives
+        # exactly where the loaded modules live: on process-global state that no
+        # session owns. Scoping this call to a session's own devices would make
+        # every server unaddressable, including the one this session just added.
+        # What it does NOT open up is any other node: anything that is not an
+        # IServer is answered `unsupported` one layer down.
+        node_id = _require_string(
+            params,
+            "node_id",
+            NOT_FOUND,
+            "set_server_discovery_enabled",
+            ("not_found", "unsupported", "internal"),
+        )
+        enabled = params.get("enabled")
+        if not isinstance(enabled, bool):
+            # set_server_discovery_enabled declares [not_found, unsupported,
+            # internal] and none of those can say "bad parameter". `internal`
+            # means "this host does not know what happened", which would be
+            # false here, so the refusal names the exact value it was sent and
+            # reports not_found -- the one of the three that is about the
+            # request rather than about the SDK.
+            raise ServiceError(
+                NOT_FOUND,
+                "params.enabled must be a bool naming which of IServer.enable_discovery() and "
+                "IServer.disable_discovery() to call; it was %r (%s). "
+                "contract/contract.yaml declares only [not_found, unsupported, internal] for "
+                "set_server_discovery_enabled, so there is no invalid_value to answer with"
+                % (enabled, type(enabled).__name__),
+            )
+        self._backend.set_server_discovery_enabled(node_id, enabled)
+        return None
+
+    # --- recorder.control ---------------------------------------------------
+
+    def _start_recording(self, state, params):
+        self._require_device_in_session(state, "start_recording")
+        node_id = self._require_node_reachable_from_session(
+            state,
+            params,
+            "node_id",
+            "start_recording",
+            NOT_FOUND,
+            ("not_found", "unsupported", "internal"),
+        )
+        self._backend.start_recording(node_id)
+        return None
+
+    def _stop_recording(self, state, params):
+        self._require_device_in_session(state, "stop_recording")
+        node_id = self._require_node_reachable_from_session(
+            state,
+            params,
+            "node_id",
+            "stop_recording",
+            NOT_FOUND,
+            ("not_found", "unsupported", "internal"),
+        )
+        self._backend.stop_recording(node_id)
+        return None
+
+    # --- property.batched_update --------------------------------------------
+
+    def _begin_batched_property_update(self, state, params):
+        self._require_device_in_session(state, "begin_batched_property_update")
+        node_id = self._require_node_reachable_from_session(
+            state,
+            params,
+            "node_id",
+            "begin_batched_property_update",
+            NOT_FOUND,
+            ("not_found", "not_connected"),
+        )
+        self._backend.begin_batched_property_update(node_id)
+        return None
+
+    def _end_batched_property_update(self, state, params):
+        self._require_device_in_session(state, "end_batched_property_update")
+        node_id = self._require_node_reachable_from_session(
+            state, params, "node_id", "end_batched_property_update"
+        )
+        # WHO MAY END A BATCH IS NOT RULED by contract/contract.yaml, which says
+        # so in as many words on this row and calls it the same open question
+        # already escalated for device.lock. This host therefore invents no
+        # policy: it neither refuses a session that did not open the batch nor
+        # ends an abandoned batch when its opener disconnects. What it does is
+        # make the state visible -- Node.updating rides on every row of the tree
+        # read -- and answer invalid_value, never silence, when no batch is open.
+        self._backend.end_batched_property_update(node_id)
+        return None
+
+    # --- configuration.save / configuration.load ----------------------------
+
+    def _save_instance_configuration_to_string(self, state, params):
+        # No device required: the configuration is the whole Instance's, and
+        # File > Save configuration is reachable before anything is connected.
+        configuration = self._backend.save_instance_configuration_to_string()
+
+        # The frame limit is checked HERE, on the host, before the result is
+        # sent -- contract/contract.yaml assigns the save direction's check to
+        # the host and the load direction's to the client, because an oversize
+        # request may never arrive as a parseable envelope and would leave the
+        # host with no id to answer. The measurement is the real one: the result
+        # envelope the transport is about to encode, with a ten-digit request id
+        # standing in for the actual one, which is the widest id
+        # transport/wire.py will accept.
+        limit = self._handshake_message["limits"]["max_frame_bytes"]
+        encoded_frame_bytes = len(
+            json.dumps(
+                {"id": 4294967295, "result": configuration}, separators=(",", ":")
+            ).encode("utf-8")
+        )
+        if encoded_frame_bytes > limit:
+            raise ServiceError(
+                INTERNAL,
+                "the saved configuration does not fit this host's declared frame limit: "
+                "IDevice.save_configuration answered %d character(s), which encode to %d byte(s) "
+                "as the result envelope, and handshake.limits.max_frame_bytes is %d. Nothing was "
+                "truncated and nothing was sent. A host expecting configurations this large "
+                "declares a larger max_frame_bytes"
+                % (len(configuration), encoded_frame_bytes, limit),
+            )
+        print(
+            "[service] save_instance_configuration_to_string is sending %d character(s); the "
+            "result envelope encodes to %d byte(s) against the handshake's max_frame_bytes of %d"
+            % (len(configuration), encoded_frame_bytes, limit),
+            flush=True,
+        )
+        return configuration
+
+    def _load_instance_configuration_from_string(self, state, params):
+        # A non-string configuration is invalid_value, which
+        # load_instance_configuration_from_string declares, and it is the same
+        # reading _require_string gives every other string parameter.
+        configuration = _require_string(params, "configuration")
+        self._backend.load_instance_configuration_from_string(configuration)
+        return None
 
     # --- data plane ---------------------------------------------------------
 

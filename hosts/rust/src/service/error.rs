@@ -106,6 +106,16 @@ pub enum MapContext {
     /// Internal, because no other operation raises it, and the second to
     /// ReadOnly, which load_module_from_host_path does not declare at all.
     ModuleLoad,
+    /// daqDevice_loadConfiguration. openDAQ answers a string that is not a
+    /// configuration with a DESERIALIZE code, and the general table sends every
+    /// one of those to Internal because no other operation raises them.
+    /// contract/contract.yaml is explicit that this row must not do that: it
+    /// gives the unparseable string `invalid_value` and says in as many words
+    /// that "the UI must render it as 'the host would not load this file', not
+    /// as a fault". Driven against the real SDK this is not hypothetical -- the
+    /// string "this is not an openDAQ configuration" came back as
+    /// OPENDAQ_ERR_DESERIALIZE_PARSE_ERROR (0x80000021).
+    ConfigurationLoad,
 }
 
 // openDAQ builds a status code as 0x80000000 | (typeId << 16) | code.
@@ -130,6 +140,10 @@ const NOT_SUPPORTED: u32 = 0x8000_0041; // OPENDAQ_ERR_NOT_SUPPORTED
 const INVALID_ARGUMENT: u32 = 0x8000_0051; // OPENDAQ_ERR_INVALID_ARGUMENT
 const DEVICE_LOCKED: u32 = 0x8000_0052; // OPENDAQ_ERR_DEVICE_LOCKED
 const NO_INTERFACE: u32 = 0x8000_4002; // OPENDAQ_ERR_NOINTERFACE
+const PARSE_FAILED: u32 = 0x8000_000D; // OPENDAQ_ERR_PARSEFAILED
+const DESERIALIZE_PARSE_ERROR: u32 = 0x8000_0021; // OPENDAQ_ERR_DESERIALIZE_PARSE_ERROR
+const DESERIALIZE_UNKNOWN_TYPE: u32 = 0x8000_0022; // OPENDAQ_ERR_DESERIALIZE_UNKNOWN_TYPE
+const DESERIALIZE_NO_TYPE: u32 = 0x8000_0023; // OPENDAQ_ERR_DESERIALIZE_NO_TYPE
 const COMPONENT_REMOVED: u32 = 0x800E_0000; // OPENDAQ_ERR_COMPONENT_REMOVED
 
 /// Native openDAQ status code -> closed set. Anything unrecognised is Internal.
@@ -147,6 +161,16 @@ pub fn map_native_error_code(native: u32, context: MapContext) -> ErrorCode {
         // OPENDAQ_IGNORED (0x00000006, the failure bit clear) and hands back the
         // module that is already loaded.
         ALREADY_EXISTS | DUPLICATE_ITEM | ACCESS_DENIED if context == MapContext::ModuleLoad => {
+            ErrorCode::InvalidValue
+        }
+        // A configuration string openDAQ will not deserialise is a refusal of
+        // THIS STRING, which is what the user handed over -- not an internal
+        // fault of the instance. The four codes are the ones the serialisation
+        // layer raises: OPENDAQ_ERR_PARSEFAILED for a malformed document and the
+        // three DESERIALIZE codes for a document whose types it cannot rebuild.
+        PARSE_FAILED | DESERIALIZE_PARSE_ERROR | DESERIALIZE_UNKNOWN_TYPE | DESERIALIZE_NO_TYPE
+            if context == MapContext::ConfigurationLoad =>
+        {
             ErrorCode::InvalidValue
         }
         NOT_FOUND => {

@@ -79,15 +79,33 @@ async function startMockHost(): Promise<number> {
   console.log(`[host] device      ${device.getDeviceNode().id} "${device.getDeviceNode().name}", ${device.componentCount()} components`);
   for (const node of device.getComponentTree(device.getDeviceNode().id)) {
     console.log(
-      `[host]   ${node.id.padEnd(28)} kind ${node.kind.padEnd(14)} active ${String(node.active).padEnd(5)} ` +
+      `[host]   ${node.id.padEnd(50)} kind ${node.kind.padEnd(14)} active ${String(node.active).padEnd(5)} ` +
         `locked ${String(node.locked).padEnd(5)} component_status ${String(node.component_status).padEnd(7)} ` +
-        `connection_status ${String(node.connection_status).padEnd(9)} operation_mode ${node.operation_mode}`,
+        `connection_status ${String(node.connection_status).padEnd(9)} operation_mode ${String(node.operation_mode).padEnd(9)} ` +
+        `updating ${String(node.updating).padEnd(5)} recording ${node.recording}`,
     );
   }
   console.log(
     `[host] modes       device operation mode is "${device.currentOperationMode()}"; get_device_operation_modes offers ${device.describeOfferedOperationModes()}`,
   );
   console.log(`[host] modules     list_loaded_modules answers with ${device.describeLoadedModulesForTheLog()}`);
+  console.log(`[host] attributes  get_component_attributes reports ${device.describeAttributeSurfaceForTheLog()}`);
+  console.log(`[host] servers     list_server_types offers ${device.describeServerTypesForTheLog()}`);
+  console.log(
+    `[host]             the tree already carries ${device.describeServersForTheLog()}; every one of them binds no ` +
+      "socket, so this process listens on exactly one port and it is the one below",
+  );
+  console.log(
+    `[host] recorders   start_recording and stop_recording act on ${device.recorderNodeIds().length} row(s): ` +
+      `${device.recorderNodeIds().join(", ") || "none"}. Those are the only rows reporting a non-null Node.recording; ` +
+      "every other row reports null there, which is what tells a client to draw no Start/Stop control",
+  );
+  console.log(
+    `[host] batches     ${device.nodeIdsInsideAnOpenBatch().length} component(s) are inside an open batched update at ` +
+      `startup, holding ${device.heldPropertyWriteCount()} unapplied property write(s). Whether a session may end a ` +
+      "batch it did not begin is open in contract/contract.yaml and this host does not answer it: the depth is kept " +
+      "on the component, as openDAQ's own IPropertyObject keeps it",
+  );
   console.log(`[host] dist        ${options.distDirectory}${existsSync(options.distDirectory) ? "" : "  (missing: the SPA will 404 until it is built; /ws still serves the contract)"}`);
   console.log(`[host] protocol    ${PROTOCOL_VERSION}, limits max_subscriptions ${MAX_SUBSCRIPTIONS}, max_frame_bytes ${MAX_FRAME_BYTES}`);
   printHandshakeItWillSend();

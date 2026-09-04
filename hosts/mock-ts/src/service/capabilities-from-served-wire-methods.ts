@@ -2,9 +2,12 @@
 //
 // Two settled rules of contract/contract.yaml section 4 live here:
 //
-//   * `capabilities` is a list of CAPABILITY IDS -- the eight ids of section 4
-//     and nothing else. Wire method names and event names are not capability
-//     ids and must never appear in that field.
+//   * `capabilities` is a list of CAPABILITY IDS -- the ids of section 4 and
+//     nothing else; the count is whatever BASELINE_CAPABILITY_IDS carries, and
+//     is deliberately not written down here, because a number written down is a
+//     number that goes stale (it has already gone from 8 to 12 to 20). Wire
+//     method names and event names are not capability ids and must never appear
+//     in that field.
 //   * `gap_generation.host_may_declare_gap_list: false`. The gap list is
 //     COMPUTED as baseline minus declared capabilities. A host writes only the
 //     reason per capability it does not serve.
@@ -30,11 +33,23 @@ export interface ContractOperation {
   capability: CapabilityId;
 }
 
-// The 19 rows of contract/contract.yaml section 5, in the order that file
-// lists them. The last six arrived with the contract's four newest
-// capabilities -- device.mode, device.lock, module.read and module.load -- and
-// the verification below is what forced them in: it throws at module load
-// naming any wire method that contract-types.ts has and this table does not.
+// The 30 rows of contract/contract.yaml section 5, in the order that file
+// lists them. The verification below is what forces each new one in: it throws
+// at module load naming any wire method that contract-types.ts has and this
+// table does not.
+//
+// It has now caught four contract growths nobody announced to this host. The
+// most recent was the eleven rows below the module pair -- the two attribute
+// rows, the three server rows, the two recorder rows, the two batched-update
+// rows and the two configuration rows -- which arrived with eight new
+// capability ids and stopped this process at import with:
+//
+//   Error: wire method "get_component_attributes" is in
+//   generated/typescript/contract-types.ts but missing from the operation table
+//   of hosts/mock-ts/src/service/capabilities-from-served-wire-methods.ts
+//
+// That is the guard working: the alternative is a host whose handshake silently
+// keeps describing an older contract.
 const CONTRACT_OPERATION_TABLE: readonly ContractOperation[] = [
   { wireMethod: "scan_available_devices", capability: "device.scan" },
   { wireMethod: "connect_device", capability: "device.connect" },
@@ -55,6 +70,17 @@ const CONTRACT_OPERATION_TABLE: readonly ContractOperation[] = [
   { wireMethod: "unlock_device", capability: "device.lock" },
   { wireMethod: "list_loaded_modules", capability: "module.read" },
   { wireMethod: "load_module_from_host_path", capability: "module.load" },
+  { wireMethod: "get_component_attributes", capability: "attribute.read" },
+  { wireMethod: "set_component_attribute", capability: "attribute.write" },
+  { wireMethod: "list_server_types", capability: "server.add" },
+  { wireMethod: "add_server", capability: "server.add" },
+  { wireMethod: "set_server_discovery_enabled", capability: "server.discovery" },
+  { wireMethod: "start_recording", capability: "recorder.control" },
+  { wireMethod: "stop_recording", capability: "recorder.control" },
+  { wireMethod: "begin_batched_property_update", capability: "property.batched_update" },
+  { wireMethod: "end_batched_property_update", capability: "property.batched_update" },
+  { wireMethod: "save_instance_configuration_to_string", capability: "configuration.save" },
+  { wireMethod: "load_instance_configuration_from_string", capability: "configuration.load" },
 ];
 
 const GENERATED_CONTRACT_FILE = "generated/typescript/contract-types.ts";
@@ -119,7 +145,7 @@ export function wireMethodsOwnedBy(capability: CapabilityId): WireMethodName[] {
  * operations[].capability "two views of one mapping [that] must agree exactly
  * in both directions" -- there is no partial reference to half a capability.
  * gap_generation.computed_as is baseline_capabilities_minus_host_capabilities,
- * so `capabilities` and `gaps` are exactly complementary over the eight ids,
+ * so `capabilities` and `gaps` are exactly complementary over the baseline ids,
  * and gap_kinds.host is "the handler has not been written yet". Declare a
  * capability on a subset of its operations and the unwritten handler is stated
  * NOWHERE in the handshake: not in `capabilities`, which claims it works, and

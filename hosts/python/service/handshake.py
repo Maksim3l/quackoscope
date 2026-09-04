@@ -125,6 +125,40 @@ CAPABILITY_IDS_BY_WIRE_METHOD = {
     # for exactly that reason, and under all-of capability semantics a host that
     # served only the list could not withhold the loader if they shared an id.
     "load_module_from_host_path": ("module.load",),
+    # attribute.read and attribute.write are two ids and not one, and the split
+    # is the reason a reader-only host can still draw the panel: under a single
+    # id, a host that could read attributes but not write them would have to
+    # report ComponentAttribute.read_only true on every row to disable the
+    # editors, and read_only is openDAQ's statement that the COMPONENT locked
+    # the attribute -- a cause such a host has not established. Two ids let the
+    # editors be disabled from the gap instead.
+    "get_component_attributes": ("attribute.read",),
+    "set_component_attribute": ("attribute.write",),
+    # list_server_types draws the add-server card grid and add_server is the
+    # commit on a card, which is the same shape function_block.add already has:
+    # one capability over the pair.
+    "list_server_types": ("server.add",),
+    "add_server": ("server.add",),
+    # server.discovery and not server.add: the discovery items act on a server
+    # row this session may not have created, and a host that publishes servers
+    # from its own configuration can call enableDiscovery without letting a
+    # client create servers at all.
+    "set_server_discovery_enabled": ("server.discovery",),
+    "start_recording": ("recorder.control",),
+    "stop_recording": ("recorder.control",),
+    # property.batched_update and not property.write. Folded into property.write,
+    # a host whose binding could not reach beginUpdate would have to withhold
+    # property.write, which disables every property editor in the application;
+    # split, it loses the batch control only.
+    "begin_batched_property_update": ("property.batched_update",),
+    "end_batched_property_update": ("property.batched_update",),
+    # configuration.save and configuration.load are split for the module.read /
+    # module.load reason with a larger blast radius: saving serialises and reads
+    # nothing else, while loading replaces the configuration of every device
+    # under the instance in one call. Under one id a host could not offer the
+    # export without the overwrite.
+    "save_instance_configuration_to_string": ("configuration.save",),
+    "load_instance_configuration_from_string": ("configuration.load",),
 }
 
 
@@ -132,8 +166,8 @@ def _verify_operation_table_against_generated_contract():
     """Stops the host if the hand-written table above and the generated
     contract disagree about the wire methods or the capability ids. Neither
     count is written down here: both are read off the generated file, so the
-    contract growing from 13 operations to 18 and from 8 capabilities to 11
-    changes nothing in this function."""
+    contract growing from 19 operations to 30 and from 12 capabilities to 20
+    changed nothing in this function."""
     for wire_method, capability_ids in CAPABILITY_IDS_BY_WIRE_METHOD.items():
         if wire_method not in WIRE_METHOD_NAMES:
             raise SystemExit(

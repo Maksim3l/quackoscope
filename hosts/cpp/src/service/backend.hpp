@@ -32,7 +32,7 @@ public:
     // Server push. Installed once, before the transport starts accepting.
     virtual void setEventSink(EventSink sink) = 0;
 
-    // --- the eighteen operations this host serves ---------------------------
+    // --- the twenty-nine operations this host serves -------------------------
     //
     // One method per wire method of contract section 5, minus read_samples_raw:
     // streaming.raw is a declared gap, see hosts/cpp/src/service/handshake.cpp.
@@ -76,6 +76,54 @@ public:
     // The answer is the module that was loaded, in the same shape
     // listLoadedModules reports, so a caller needs no second request.
     virtual ModuleInfo loadModuleFromHostPath(const std::string& hostPath) = 0;
+
+    // The ATTRIBUTES of one component: the fixed members of the openDAQ
+    // interfaces the component carries, which is a different surface from its
+    // properties. The row set is not fixed -- a signal has five rows an input
+    // port does not -- so a component whose cast does not succeed simply yields
+    // fewer rows rather than rows with null values.
+    virtual std::vector<ComponentAttribute> getComponentAttributes(const std::string& nodeId) = 0;
+    // Writes one of them. Refusal because the attribute is read_only is the
+    // caller's to report as read_only; this throws ServiceError already
+    // classified, because openDAQ answers a locked attribute write with
+    // OPENDAQ_IGNORED -- a SUCCESS code -- so the refusal has to be detected
+    // before the write and never after it.
+    virtual void setComponentAttribute(const std::string& nodeId,
+                                       const std::string& attributeId,
+                                       const Json& value) = 0;
+
+    // The server types the INSTANCE will accept, which is not the same list as
+    // the server types the loaded modules offer (listLoadedModules reports
+    // those). Every element's kind is "server".
+    virtual std::vector<ComponentTypeInfo> listServerTypes() = 0;
+    // Adds one to the instance. There is no parent: openDAQ's
+    // IDevice::onAddServer refuses every device but the root, so
+    // IInstance::addServer is the only call there is.
+    virtual Node addServer(const std::string& typeId) = 0;
+    // IServer::enableDiscovery / IServer::disableDiscovery, chosen by `enabled`.
+    // There is NO getter for this state anywhere on IServer, which is why no
+    // Node field carries it.
+    virtual void setServerDiscoveryEnabled(const std::string& nodeId, bool enabled) = 0;
+
+    // IRecorder::startRecording / IRecorder::stopRecording. Whether a node is a
+    // recorder at all is Node.recording being non-null.
+    virtual void startRecording(const std::string& nodeId) = 0;
+    virtual void stopRecording(const std::string& nodeId) = 0;
+
+    // IPropertyObject::beginUpdate / endUpdate. Between the two, a
+    // setPropertyValue is held rather than applied, and Node.updating is what
+    // reports that state. beginUpdate is RECURSIVE over child property objects,
+    // so one begin on a device puts a whole subtree into batch mode for every
+    // session at once.
+    virtual void beginBatchedPropertyUpdate(const std::string& nodeId) = 0;
+    virtual void endBatchedPropertyUpdate(const std::string& nodeId) = 0;
+
+    // IDevice::saveConfiguration / IDevice::loadConfiguration on the root
+    // device. Both take a STRING and openDAQ offers no path overload, so the
+    // configuration crosses the wire in both directions and this host writes no
+    // file for either.
+    virtual std::string saveInstanceConfigurationToString() = 0;
+    virtual void loadInstanceConfigurationFromString(const std::string& configuration) = 0;
 };
 
 }  // namespace qs::service

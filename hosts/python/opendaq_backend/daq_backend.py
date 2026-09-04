@@ -32,6 +32,7 @@ import threading
 import time
 
 from service.wire_dtos import (
+    ComponentAttribute,
     ComponentTypeInfo,
     ModuleInfo,
     Node,
@@ -113,7 +114,65 @@ _DECLARED_ERRORS = {
     "unlock_device": (NOT_FOUND, READ_ONLY, UNSUPPORTED),
     "list_loaded_modules": (NOT_CONNECTED, INTERNAL),
     "load_module_from_host_path": (NOT_FOUND, NOT_CONNECTED, INVALID_VALUE, INTERNAL),
+    "get_component_attributes": (NOT_FOUND, NOT_CONNECTED),
+    "set_component_attribute": (NOT_FOUND, READ_ONLY, INVALID_VALUE),
+    "list_server_types": (NOT_CONNECTED,),
+    "add_server": (NOT_CONNECTED, UNSUPPORTED, INVALID_VALUE, INTERNAL),
+    "set_server_discovery_enabled": (NOT_FOUND, UNSUPPORTED, INTERNAL),
+    "start_recording": (NOT_FOUND, UNSUPPORTED, INTERNAL),
+    "stop_recording": (NOT_FOUND, UNSUPPORTED, INTERNAL),
+    "begin_batched_property_update": (NOT_FOUND, NOT_CONNECTED),
+    "end_batched_property_update": (NOT_FOUND, NOT_CONNECTED, INVALID_VALUE),
+    "save_instance_configuration_to_string": (NOT_CONNECTED, INTERNAL),
+    "load_instance_configuration_from_string": (NOT_CONNECTED, INVALID_VALUE, INTERNAL),
 }
+
+# The attribute rows of the reference's ATTRIBUTES treeview
+# (gui_demo/components/generic_attributes_treeview.py:126-166), each as
+# (wire id, the label the reference prints, the wire value_type, the Locked flag
+# the reference hardcodes, the openDAQ Python attribute name to getattr/setattr).
+#
+# The wire id and the binding's attribute name differ on exactly three rows, and
+# contract/contract.yaml section 3 says why: the reference's own Attribute keys
+# there are '.domain_signal', 'related_signals' and 'signal', while what crosses
+# the wire is a GLOBAL ID STRING read off the object those names hold. So the
+# wire id carries the _id/_ids suffix and this table remembers the shorter name
+# the SDK answers to.
+#
+# The five signal rows and the three input-port rows are added only when the
+# component carries that cast, which is what makes the attribute set per-kind
+# rather than fixed.
+_ATTRIBUTE_VALUE_TYPE_BOOL = "bool"
+_ATTRIBUTE_VALUE_TYPE_STRING = "string"
+_ATTRIBUTE_VALUE_TYPE_STRING_LIST = "string_list"
+
+_COMPONENT_ATTRIBUTE_ROWS = (
+    ("name", "Name", _ATTRIBUTE_VALUE_TYPE_STRING, False, "name"),
+    ("description", "Description", _ATTRIBUTE_VALUE_TYPE_STRING, False, "description"),
+    ("active", "Active", _ATTRIBUTE_VALUE_TYPE_BOOL, False, "active"),
+    ("global_id", "Global ID", _ATTRIBUTE_VALUE_TYPE_STRING, True, "global_id"),
+    ("local_id", "Local ID", _ATTRIBUTE_VALUE_TYPE_STRING, True, "local_id"),
+    ("tags", "Tags", _ATTRIBUTE_VALUE_TYPE_STRING_LIST, False, "tags"),
+    ("visible", "Visible", _ATTRIBUTE_VALUE_TYPE_BOOL, False, "visible"),
+)
+_SIGNAL_ATTRIBUTE_ROWS = (
+    ("public", "Public", _ATTRIBUTE_VALUE_TYPE_BOOL, False, "public"),
+    ("domain_signal_id", "Domain Signal ID", _ATTRIBUTE_VALUE_TYPE_STRING, True, "domain_signal"),
+    (
+        "related_signal_ids",
+        "Related Signals IDs",
+        _ATTRIBUTE_VALUE_TYPE_STRING_LIST,
+        True,
+        "related_signals",
+    ),
+    ("streamed", "Streamed", _ATTRIBUTE_VALUE_TYPE_BOOL, True, "streamed"),
+    ("last_value", "Last Value", None, True, "last_value"),
+)
+_INPUT_PORT_ATTRIBUTE_ROWS = (
+    ("public", "Public", _ATTRIBUTE_VALUE_TYPE_BOOL, False, "public"),
+    ("signal_id", "Signal ID", _ATTRIBUTE_VALUE_TYPE_STRING, True, "signal"),
+    ("requires_signal", "Requires Signal", _ATTRIBUTE_VALUE_TYPE_BOOL, True, "requires_signal"),
+)
 
 # openDAQ core event ids, copied from CoreEventId in
 # core/coreobjects/include/coreobjects/core_event_args_ids.h. The Python
@@ -468,13 +527,75 @@ class DaqBackend:
     def _as_property_object(self, component, node_id):
         daq = self._daq
         try:
-            if daq.IPropertyObject.can_cast_from(component):
-                return daq.IPropertyObject.cast_from(component)
+            # quack-snippet shared=property-object-of-component
+            # get_property_value, set_property_value, begin_update and end_update
+            # are all declared on IPropertyObject, not on IComponent, so a
+            # component is taken through that facet before any of them is called.
+            # Every openDAQ component in the tree carries it -- IComponent
+            # derives from IPropertyObject -- which is why the reference casts
+            # unconditionally for begin/endUpdate instead of testing first.
+            carries_property_object = daq.IPropertyObject.can_cast_from(component)
+            property_object = (
+                daq.IPropertyObject.cast_from(component) if carries_property_object else None
+            )
+            # quack-snippet end
+            if property_object is not None:
+                return property_object
         except Exception:
             pass
         raise ServiceError(
             UNSUPPORTED, 'component "%s" carries no properties' % node_id
         )
+
+    def _as_server(self, component, node_id, wire_method):
+        """The IServer facet of a component, or `unsupported`.
+
+        `unsupported` and not `not_found` for the same reason _as_device gives:
+        the node exists -- it was just resolved -- it simply is not a server.
+        """
+        daq = self._daq
+        # quack-snippet shared=server-of-component
+        # enableDiscovery and disableDiscovery are declared on IServer and
+        # nowhere else, so a component has to be taken through its IServer facet
+        # before either can be called. Asking with can_cast_from first avoids the
+        # "Invalid cast" the cast itself would raise on a component that is not
+        # a server.
+        is_server = daq.IServer.can_cast_from(component)
+        server = daq.IServer.cast_from(component) if is_server else None
+        # quack-snippet end
+        if server is None:
+            raise ServiceError(
+                UNSUPPORTED,
+                'component "%s" is a %s, not a server; %s acts on server rows only'
+                % (node_id, self._kind_of(component), wire_method),
+            )
+        return server
+
+    def _as_recorder(self, component, node_id, wire_method):
+        """The IRecorder facet of a component, or `unsupported`.
+
+        This is the same cast the reference makes to decide whether a Start/Stop
+        control exists at all (block_view.py:169-171,
+        daq.IRecorder.can_cast_from(self.node)), and `unsupported` is the honest
+        answer for every component that is not a recorder.
+        """
+        daq = self._daq
+        # quack-snippet shared=recorder-of-component
+        # startRecording, stopRecording and isRecording are declared on
+        # IRecorder, which a recorder function block carries in addition to
+        # IFunctionBlock. Nothing else in the tree carries it, so the cast is
+        # also the answer to "is this node a recorder at all".
+        is_recorder = daq.IRecorder.can_cast_from(component)
+        recorder = daq.IRecorder.cast_from(component) if is_recorder else None
+        # quack-snippet end
+        if recorder is None:
+            raise ServiceError(
+                UNSUPPORTED,
+                'component "%s" is a %s and does not carry IRecorder, so %s cannot act on it; '
+                "openDAQ declares startRecording and stopRecording on IRecorder only"
+                % (node_id, self._kind_of(component), wire_method),
+            )
+        return recorder
 
     def _as_device(self, component, node_id, wire_method):
         """The IDevice facet of a component, or `unsupported`.
@@ -531,6 +652,12 @@ class DaqBackend:
             return "function_block"
         if daq.ISignal.can_cast_from(component):
             return "signal"
+        # IServer is asked AFTER the four above and BEFORE the folder fallback,
+        # because a Server is an IFolder (server.h derives it from IFolder) and
+        # would otherwise be reported as a plain folder. It is not a Device, a
+        # Channel, a FunctionBlock or a Signal, so nothing above it can claim it.
+        if daq.IServer.can_cast_from(component):
+            return "server"
         # Everything else -- folders and plain components such as
         # Synchronization -- is reported as a folder; the contract's kind set
         # has no other container.
@@ -662,6 +789,33 @@ class DaqBackend:
         return bool(component.active)
         # quack-snippet end
 
+    def _updating_of(self, component):
+        """IPropertyObject.updating: true while a begin_batched_property_update is
+        open on this component and every property write against it is held."""
+        daq = self._daq
+        # quack-snippet shared=component-state step=5 uses=property-object-of-component
+        # updating is a read-only Python property on IPropertyObject, and the
+        # bindings hand it back as an int, so it is made a bool for the wire.
+        # The reference reads exactly this on every row of the tree
+        # (_set_node_update_status_recursive, gui_demo.py:1434-1445) and paints
+        # the row red when it is true.
+        return bool(daq.IPropertyObject.cast_from(component).updating)
+        # quack-snippet end
+
+    def _recording_of(self, component):
+        """IRecorder.is_recording, or None for a component that does not carry
+        IRecorder -- which is every component of the reference device."""
+        daq = self._daq
+        # quack-snippet shared=component-state step=6 uses=recorder-of-component
+        # is_recording is only askable of a component that carries IRecorder, so
+        # the cast comes first and a component without the facet reports null
+        # rather than false: false would claim it is a recorder that happens not
+        # to be recording.
+        if not daq.IRecorder.can_cast_from(component):
+            return None
+        return bool(daq.IRecorder.cast_from(component).is_recording)
+        # quack-snippet end
+
     def _component_status_and_message_of(self, component):
         """(status name, message) as openDAQ spells them, or (None, None) when
         this component publishes no ComponentStatus at all."""
@@ -751,6 +905,26 @@ class DaqBackend:
             print(
                 '[opendaq] the effective lock of "%s" could not be read: %s: %s; Node.locked '
                 "stays null" % (component.global_id, type(e).__name__, e),
+                flush=True,
+            )
+
+        try:
+            node.updating = self._updating_of(component)
+        except Exception as e:
+            print(
+                '[opendaq] IPropertyObject.updating on "%s" raised %s: %s; Node.updating stays '
+                "null" % (component.global_id, type(e).__name__, e),
+                flush=True,
+            )
+
+        try:
+            # null on every component that does not carry IRecorder, which is
+            # what tells a client to draw no Start/Stop control at all.
+            node.recording = self._recording_of(component)
+        except Exception as e:
+            print(
+                '[opendaq] IRecorder.is_recording on "%s" raised %s: %s; Node.recording stays '
+                "null" % (component.global_id, type(e).__name__, e),
                 flush=True,
             )
 
@@ -1632,3 +1806,602 @@ class DaqBackend:
             flush=True,
         )
         return module_info
+
+    # --- get_component_attributes -------------------------------------------
+
+    def _attribute_rows_reachable_on(self, component):
+        """Every attribute row this component actually carries, as
+        (wire_id, label, value_type, hardcoded_locked, binding_attribute_name,
+        the object the attribute is read off), plus the labels openDAQ itself
+        reports locked.
+
+        The set is NOT fixed: seven IComponent rows always, five more if ISignal
+        casts, three more if IInputPort casts. A component that carries neither
+        cast yields seven rows -- it does not yield eight with a null value,
+        which would claim the attribute exists and has no value.
+        """
+        daq = self._daq
+        # quack-snippet shared=component-attribute-rows
+        # An attribute is a member of the openDAQ interface itself, not an entry
+        # in a property bag, so which attributes exist depends on which
+        # interfaces the component carries. Every component is an IComponent;
+        # the extra rows are reached by casting, exactly as the reference does.
+        rows = [row + (component,) for row in _COMPONENT_ATTRIBUTE_ROWS]
+        if daq.ISignal.can_cast_from(component):
+            signal = daq.ISignal.cast_from(component)
+            rows += [row + (signal,) for row in _SIGNAL_ATTRIBUTE_ROWS]
+        if daq.IInputPort.can_cast_from(component):
+            input_port = daq.IInputPort.cast_from(component)
+            rows += [row + (input_port,) for row in _INPUT_PORT_ATTRIBUTE_ROWS]
+        # IComponent.locked_attributes is openDAQ's own runtime statement that a
+        # named attribute may not be written. It is keyed by the LABEL, which is
+        # why the reference matches it against its own display keys.
+        locked_labels = [str(label) for label in component.locked_attributes]
+        # quack-snippet end
+        return rows, locked_labels
+
+    def _attribute_value_and_wire_type(self, wire_id, declared_value_type, holder, binding_name):
+        """The value of one attribute and the wire value_type it is reported
+        under, or (None, None) for a row this host will not report.
+
+        Three rows do not hand back what their binding name holds: what crosses
+        the wire for domain_signal, related_signals and signal is the GLOBAL ID
+        of the object, never the object.
+        """
+        # quack-snippet capability=attribute.read uses=component-attribute-rows step=1
+        # Three of the fourteen do not hand back what their binding name holds:
+        # what crosses the wire for the domain signal, the related signals and an
+        # input port's signal is the GLOBAL ID of the object, never the object.
+        if wire_id == "domain_signal_id":
+            domain_signal = holder.domain_signal
+            return ("" if domain_signal is None else str(domain_signal.global_id)), "string"
+        if wire_id == "related_signal_ids":
+            related = holder.related_signals
+            return [str(signal.global_id) for signal in related] if related else [], "string_list"
+        if wire_id == "signal_id":
+            connected_signal = holder.signal
+            return ("" if connected_signal is None else str(connected_signal.global_id)), "string"
+        if wire_id == "tags":
+            # ITags is an object; the strings are on its .list.
+            return [str(tag) for tag in holder.tags.list], "string_list"
+        raw = getattr(holder, binding_name)
+        # quack-snippet end
+        if declared_value_type == _ATTRIBUTE_VALUE_TYPE_BOOL:
+            return bool(raw), _ATTRIBUTE_VALUE_TYPE_BOOL
+        if declared_value_type == _ATTRIBUTE_VALUE_TYPE_STRING:
+            return str(raw), _ATTRIBUTE_VALUE_TYPE_STRING
+        # last_value is the one row with no declared type: it is whatever the
+        # signal last carried, so the type is read off the value itself.
+        value = self._value_to_json(raw)
+        if isinstance(value, bool):
+            return value, _ATTRIBUTE_VALUE_TYPE_BOOL
+        if isinstance(value, int):
+            return value, "int"
+        if isinstance(value, float):
+            return value, "float"
+        if isinstance(value, str):
+            return value, _ATTRIBUTE_VALUE_TYPE_STRING
+        return None, None
+
+    def get_component_attributes(self, node_id):
+        component = self._resolve_component(node_id)
+        try:
+            rows, locked_labels = self._attribute_rows_reachable_on(component)
+        except ServiceError:
+            raise
+        except Exception as e:
+            raise self._translated_within_declared_subset(
+                e, "get_component_attributes", NOT_FOUND
+            )
+
+        attributes = []
+        omitted = []
+        for wire_id, label, declared_value_type, hardcoded_locked, binding_name, holder in rows:
+            try:
+                value, value_type = self._attribute_value_and_wire_type(
+                    wire_id, declared_value_type, holder, binding_name
+                )
+            except Exception as e:
+                omitted.append("%s (%s: %s)" % (wire_id, type(e).__name__, e))
+                continue
+            if value_type is None:
+                omitted.append(
+                    "%s (openDAQ answered %r, which is none of bool, int, float, string or "
+                    "string_list, and types.ComponentAttribute.value_type has no other member)"
+                    % (wire_id, value)
+                )
+                continue
+            if wire_id == "related_signal_ids" and not value:
+                # The reference adds this row only when the signal has related
+                # signals at all (generic_attributes_treeview.py:150-152); an
+                # empty list here would be a row about nothing.
+                omitted.append("related_signal_ids (this signal has no related signals)")
+                continue
+            attribute = ComponentAttribute()
+            attribute.id = wire_id
+            attribute.name = label
+            attribute.value = value
+            attribute.value_type = value_type
+            attribute.read_only = bool(hardcoded_locked or label in locked_labels)
+            attributes.append(attribute)
+
+        print(
+            "[opendaq] get_component_attributes(%s) read %d attribute row(s) off a %s: %s. "
+            "IComponent.locked_attributes reported %s. %d row(s) were left out: %s"
+            % (
+                node_id,
+                len(attributes),
+                self._kind_of(component),
+                ", ".join(
+                    "%s=%r%s" % (a.id, a.value, " (read_only)" if a.read_only else "")
+                    for a in attributes
+                )
+                or "none",
+                ", ".join(locked_labels) or "no locked attribute",
+                len(omitted),
+                "; ".join(omitted) or "none",
+            ),
+            flush=True,
+        )
+        return attributes
+
+    # --- set_component_attribute --------------------------------------------
+
+    def set_component_attribute(self, node_id, attribute_id, value):
+        component = self._resolve_component(node_id)
+        try:
+            rows, locked_labels = self._attribute_rows_reachable_on(component)
+        except ServiceError:
+            raise
+        except Exception as e:
+            raise self._translated_within_declared_subset(
+                e, "set_component_attribute", NOT_FOUND
+            )
+
+        matched = None
+        for row in rows:
+            if row[0] == attribute_id:
+                matched = row
+                break
+        if matched is None:
+            raise ServiceError(
+                NOT_FOUND,
+                'component "%s" reports no attribute "%s"; get_component_attributes answers %s '
+                "for it" % (node_id, attribute_id, ", ".join(row[0] for row in rows)),
+            )
+
+        wire_id, label, declared_value_type, hardcoded_locked, binding_name, holder = matched
+        if hardcoded_locked:
+            raise ServiceError(
+                READ_ONLY,
+                'attribute "%s" ("%s") on "%s" is read-only: it is one of the rows the reference '
+                "hardcodes Locked (global_id, local_id, streamed, last_value, signal_id, "
+                "requires_signal and the domain and related signal ids), because what it holds is "
+                "openDAQ's own identity or a value derived from another component"
+                % (wire_id, label, node_id),
+            )
+        if label in locked_labels:
+            raise ServiceError(
+                READ_ONLY,
+                'attribute "%s" ("%s") on "%s" is read-only: openDAQ itself reports it in '
+                "IComponent.locked_attributes, which reads [%s] for this component"
+                % (wire_id, label, node_id, ", ".join(locked_labels)),
+            )
+
+        if declared_value_type == _ATTRIBUTE_VALUE_TYPE_BOOL:
+            if not isinstance(value, bool):
+                raise ServiceError(
+                    INVALID_VALUE,
+                    'attribute "%s" on "%s" is a bool; params.value was %r (%s)'
+                    % (wire_id, node_id, value, type(value).__name__),
+                )
+            converted = value
+        elif declared_value_type == _ATTRIBUTE_VALUE_TYPE_STRING:
+            if not isinstance(value, str):
+                raise ServiceError(
+                    INVALID_VALUE,
+                    'attribute "%s" on "%s" is a string; params.value was %r (%s)'
+                    % (wire_id, node_id, value, type(value).__name__),
+                )
+            converted = value
+        elif declared_value_type == _ATTRIBUTE_VALUE_TYPE_STRING_LIST:
+            if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+                raise ServiceError(
+                    INVALID_VALUE,
+                    'attribute "%s" on "%s" is a list of strings; params.value was %r'
+                    % (wire_id, node_id, value),
+                )
+            converted = list(value)
+        else:
+            raise ServiceError(
+                INVALID_VALUE,
+                'attribute "%s" on "%s" has no declared wire value type, so this host will not '
+                "write it" % (wire_id, node_id),
+            )
+
+        try:
+            before, _ = self._attribute_value_and_wire_type(
+                wire_id, declared_value_type, holder, binding_name
+            )
+        except Exception:
+            before = "(unreadable before the write)"
+
+        try:
+            # quack-snippet capability=attribute.write uses=component-attribute-rows step=1
+            # An attribute is written with setattr on the interface that declares
+            # it -- IComponent for name, description, active, visible and tags,
+            # ISignal or IInputPort for public -- never through
+            # set_property_value. That is exactly what the reference does:
+            # setattr(node, attribute, new_value),
+            # generic_attributes_treeview.py:110.
+            setattr(holder, binding_name, converted)
+            # quack-snippet end
+        except AttributeError as e:
+            # Enumerated, not guessed: the generated opendaq.pyi declares
+            # IComponent.tags at line 903 as a bare "@property tags" with no
+            # "@tags.setter" beneath it, so the binding has no writer for it at
+            # all. set_component_attribute declares [not_found, read_only,
+            # invalid_value]; read_only would be a claim that openDAQ locked the
+            # attribute, which is a cause nothing established, so this is
+            # reported as invalid_value with the whole reason in the detail.
+            raise ServiceError(
+                INVALID_VALUE,
+                'the openDAQ Python binding has no setter for attribute "%s" on "%s": setattr '
+                "raised AttributeError %s. The generated opendaq.pyi declares it as a get-only "
+                "property, and openDAQ's own IComponent.locked_attributes reads [%s] for this "
+                "component, so this is the binding's shape and not a lock openDAQ applied"
+                % (wire_id, node_id, e, ", ".join(locked_labels) or "nothing"),
+            )
+        except ServiceError:
+            raise
+        except Exception as e:
+            raise self._translated_within_declared_subset(
+                e, "set_component_attribute", INVALID_VALUE
+            )
+
+        try:
+            after, _ = self._attribute_value_and_wire_type(
+                wire_id, declared_value_type, holder, binding_name
+            )
+        except Exception as e:
+            after = "(unreadable after the write: %s)" % e
+        print(
+            '[opendaq] set_component_attribute(%s, %s) called setattr(%s, "%s", %r); the '
+            "attribute read %r before the write and %r after it"
+            % (node_id, wire_id, type(holder).__name__, binding_name, converted, before, after),
+            flush=True,
+        )
+
+    # --- list_server_types ---------------------------------------------------
+
+    def list_server_types(self):
+        try:
+            # quack-snippet capability=server.add uses=instance-with-module-path,component-type-info step=1
+            # What the INSTANCE will accept, which is not the same question as
+            # which server types each module offers: this dictionary is keyed by
+            # the type id and holds the IServerType object, and it is the exact
+            # dictionary the reference's add-server window is filled from.
+            available = self._instance.available_server_types
+            keys = [str(key) for key in available.keys()]
+            # quack-snippet end
+        except ServiceError:
+            raise
+        except Exception as e:
+            raise self._translated_within_declared_subset(e, "list_server_types", NOT_CONNECTED)
+
+        out = []
+        for key in keys:
+            try:
+                # A server type carries no connection string prefix: that lives
+                # on IDeviceType and IStreamingType only.
+                identifier, type_name, description, _ = self._component_type_info_of(
+                    available[key], False
+                )
+            except ServiceError:
+                raise
+            except Exception as e:
+                raise self._translated_within_declared_subset(
+                    e, "list_server_types", NOT_CONNECTED
+                )
+            component_type = ComponentTypeInfo()
+            component_type.id = identifier
+            component_type.name = type_name
+            component_type.kind = "server"
+            component_type.description = description or None
+            component_type.connection_string_prefix = None
+            out.append(component_type)
+
+        print(
+            "[opendaq] list_server_types read %d server type(s) off IInstance."
+            "available_server_types: %s"
+            % (
+                len(out),
+                "; ".join(
+                    '%s ("%s")' % (component_type.id, component_type.name)
+                    for component_type in out
+                )
+                or "none",
+            ),
+            flush=True,
+        )
+        return out
+
+    # --- add_server ----------------------------------------------------------
+
+    def add_server(self, type_id):
+        try:
+            available_ids = [str(key) for key in self._instance.available_server_types.keys()]
+        except Exception as e:
+            raise self._translated_within_declared_subset(e, "add_server", NOT_CONNECTED)
+        if type_id not in available_ids:
+            raise ServiceError(
+                UNSUPPORTED,
+                'this instance offers no server type "%s"; list_server_types answers %s'
+                % (type_id, ", ".join(available_ids) or "an empty list"),
+            )
+
+        try:
+            # quack-snippet capability=server.add uses=instance-with-module-path,component-node step=2
+            # addServer is declared on IDevice and the reference calls it on the
+            # INSTANCE always, never on the selected node, because only the root
+            # device accepts servers. The second argument is the server's config
+            # object; None means openDAQ's own defaults, which is what this
+            # contract's row carries -- it takes a type id and nothing else. The
+            # server it hands back is already in the instance's Servers folder.
+            server = self._instance.add_server(type_id, None)
+            # quack-snippet end
+        except ServiceError:
+            raise
+        except Exception as e:
+            error = self._translated_within_declared_subset(e, "add_server", INTERNAL)
+            print(
+                '[opendaq] add_server("%s") failed: openDAQ raised %s "%s", reported on the wire '
+                "as %s" % (type_id, type(e).__name__, e, error.code),
+                flush=True,
+            )
+            raise error
+
+        node = self._build_node(self._daq.IComponent.cast_from(server))
+        print(
+            '[opendaq] add_server("%s") added server %s named "%s", kind %s, IServer.id = %s. '
+            "There is no remove_server row in this contract, so it stays on this instance for the "
+            "life of the process"
+            % (
+                type_id,
+                node.id,
+                node.name,
+                node.kind,
+                str(self._daq.IServer.cast_from(server).id),
+            ),
+            flush=True,
+        )
+        return node
+
+    # --- set_server_discovery_enabled ---------------------------------------
+
+    def set_server_discovery_enabled(self, node_id, enabled):
+        component = self._resolve_component(node_id)
+        server = self._as_server(component, node_id, "set_server_discovery_enabled")
+
+        try:
+            # quack-snippet capability=server.discovery uses=server-of-component step=1
+            # openDAQ has two methods and no state: IServer.enable_discovery and
+            # IServer.disable_discovery start and stop the mDNS advertisement,
+            # and NOTHING on IServer reports whether it is on. One wire setter
+            # with a bool picks between them.
+            if enabled:
+                server.enable_discovery()
+            else:
+                server.disable_discovery()
+            # quack-snippet end
+        except ServiceError:
+            raise
+        except Exception as e:
+            raise self._translated_within_declared_subset(
+                e, "set_server_discovery_enabled", INTERNAL
+            )
+
+        print(
+            "[opendaq] set_server_discovery_enabled(%s, %r) called IServer.%s() on server id %s. "
+            "openDAQ publishes no discovery-state getter, so nothing is read back and this host "
+            "reports no discovery field on any node"
+            % (
+                node_id,
+                enabled,
+                "enable_discovery" if enabled else "disable_discovery",
+                str(server.id),
+            ),
+            flush=True,
+        )
+
+    # --- start_recording / stop_recording ------------------------------------
+
+    def start_recording(self, node_id):
+        component = self._resolve_component(node_id)
+        recorder = self._as_recorder(component, node_id, "start_recording")
+        was_recording = bool(recorder.is_recording)
+        try:
+            # quack-snippet capability=recorder.control uses=recorder-of-component step=1
+            recorder.start_recording()
+            # quack-snippet end
+        except ServiceError:
+            raise
+        except Exception as e:
+            raise self._translated_within_declared_subset(e, "start_recording", INTERNAL)
+        print(
+            "[opendaq] start_recording(%s) called IRecorder.start_recording(); "
+            "IRecorder.is_recording read %r before the call and %r after it"
+            % (node_id, was_recording, bool(recorder.is_recording)),
+            flush=True,
+        )
+
+    def stop_recording(self, node_id):
+        component = self._resolve_component(node_id)
+        recorder = self._as_recorder(component, node_id, "stop_recording")
+        was_recording = bool(recorder.is_recording)
+        try:
+            # quack-snippet capability=recorder.control uses=recorder-of-component step=2
+            recorder.stop_recording()
+            # quack-snippet end
+        except ServiceError:
+            raise
+        except Exception as e:
+            raise self._translated_within_declared_subset(e, "stop_recording", INTERNAL)
+        print(
+            "[opendaq] stop_recording(%s) called IRecorder.stop_recording(); "
+            "IRecorder.is_recording read %r before the call and %r after it"
+            % (node_id, was_recording, bool(recorder.is_recording)),
+            flush=True,
+        )
+
+    # --- begin_batched_property_update / end_batched_property_update ---------
+
+    def _property_object_for_batched_update(self, component, node_id, wire_method):
+        """_as_property_object answers `unsupported`, which is outside the subset
+        both batched-update rows declare. Every openDAQ component carries
+        IPropertyObject, so this cannot fire -- but if it ever did, the code on
+        the wire has to stay inside [not_found, not_connected(, invalid_value)],
+        and not_found is the one of those that can be about a node."""
+        try:
+            return self._as_property_object(component, node_id)
+        except ServiceError as e:
+            raise ServiceError(
+                NOT_FOUND,
+                'component "%s" could not be taken through its IPropertyObject facet (%s: %s); '
+                "contract/contract.yaml declares no unsupported for %s, because every openDAQ "
+                "component is an IPropertyObject" % (node_id, e.code, e.detail, wire_method),
+            )
+
+    def begin_batched_property_update(self, node_id):
+        component = self._resolve_component(node_id)
+        property_object = self._property_object_for_batched_update(
+            component, node_id, "begin_batched_property_update"
+        )
+        was_updating = bool(property_object.updating)
+        try:
+            # quack-snippet capability=property.batched_update uses=property-object-of-component step=1
+            # beginUpdate is RECURSIVE over the component's child property
+            # objects, so one call on a device puts its whole subtree into batch
+            # mode -- for every session at once, because the batch belongs to the
+            # component and not to the socket that opened it. Until endUpdate,
+            # set_property_value is held rather than applied.
+            property_object.begin_update()
+            # quack-snippet end
+        except ServiceError:
+            raise
+        except Exception as e:
+            raise self._translated_within_declared_subset(
+                e, "begin_batched_property_update", NOT_FOUND
+            )
+        print(
+            "[opendaq] begin_batched_property_update(%s) called IPropertyObject.begin_update(); "
+            "IPropertyObject.updating read %r before the call and %r after it. Every "
+            "set_property_value against this component is now HELD until "
+            "end_batched_property_update, and because beginUpdate is recursive the same holds for "
+            "its child property objects"
+            % (node_id, was_updating, bool(property_object.updating)),
+            flush=True,
+        )
+
+    def end_batched_property_update(self, node_id):
+        component = self._resolve_component(node_id)
+        property_object = self._property_object_for_batched_update(
+            component, node_id, "end_batched_property_update"
+        )
+
+        # The out-of-order call is answered, never swallowed. openDAQ raises
+        # RuntimeError("The object is not in updating state") for it -- read off
+        # openDAQ 3.41.0_bec37b44 on this machine by calling end_update() twice --
+        # and the reference swallows exactly that with a bare
+        # "except RuntimeError: pass" (gui_demo.py:1374-1378). Silence would tell
+        # a user their batch was applied.
+        if not bool(property_object.updating):
+            raise ServiceError(
+                INVALID_VALUE,
+                'no batched update is open on "%s": IPropertyObject.updating reads False, so '
+                "there is no begin_batched_property_update for this call to end. Nothing was "
+                "applied and nothing was discarded" % node_id,
+            )
+
+        try:
+            # quack-snippet capability=property.batched_update uses=property-object-of-component step=2
+            # endUpdate applies everything set since beginUpdate, in one go, and
+            # raises if no beginUpdate is open.
+            property_object.end_update()
+            # quack-snippet end
+        except ServiceError:
+            raise
+        except Exception as e:
+            raise self._translated_within_declared_subset(
+                e, "end_batched_property_update", INVALID_VALUE
+            )
+        print(
+            "[opendaq] end_batched_property_update(%s) called IPropertyObject.end_update(); "
+            "IPropertyObject.updating read True before the call and %r after it, and every "
+            "property write held since the matching begin has now been applied"
+            % (node_id, bool(property_object.updating)),
+            flush=True,
+        )
+
+    # --- save_instance_configuration_to_string -------------------------------
+
+    def save_instance_configuration_to_string(self):
+        try:
+            # quack-snippet capability=configuration.save uses=instance-with-module-path step=1
+            # saveConfiguration is declared on IDevice and answers a STRING, not
+            # a path: openDAQ writes no file here. The Instance is a device, so
+            # this serialises the whole instance -- every device under it, their
+            # properties and their structure -- into one JSON document.
+            configuration = str(self._instance.save_configuration())
+            # quack-snippet end
+        except ServiceError:
+            raise
+        except Exception as e:
+            raise self._translated_within_declared_subset(
+                e, "save_instance_configuration_to_string", INTERNAL
+            )
+        print(
+            "[opendaq] save_instance_configuration_to_string serialised the instance into %d "
+            "character(s), %d byte(s) of UTF-8; it begins %r"
+            % (len(configuration), len(configuration.encode("utf-8")), configuration[:120]),
+            flush=True,
+        )
+        return configuration
+
+    # --- load_instance_configuration_from_string -----------------------------
+
+    def load_instance_configuration_from_string(self, configuration):
+        print(
+            "[opendaq] load_instance_configuration_from_string: handing %d character(s), %d "
+            "byte(s) of UTF-8 to IDevice.load_configuration on the instance; it begins %r"
+            % (len(configuration), len(configuration.encode("utf-8")), configuration[:120]),
+            flush=True,
+        )
+        try:
+            # quack-snippet capability=configuration.load uses=instance-with-module-path step=1
+            # loadConfiguration takes the configuration STRING and an optional
+            # IUpdateParameters. This contract's row carries no parameters, so
+            # the second argument is left off and openDAQ's defaults apply --
+            # the same call gui_demo.py's own _load_config path makes. It
+            # replaces the configuration of every device under the instance in
+            # one go.
+            self._instance.load_configuration(configuration)
+            # quack-snippet end
+        except ServiceError:
+            raise
+        except Exception as e:
+            error = self._translated_within_declared_subset(
+                e, "load_instance_configuration_from_string", INVALID_VALUE
+            )
+            print(
+                "[opendaq] load_instance_configuration_from_string failed: openDAQ raised %s "
+                '"%s", reported on the wire as %s' % (type(e).__name__, e, error.code),
+                flush=True,
+            )
+            raise error
+        print(
+            "[opendaq] load_instance_configuration_from_string applied the configuration; the "
+            "instance root %s now holds %d device(s) directly under it"
+            % (str(self._instance.global_id), len(list(self._instance.devices))),
+            flush=True,
+        )

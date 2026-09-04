@@ -1,5 +1,7 @@
 #include "service/error.hpp"
 
+#include <initializer_list>
+
 namespace qs::service
 {
 
@@ -47,6 +49,14 @@ constexpr std::uint32_t kComponentRemoved = 0x800E0000u;  // OPENDAQ_ERR_COMPONE
 constexpr std::uint32_t kDuplicateItem    = 0x80000025u;  // OPENDAQ_ERR_DUPLICATEITEM
 constexpr std::uint32_t kInvalidOperation = 0x80000027u;  // OPENDAQ_ERR_INVALID_OPERATION
 constexpr std::uint32_t kInvalidState     = 0x80000029u;  // OPENDAQ_ERR_INVALIDSTATE
+
+// The four codes openDAQ's serializer raises about TEXT it was handed, from
+// coretypes/errors.h. Only load_instance_configuration_from_string can reach
+// them, and every one of them is a statement about the string in the request.
+constexpr std::uint32_t kParseFailed              = 0x8000000Du;  // OPENDAQ_ERR_PARSEFAILED
+constexpr std::uint32_t kDeserializeParseError    = 0x80000021u;  // OPENDAQ_ERR_DESERIALIZE_PARSE_ERROR
+constexpr std::uint32_t kDeserializeUnknownType   = 0x80000022u;  // OPENDAQ_ERR_DESERIALIZE_UNKNOWN_TYPE
+constexpr std::uint32_t kDeserializeNoType        = 0x80000023u;  // OPENDAQ_ERR_DESERIALIZE_NO_TYPE
 
 // Error type 0x03, the module manager's own five, from
 // core/opendaq/modulemanager/include/opendaq/module_manager_errors.h. Only
@@ -124,13 +134,27 @@ ErrorCode mapModuleLoadErrorCode(std::uint32_t nativeErrCode)
             return ErrorCode::Internal;
     }
 }
-}  // namespace
-
-ErrorCode mapNativeErrorCode(std::uint32_t nativeErrCode, MapContext context)
+// The General table's answer, confined to the codes contract section 5 declares
+// for one operation. `declared` is that operation's error list, literally; when
+// the General answer is not in it, `fallback` is what this host says instead.
+// Answering outside an operation's declared subset is the class (b) failure the
+// conformance harness exists to catch, which is why every new row goes through
+// here rather than through the General table directly.
+ErrorCode confineToDeclaredSubset(ErrorCode general,
+                                  std::initializer_list<ErrorCode> declared,
+                                  ErrorCode fallback)
 {
-    if (context == MapContext::ModuleLoad)
-        return mapModuleLoadErrorCode(nativeErrCode);
+    for (const auto code : declared)
+        if (code == general)
+            return general;
+    return fallback;
+}
 
+// The General and PropertyWrite table, which every other context is a
+// narrowing of. It is a function of its own so that a narrowing context can ask
+// it what the general answer would be without re-entering mapNativeErrorCode.
+ErrorCode mapGeneralErrorCode(std::uint32_t nativeErrCode, bool readingAPropertyWrite)
+{
     switch (nativeErrCode)
     {
         case kNotFound:
@@ -138,7 +162,7 @@ ErrorCode mapNativeErrorCode(std::uint32_t nativeErrCode, MapContext context)
             // not_found; the same code raised while writing a value that the
             // property refused (a selection index outside the value list) is a
             // bad value, not a missing node.
-            return context == MapContext::PropertyWrite ? ErrorCode::InvalidValue : ErrorCode::NotFound;
+            return readingAPropertyWrite ? ErrorCode::InvalidValue : ErrorCode::NotFound;
 
         case kInvalidProperty:
         case kNotAssigned:
@@ -170,6 +194,110 @@ ErrorCode mapNativeErrorCode(std::uint32_t nativeErrCode, MapContext context)
         default:
             return ErrorCode::Internal;
     }
+}
+
+}  // namespace
+
+ErrorCode mapNativeErrorCode(std::uint32_t nativeErrCode, MapContext context)
+{
+    if (context == MapContext::ModuleLoad)
+        return mapModuleLoadErrorCode(nativeErrCode);
+    if (context == MapContext::General || context == MapContext::PropertyWrite)
+        return mapGeneralErrorCode(nativeErrCode, context == MapContext::PropertyWrite);
+
+    const ErrorCode general = mapGeneralErrorCode(nativeErrCode, false);
+
+    switch (context)
+    {
+        case MapContext::AttributeWrite:
+            // read_only is already reported before the write, because openDAQ
+            // answers a locked-attribute write with OPENDAQ_IGNORED, a SUCCESS
+            // code -- so what arrives here is openDAQ refusing the VALUE, and
+            // the fallback says so rather than reaching for internal, which
+            // this row does not declare.
+            return confineToDeclaredSubset(general,
+                                           {ErrorCode::NotFound, ErrorCode::ReadOnly, ErrorCode::InvalidValue},
+                                           ErrorCode::InvalidValue);
+
+        case MapContext::ServerTypeList:
+            // The row declares exactly one code, so every native refusal of the
+            // instance's server type dictionary is reported as it: there is no
+            // second code available to say anything else with, and the native
+            // text rides in detail.
+            return ErrorCode::NotConnected;
+
+        case MapContext::ServerAdd:
+            // An unknown type_id is refused as unsupported BEFORE the call, the
+            // way add_function_block refuses one; what arrives here is the
+            // instance refusing an addition of a type it does publish, which is
+            // invalid_value, or the listening socket failing to open, which is
+            // internal.
+            return confineToDeclaredSubset(
+                general,
+                {ErrorCode::NotConnected, ErrorCode::Unsupported, ErrorCode::InvalidValue, ErrorCode::Internal},
+                ErrorCode::Internal);
+
+        case MapContext::ServerDiscoveryEnable:
+        case MapContext::RecorderControl:
+            // Both rows declare not_found, unsupported and internal. The
+            // component was resolved and its facet cast before the call, so
+            // what arrives here is the mDNS advertising or the recorder itself
+            // failing, which is internal.
+            return confineToDeclaredSubset(general,
+                                           {ErrorCode::NotFound, ErrorCode::Unsupported, ErrorCode::Internal},
+                                           ErrorCode::Internal);
+
+        case MapContext::BatchedPropertyUpdateBegin:
+            // Two codes only, and neither can describe a refusal from openDAQ
+            // itself: the component was resolved before the call, so a failure
+            // here is the property object refusing to open a batch. not_found
+            // is the closer of the two -- not_connected would claim there is no
+            // instance, which this host has just used.
+            return confineToDeclaredSubset(general,
+                                           {ErrorCode::NotFound, ErrorCode::NotConnected},
+                                           ErrorCode::NotFound);
+
+        case MapContext::BatchedPropertyUpdateEnd:
+            // endUpdate raises when no beginUpdate is open. That is a
+            // well-formed call the state refuses, which is this set's
+            // invalid_value, and it is the likeliest thing to arrive here.
+            return confineToDeclaredSubset(
+                general,
+                {ErrorCode::NotFound, ErrorCode::NotConnected, ErrorCode::InvalidValue},
+                ErrorCode::InvalidValue);
+
+        case MapContext::ConfigurationSave:
+            return confineToDeclaredSubset(general,
+                                           {ErrorCode::NotConnected, ErrorCode::Internal},
+                                           ErrorCode::Internal);
+
+        case MapContext::ConfigurationLoad:
+            // A string openDAQ's deserializer would not parse is invalid_value
+            // and not internal, and this is the arm that says so: the General
+            // table has no entry for the four serializer codes, so without it
+            // "Error when parsing or deserializing" would reach a user as
+            // internal -- a fault in the host -- when it is a statement about
+            // the file they chose.
+            if (nativeErrCode == kParseFailed || nativeErrCode == kDeserializeParseError ||
+                nativeErrCode == kDeserializeUnknownType || nativeErrCode == kDeserializeNoType)
+                return ErrorCode::InvalidValue;
+
+            // Otherwise: invalid_value is still the likeliest answer a user
+            // will ever see here. Anything the General table calls not_found,
+            // read_only or unsupported is a refusal of THIS string, so it lands
+            // there rather than on internal.
+            return confineToDeclaredSubset(
+                general,
+                {ErrorCode::NotConnected, ErrorCode::InvalidValue, ErrorCode::Internal},
+                ErrorCode::InvalidValue);
+
+        case MapContext::General:
+        case MapContext::PropertyWrite:
+        case MapContext::ModuleLoad:
+            break;
+    }
+
+    return general;
 }
 
 }  // namespace qs::service

@@ -62,6 +62,19 @@ pub struct Node {
     pub connection_status: Option<String>,
     /// Device rows only: "unknown" | "idle" | "operation" | "safe_operation".
     pub operation_mode: Option<String>,
+    /// IPropertyObject::getUpdating(Bool*): true while a
+    /// begin_batched_property_update is open on this component and no
+    /// end_batched_property_update has closed it, during which every
+    /// set_property_value against it is HELD rather than applied. null on a
+    /// component that carries no IPropertyObject facet at all.
+    pub updating: Option<bool>,
+    /// IRecorder::getIsRecording(Bool*). Recorder rows only; null everywhere
+    /// else, which is both "not a recorder" and "not reported" -- the same
+    /// conflation connection_status and operation_mode already make. The client
+    /// draws no Start/Stop control for null, which is why this rides on the tree
+    /// read instead of costing a round trip per row whose answer would be
+    /// `unsupported` on almost every node.
+    pub recording: Option<bool>,
 }
 
 impl Node {
@@ -79,6 +92,44 @@ impl Node {
             "component_status_message": self.component_status_message,
             "connection_status": self.connection_status,
             "operation_mode": self.operation_mode,
+            "updating": self.updating,
+            "recording": self.recording,
+        })
+    }
+}
+
+/// One row of the attributes panel, contract section 3 types.ComponentAttribute.
+///
+/// An attribute is NOT a property: it is a fixed member of an openDAQ interface
+/// -- IComponent.name, ISignal.public, IInputPort.requires_signal -- reached by
+/// its own getter and setter, never through get/setPropertyValue. Which rows
+/// exist depends on which interfaces the component carries, so the set is not
+/// fixed and a cast this host cannot perform simply yields fewer rows.
+#[derive(Debug, Clone)]
+pub struct ComponentAttribute {
+    pub id: String,
+    /// The label the reference prints: "Global ID", "Domain Signal ID". Carried
+    /// rather than derived, because it is not a mechanical transform of the id.
+    pub name: String,
+    pub value: Json,
+    /// "bool" | "int" | "float" | "string" | "string_list"
+    pub value_type: String,
+    /// openDAQ's answer about the COMPONENT: either IComponent.locked_attributes
+    /// names it, or the openDAQ interface declares no setter for it at all.
+    /// NEVER this host's answer about itself -- a host with no writer declares
+    /// no attribute.write capability and the client disables the editors from
+    /// the gap.
+    pub read_only: bool,
+}
+
+impl ComponentAttribute {
+    pub fn to_json(&self) -> Json {
+        json!({
+            "id": self.id,
+            "name": self.name,
+            "value": self.value,
+            "value_type": self.value_type,
+            "read_only": self.read_only,
         })
     }
 }

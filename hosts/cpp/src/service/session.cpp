@@ -76,6 +76,17 @@ const std::map<std::string, SessionHub::Handler>& SessionHub::handlersByWireMeth
         {"unlock_device", &SessionHub::unlockDevice},
         {"list_loaded_modules", &SessionHub::listLoadedModules},
         {"load_module_from_host_path", &SessionHub::loadModuleFromHostPath},
+        {"get_component_attributes", &SessionHub::getComponentAttributes},
+        {"set_component_attribute", &SessionHub::setComponentAttribute},
+        {"list_server_types", &SessionHub::listServerTypes},
+        {"add_server", &SessionHub::addServer},
+        {"set_server_discovery_enabled", &SessionHub::setServerDiscoveryEnabled},
+        {"start_recording", &SessionHub::startRecording},
+        {"stop_recording", &SessionHub::stopRecording},
+        {"begin_batched_property_update", &SessionHub::beginBatchedPropertyUpdate},
+        {"end_batched_property_update", &SessionHub::endBatchedPropertyUpdate},
+        {"save_instance_configuration_to_string", &SessionHub::saveInstanceConfigurationToString},
+        {"load_instance_configuration_from_string", &SessionHub::loadInstanceConfigurationFromString},
     };
     return table;
 }
@@ -328,7 +339,7 @@ std::string SessionHub::requireNodeReachableReportedAs(const SessionStatePtr& st
                                               : reachable));
 }
 
-// --- the eighteen served methods ---------------------------------------------
+// --- the twenty-nine served methods ------------------------------------------
 
 Json SessionHub::scanAvailableDevices(const transport::ConnectionPtr&, const SessionStatePtr&, const Json&)
 {
@@ -742,6 +753,250 @@ void SessionHub::publish(const Event& event)
 
     for (const auto& connection : targets)
         connection->sendText(text);
+}
+
+// --- attribute.read, attribute.write ---------------------------------------
+
+Json SessionHub::getComponentAttributes(const transport::ConnectionPtr&,
+                                        const SessionStatePtr& state,
+                                        const Json& params)
+{
+    // contract operations[get_component_attributes].errors =
+    // [not_found, not_connected], which is the same subset
+    // get_property_descriptors declares and is read the same way: a session
+    // holding no device is not_connected, and an id that session cannot reach
+    // is not_found.
+    requireDeviceInSession(state);
+
+    Json out = Json::array();
+    for (const auto& attribute :
+         backend_.getComponentAttributes(requireNodeReachableFromSession(state, params, "node_id")))
+        out.push_back(toJson(attribute));
+    return out;
+}
+
+Json SessionHub::setComponentAttribute(const transport::ConnectionPtr&,
+                                       const SessionStatePtr& state,
+                                       const Json& params)
+{
+    // contract operations[set_component_attribute].errors =
+    // [not_found, read_only, invalid_value]. not_connected is NOT in that
+    // subset, so a session holding no device answers not_found for the node it
+    // was asked about, and a malformed node_id is invalid_value, which this row
+    // does declare.
+    const auto nodeId =
+        requireNodeReachableReportedAs(state, params, "node_id", ErrorCode::InvalidValue, ErrorCode::NotFound);
+    const auto attributeId = requireString(params, "attribute_id");
+    if (!params.contains("value"))
+        throw ServiceError(ErrorCode::InvalidValue,
+                           "params.value is required; set_component_attribute writes one attribute and there is "
+                           "nothing to write without it");
+
+    backend_.setComponentAttribute(nodeId, attributeId, params["value"]);
+    return nullptr;
+}
+
+// --- server.add -------------------------------------------------------------
+
+Json SessionHub::listServerTypes(const transport::ConnectionPtr&, const SessionStatePtr&, const Json&)
+{
+    // NO DEVICE IS REQUIRED, and that is a decision this host states rather
+    // than inherits. The server types are a fact about the openDAQ Instance,
+    // settled when it was built from the manifest's module_path -- the same
+    // shape as list_loaded_modules and scan_available_devices. The row's one
+    // declared error, not_connected, is therefore never the answer this host
+    // gives; the openDAQ layer reports it only if the instance itself refuses
+    // the type dictionary.
+    Json out = Json::array();
+    for (const auto& type : backend_.listServerTypes())
+        out.push_back(toJson(type));
+    return out;
+}
+
+Json SessionHub::addServer(const transport::ConnectionPtr&, const SessionStatePtr& state, const Json& params)
+{
+    // No parent_id and no device requirement: openDAQ's IDevice::onAddServer
+    // refuses every device but the root, so the server is added to the INSTANCE
+    // and hangs under the root device's "Srv" folder, not under any device this
+    // session connected.
+    const auto typeId = requireString(params, "type_id");
+    if (typeId.empty())
+        throw ServiceError(ErrorCode::InvalidValue,
+                           "params.type_id is empty; list_server_types names the ids this host can add");
+
+    const Node node = backend_.addServer(typeId);
+
+    // Recorded so that this session can name the server it just created in a
+    // later set_server_discovery_enabled. It is a record of what THIS session
+    // added, not a claim of ownership: a server outlives the socket that
+    // created it, exactly as a module loaded through module.load does.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        state->serverNodeIds.insert(node.id);
+    }
+
+    return toJson(node);
+}
+
+// --- server.discovery -------------------------------------------------------
+
+Json SessionHub::setServerDiscoveryEnabled(const transport::ConnectionPtr&,
+                                           const SessionStatePtr& state,
+                                           const Json& params)
+{
+    // contract operations[set_server_discovery_enabled].errors =
+    // [not_found, unsupported, internal]: neither not_connected nor
+    // invalid_value is in the subset, so a malformed node_id is not_found too.
+    if (!params.contains("node_id") || !params["node_id"].is_string())
+        throw ServiceError(ErrorCode::NotFound,
+                           "params.node_id is missing or is not a string, so this request names no server");
+    const auto nodeId = params["node_id"].get<std::string>();
+
+    if (!params.contains("enabled") || !params["enabled"].is_boolean())
+        throw ServiceError(ErrorCode::NotFound,
+                           "params.enabled is " +
+                               (params.contains("enabled") ? params["enabled"].dump() : std::string("absent")) +
+                               ", which is not a boolean; set_server_discovery_enabled takes enabled: true or false");
+    const bool enabled = params["enabled"].get<bool>();
+
+    // A SERVER IS NOT REACHED THROUGH THIS SESSION'S DEVICES, so the device
+    // registry cannot answer for it. Servers hang under the openDAQ Instance's
+    // own root device, which no session connected, so requiring the id to sit
+    // under a connected device would make every server node id unaddressable.
+    // The id is therefore resolved against the instance, which is the same
+    // reach list_loaded_modules and load_module_from_host_path already have.
+    // The consequence, stated: a session can enable discovery on a server
+    // another session added. Servers are process-wide here.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (state->serverNodeIds.find(nodeId) == state->serverNodeIds.end())
+            std::cout << "[service] set_server_discovery_enabled " << nodeId
+                      << ": no add_server on this session produced that node id, so the id is resolved against the "
+                      << "openDAQ Instance rather than against this session's devices. Whether it names a server "
+                      << "at all is decided there, by the cast to IServer" << std::endl;
+    }
+
+    backend_.setServerDiscoveryEnabled(nodeId, enabled);
+    return nullptr;
+}
+
+// --- recorder.control -------------------------------------------------------
+
+Json SessionHub::startRecording(const transport::ConnectionPtr&, const SessionStatePtr& state, const Json& params)
+{
+    // contract operations[start_recording].errors =
+    // [not_found, unsupported, internal]: no invalid_value and no
+    // not_connected, so both a malformed node_id and a session with no device
+    // are not_found.
+    backend_.startRecording(
+        requireNodeReachableReportedAs(state, params, "node_id", ErrorCode::NotFound, ErrorCode::NotFound));
+    return nullptr;
+}
+
+Json SessionHub::stopRecording(const transport::ConnectionPtr&, const SessionStatePtr& state, const Json& params)
+{
+    backend_.stopRecording(
+        requireNodeReachableReportedAs(state, params, "node_id", ErrorCode::NotFound, ErrorCode::NotFound));
+    return nullptr;
+}
+
+// --- property.batched_update ------------------------------------------------
+
+Json SessionHub::beginBatchedPropertyUpdate(const transport::ConnectionPtr&,
+                                            const SessionStatePtr& state,
+                                            const Json& params)
+{
+    // contract operations[begin_batched_property_update].errors =
+    // [not_found, not_connected], which requireDeviceInSession and
+    // requireNodeReachableFromSession produce between them.
+    requireDeviceInSession(state);
+    const auto nodeId = requireNodeReachableFromSession(state, params, "node_id");
+
+    // WHO MAY END A BATCH IS NOT RULED BY THE CONTRACT, and this host does not
+    // invent an answer. It does not end an abandoned batch when the session
+    // that opened it drops, it does not refuse an end from a session that did
+    // not begin, and it records neither -- because either behaviour would BE a
+    // policy, and the contract says a host must not quietly invent one. What it
+    // does instead is report the state: Node.updating is filled on every row of
+    // every tree read, so an abandoned batch is visible to whoever looks. This
+    // is the same question already escalated for device.lock.
+    backend_.beginBatchedPropertyUpdate(nodeId);
+    return nullptr;
+}
+
+Json SessionHub::endBatchedPropertyUpdate(const transport::ConnectionPtr&,
+                                          const SessionStatePtr& state,
+                                          const Json& params)
+{
+    requireDeviceInSession(state);
+    const auto nodeId = requireNodeReachableFromSession(state, params, "node_id");
+
+    // An end with no begin open raises in openDAQ, and this host reports it as
+    // invalid_value rather than swallowing it the way the reference does with a
+    // bare `except RuntimeError: pass`: silence would tell a user their batch
+    // was applied when nothing was.
+    backend_.endBatchedPropertyUpdate(nodeId);
+    return nullptr;
+}
+
+// --- configuration.save, configuration.load ---------------------------------
+
+Json SessionHub::saveInstanceConfigurationToString(const transport::ConnectionPtr&,
+                                                   const SessionStatePtr&,
+                                                   const Json&)
+{
+    // No device is required: the configuration is a fact about the whole
+    // Instance, which exists from process start.
+    const std::string configuration = backend_.saveInstanceConfigurationToString();
+
+    // THE FRAME LIMIT IS CHECKED HERE, BY THE HOST, because the contract
+    // assigns this direction's check to the sending side. What is measured is
+    // the result envelope this host would actually put on the socket -- the
+    // JSON-encoded string plus the {"id": n, "result": ...} wrapper -- and not
+    // the raw character count, because it is the frame that has to fit. Both
+    // numbers go into detail: a bare failure here would be indistinguishable
+    // from a broken instance.
+    const std::size_t frameBytes = Json{{"id", 0}, {"result", configuration}}.dump().size();
+    if (static_cast<std::int64_t>(frameBytes) > kMaxFrameBytes)
+        throw ServiceError(ErrorCode::Internal,
+                           "openDAQ serialised this instance into " + std::to_string(configuration.size()) +
+                               " characters, which encode as a " + std::to_string(frameBytes) +
+                               "-byte result frame; this session's handshake announced limits.max_frame_bytes " +
+                               std::to_string(kMaxFrameBytes) + ", so the frame is not sent. A host that expects "
+                               "configurations this large declares a larger max_frame_bytes.");
+
+    std::cout << "[service] save_instance_configuration_to_string: " << configuration.size()
+              << " characters, which is a " << frameBytes << "-byte result frame against the announced "
+              << "max_frame_bytes of " << kMaxFrameBytes << std::endl;
+    return configuration;
+}
+
+Json SessionHub::loadInstanceConfigurationFromString(const transport::ConnectionPtr&,
+                                                     const SessionStatePtr&,
+                                                     const Json& params)
+{
+    // contract operations[load_instance_configuration_from_string].errors =
+    // [not_connected, invalid_value, internal]: no not_found, so a missing or
+    // non-string `configuration` is invalid_value.
+    if (!params.contains("configuration") || !params["configuration"].is_string())
+        throw ServiceError(ErrorCode::InvalidValue,
+                           "params.configuration must be a string carrying a configuration previously produced "
+                           "by save_instance_configuration_to_string; this request carried " +
+                               (params.contains("configuration") ? params["configuration"].dump()
+                                                                 : std::string("no such key")));
+
+    // The OTHER direction's frame check is the CLIENT's, and it cannot be moved
+    // here: a request frame over the limit may never arrive as a parseable
+    // envelope, in which case this host has no id to answer with. By the time
+    // this handler runs the frame did arrive, so there is nothing left to
+    // refuse on size.
+    const auto configuration = params["configuration"].get<std::string>();
+
+    // This REPLACES the configuration of every device under the instance, for
+    // every live session at once. There is no per-session instance here and the
+    // contract's row carries no update parameters to narrow it with.
+    backend_.loadInstanceConfigurationFromString(configuration);
+    return nullptr;
 }
 
 }  // namespace qs::service

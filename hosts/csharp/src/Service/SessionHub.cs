@@ -68,7 +68,18 @@ public sealed class SessionHub : IWebSocketSessionSink
             ["lock_device"] = (_, state, parameters) => LockDevice(state, parameters),
             ["unlock_device"] = (_, state, parameters) => UnlockDevice(state, parameters),
             ["list_loaded_modules"] = (_, _, _) => ListLoadedModules(),
-            ["load_module_from_host_path"] = (_, _, parameters) => LoadModuleFromHostPath(parameters)
+            ["load_module_from_host_path"] = (_, _, parameters) => LoadModuleFromHostPath(parameters),
+            ["get_component_attributes"] = (_, state, parameters) => GetComponentAttributes(state, parameters),
+            ["set_component_attribute"] = (_, state, parameters) => SetComponentAttribute(state, parameters),
+            ["list_server_types"] = (_, _, _) => ListServerTypes(),
+            ["add_server"] = (_, _, parameters) => AddServer(parameters),
+            ["set_server_discovery_enabled"] = (_, _, parameters) => SetServerDiscoveryEnabled(parameters),
+            ["start_recording"] = (_, state, parameters) => StartRecording(state, parameters),
+            ["stop_recording"] = (_, state, parameters) => StopRecording(state, parameters),
+            ["begin_batched_property_update"] = (_, state, parameters) => BeginBatchedPropertyUpdate(state, parameters),
+            ["end_batched_property_update"] = (_, state, parameters) => EndBatchedPropertyUpdate(state, parameters),
+            ["save_instance_configuration_to_string"] = (_, _, _) => SaveInstanceConfigurationToString(),
+            ["load_instance_configuration_from_string"] = (_, _, parameters) => LoadInstanceConfigurationFromString(parameters)
         };
 
         VerifyEveryServedMethodIsInTheBaseline();
@@ -606,7 +617,8 @@ public sealed class SessionHub : IWebSocketSessionSink
 
     // --- the four device rows and the two module rows ------------------------
 
-    // The node_id reader the four device rows use.
+    // The node_id reader for every row whose error subset has no not_connected
+    // and no invalid_value to report an unaddressable node with.
     //
     // contract operations[set_device_operation_mode|lock_device|unlock_device]
     // .errors carry NEITHER not_connected NOR invalid_value, and
@@ -615,7 +627,13 @@ public sealed class SessionHub : IWebSocketSessionSink
     // these rows. not_found is inside all four subsets and it is also the true
     // statement: the component named is not one this session can reach. The
     // detail says which ids it can.
-    private string RequireDeviceNodeIdAddressableOrNotFound(SessionState state, JsonObject parameters)
+    //
+    // operations[set_component_attribute].errors ([not_found, read_only,
+    // invalid_value]) and operations[start_recording|stop_recording].errors
+    // ([not_found, unsupported, internal]) have the same shape -- no
+    // not_connected -- so those three rows read their node_id here too, which is
+    // why this is named for a node and not for a device.
+    private string RequireNodeAddressableFromSessionOrNotFound(SessionState state, JsonObject parameters)
     {
         string nodeId = null;
         if (parameters.TryGetPropertyValue("node_id", out var node) &&
@@ -643,7 +661,7 @@ public sealed class SessionHub : IWebSocketSessionSink
 
     private JsonNode GetDeviceOperationModes(SessionState state, JsonObject parameters)
     {
-        var nodeId = RequireDeviceNodeIdAddressableOrNotFound(state, parameters);
+        var nodeId = RequireNodeAddressableFromSessionOrNotFound(state, parameters);
         var modes = new JsonArray();
         foreach (var mode in backend.GetDeviceOperationModes(nodeId))
             modes.Add(mode);
@@ -652,7 +670,7 @@ public sealed class SessionHub : IWebSocketSessionSink
 
     private JsonNode SetDeviceOperationMode(SessionState state, JsonObject parameters)
     {
-        var nodeId = RequireDeviceNodeIdAddressableOrNotFound(state, parameters);
+        var nodeId = RequireNodeAddressableFromSessionOrNotFound(state, parameters);
 
         if (!parameters.TryGetPropertyValue("mode", out var modeNode) ||
             modeNode is not JsonValue modeValue ||
@@ -667,13 +685,13 @@ public sealed class SessionHub : IWebSocketSessionSink
 
     private JsonNode LockDevice(SessionState state, JsonObject parameters)
     {
-        backend.LockDevice(RequireDeviceNodeIdAddressableOrNotFound(state, parameters));
+        backend.LockDevice(RequireNodeAddressableFromSessionOrNotFound(state, parameters));
         return null;
     }
 
     private JsonNode UnlockDevice(SessionState state, JsonObject parameters)
     {
-        var nodeId = RequireDeviceNodeIdAddressableOrNotFound(state, parameters);
+        var nodeId = RequireNodeAddressableFromSessionOrNotFound(state, parameters);
 
         // force is presence: optional. Absent means false; anything present that
         // is not a JSON boolean is a malformed request, and unlock_device's error
@@ -736,6 +754,240 @@ public sealed class SessionHub : IWebSocketSessionSink
                 "for example an absolute path ending in the module extension this host's platform uses");
 
         return backend.LoadModuleFromHostPath(hostPath).ToWireJson();
+    }
+
+    // --- component attributes ------------------------------------------------
+
+    // contract operations[get_component_attributes].errors is
+    // [not_found, not_connected] -- the same subset get_property_descriptors
+    // declares -- so this row reads its node_id exactly the way that row does.
+    private JsonNode GetComponentAttributes(SessionState state, JsonObject parameters)
+    {
+        RequireDeviceInSession(state);
+        var rows = new JsonArray();
+        foreach (var attribute in backend.GetComponentAttributes(RequireNodeReachableFromSession(state, parameters, "node_id")))
+            rows.Add(attribute.ToWireJson());
+        return rows;
+    }
+
+    // contract operations[set_component_attribute].errors is
+    // [not_found, read_only, invalid_value]: no not_connected, so an
+    // unaddressable node_id is not_found, which is what
+    // RequireNodeAddressableFromSessionOrNotFound answers.
+    private JsonNode SetComponentAttribute(SessionState state, JsonObject parameters)
+    {
+        var nodeId = RequireNodeAddressableFromSessionOrNotFound(state, parameters);
+
+        if (!parameters.TryGetPropertyValue("attribute_id", out var attributeNode) ||
+            attributeNode is not JsonValue attributeValue ||
+            !attributeValue.TryGetValue(out string attributeId) ||
+            attributeId.Length == 0)
+            throw new WireError(WireErrorCode.NotFound,
+                "params.attribute_id is absent, empty or not a string, so no attribute was named; it must be one " +
+                "of the ComponentAttribute.id values get_component_attributes answered with for this node");
+
+        if (!parameters.TryGetPropertyValue("value", out var value))
+            throw new WireError(WireErrorCode.InvalidValue,
+                $"params.value is required; set_component_attribute writes a value to \"{attributeId}\" on " +
+                $"\"{nodeId}\" and there is nothing to write");
+
+        backend.SetComponentAttribute(nodeId, attributeId, value);
+        return null;
+    }
+
+    // --- servers, and their discovery ----------------------------------------
+
+    // list_server_types and add_server are not scoped to a connected device, and
+    // that is the contract's own finding rather than a shortcut here: only the
+    // root device accepts servers, IDevice::onAddServer refuses the rest, so
+    // add_server takes no parent_id and acts on the instance. The types this
+    // instance will accept are the same whether or not this session connected
+    // anything.
+    //
+    // contract operations[list_server_types].errors is [not_connected] alone,
+    // which this host uses for the one case that is true: the WebSocket session
+    // is already gone, which Dispatch checks before any handler runs.
+    private JsonNode ListServerTypes()
+    {
+        var types = new JsonArray();
+        foreach (var type in backend.ListServerTypes())
+            types.Add(type.ToWireJson());
+        return types;
+    }
+
+    private JsonNode AddServer(JsonObject parameters)
+    {
+        // contract operations[add_server].errors is
+        // [not_connected, unsupported, invalid_value, internal]. A type_id that
+        // is absent or not a string is a malformed request, which is
+        // invalid_value; a well-formed id this instance does not offer is
+        // unsupported, and the backend answers that after comparing it against
+        // IInstance.availableServerTypes.
+        if (!parameters.TryGetPropertyValue("type_id", out var node) ||
+            node is not JsonValue value ||
+            !value.TryGetValue(out string typeId))
+            throw new WireError(WireErrorCode.InvalidValue,
+                "params.type_id must be a string naming one of the ComponentTypeInfo.id values list_server_types " +
+                $"answered with; got {(node is null ? "no type_id at all" : node.ToJsonString())}");
+
+        if (typeId.Length == 0)
+            throw new WireError(WireErrorCode.InvalidValue,
+                "params.type_id is the empty string; it must name one of the server types list_server_types " +
+                "answered with, for example \"OpenDAQOPCUA\"");
+
+        return backend.AddServer(typeId).ToWireJson();
+    }
+
+    // set_server_discovery_enabled resolves its node_id against the WHOLE
+    // instance and not against the devices this session connected, which is a
+    // consequence of add_server rather than a loosening of scope: a server is
+    // added to the instance's root device, so it is never inside the subtree of
+    // a device connect_device added, and a session-scoped lookup would make this
+    // row unreachable for every server this contract can create. contract
+    // operations[set_server_discovery_enabled].errors is
+    // [not_found, unsupported, internal], and the backend answers not_found for
+    // an id that names nothing and unsupported for one that names a component
+    // that is not a server.
+    private JsonNode SetServerDiscoveryEnabled(JsonObject parameters)
+    {
+        string nodeId = null;
+        if (parameters.TryGetPropertyValue("node_id", out var node) &&
+            node is JsonValue value && value.TryGetValue(out string text))
+            nodeId = text;
+
+        if (string.IsNullOrEmpty(nodeId))
+            throw new WireError(WireErrorCode.NotFound,
+                "params.node_id is absent, empty or not a string, so no component was named; this row takes the " +
+                "node id of a server exactly as add_server answered it");
+
+        if (!parameters.TryGetPropertyValue("enabled", out var enabledNode) ||
+            enabledNode is not JsonValue enabledValue ||
+            !enabledValue.TryGetValue(out bool enabled))
+            // The subset has no invalid_value, and unsupported is what
+            // unlock_device already uses for a parameter this row cannot make
+            // sense of. contract operations[set_server_discovery_enabled].params
+            // .enabled is a required bool, so true or false and nothing else.
+            throw new WireError(WireErrorCode.Unsupported,
+                $"params.enabled is {(enabledNode is null ? "absent" : enabledNode.ToJsonString())}; contract " +
+                "operations[set_server_discovery_enabled].params.enabled is a required bool, so it must be true " +
+                "or false. Two named row items each send one value; there is no switch, because openDAQ has no " +
+                "member that reports whether discovery is on");
+
+        backend.SetServerDiscoveryEnabled(nodeId, enabled);
+        return null;
+    }
+
+    // --- the recorder --------------------------------------------------------
+    //
+    // contract operations[start_recording|stop_recording].errors is
+    // [not_found, unsupported, internal]: no not_connected, so an unaddressable
+    // node_id is not_found. A recorder is a function block inside a device's
+    // subtree, so unlike a server it IS reachable from this session's own
+    // devices and is looked up there.
+
+    private JsonNode StartRecording(SessionState state, JsonObject parameters)
+    {
+        backend.StartRecording(RequireNodeAddressableFromSessionOrNotFound(state, parameters));
+        return null;
+    }
+
+    private JsonNode StopRecording(SessionState state, JsonObject parameters)
+    {
+        backend.StopRecording(RequireNodeAddressableFromSessionOrNotFound(state, parameters));
+        return null;
+    }
+
+    // --- batched property updates --------------------------------------------
+    //
+    // contract operations[begin_batched_property_update].errors is
+    // [not_found, not_connected] and end's adds invalid_value, so both read
+    // their node_id the way get_property_descriptors does.
+    //
+    // WHO MAY END A BATCH IS NOT RULED, and this host does not invent an answer.
+    // beginUpdate is recursive over child property objects, so one begin on a
+    // device puts a subtree into batch mode for every session at once, and a
+    // session that begins and then drops leaves it there. contract
+    // operations[begin_batched_property_update] states that this is the same
+    // question already escalated for device.lock and leaves it open. So:
+    // OnSessionClosed does NOT end an abandoned batch, no session-ownership
+    // table is kept, and a second session's end_batched_property_update is
+    // passed straight to openDAQ -- exactly what this host does with the lock.
+    // Node.updating is what makes an abandoned batch visible in the meantime.
+
+    private JsonNode BeginBatchedPropertyUpdate(SessionState state, JsonObject parameters)
+    {
+        RequireDeviceInSession(state);
+        backend.BeginBatchedPropertyUpdate(RequireNodeReachableFromSession(state, parameters, "node_id"));
+        return null;
+    }
+
+    private JsonNode EndBatchedPropertyUpdate(SessionState state, JsonObject parameters)
+    {
+        RequireDeviceInSession(state);
+        backend.EndBatchedPropertyUpdate(RequireNodeReachableFromSession(state, parameters, "node_id"));
+        return null;
+    }
+
+    // --- saving and loading the instance configuration -----------------------
+
+    // THE HOST CHECKS THE SIZE ON SAVE, which contract
+    // operations[save_instance_configuration_to_string] assigns to this side in
+    // as many words: a result that will not fit inside the max_frame_bytes this
+    // session's own handshake announced is answered `internal` with BOTH byte
+    // counts in the detail, because a bare failure here would be
+    // indistinguishable from a broken instance.
+    //
+    // The counterpart check on load belongs to the CLIENT and cannot be done
+    // here: a request frame over the limit may never arrive as a parseable
+    // envelope, so this host would have no id to answer with.
+    private JsonNode SaveInstanceConfigurationToString()
+    {
+        var configuration = backend.SaveInstanceConfigurationToString();
+        var configurationBytes = System.Text.Encoding.UTF8.GetByteCount(configuration);
+
+        // What the frame actually costs: the JSON string literal (the text plus
+        // its quotes and any escaping) inside {"id":n,"result":...}. Measured
+        // rather than estimated, so the number in the refusal is the real one.
+        var encodedFrameBytes = System.Text.Encoding.UTF8.GetByteCount(
+            JsonValue.Create(configuration).ToJsonString());
+
+        if (encodedFrameBytes > MaxFrameBytes)
+            throw new WireError(WireErrorCode.Internal,
+                $"IDevice::saveConfiguration() produced {configurationBytes} UTF-8 bytes, which encode to " +
+                $"{encodedFrameBytes} bytes as the JSON string of the result envelope, and this session's " +
+                $"handshake announced limits.max_frame_bytes = {MaxFrameBytes}. quackoscope-host-csharp refuses " +
+                "to send a frame larger than the limit it declared rather than sending one the client is entitled " +
+                "to drop. A host that expects configurations this large declares a larger max_frame_bytes");
+
+        Console.WriteLine($"[service] save_instance_configuration_to_string: {configurationBytes} UTF-8 byte(s), " +
+                          $"{encodedFrameBytes} byte(s) once JSON-encoded, against the max_frame_bytes " +
+                          $"{MaxFrameBytes} this session's handshake announced");
+
+        return JsonValue.Create(configuration);
+    }
+
+    private JsonNode LoadInstanceConfigurationFromString(JsonObject parameters)
+    {
+        // contract operations[load_instance_configuration_from_string].errors is
+        // [not_connected, invalid_value, internal]: a configuration that is
+        // absent or not a string is invalid_value, which is also the code a
+        // string openDAQ will not load comes back as.
+        if (!parameters.TryGetPropertyValue("configuration", out var node) ||
+            node is not JsonValue value ||
+            !value.TryGetValue(out string configuration))
+            throw new WireError(WireErrorCode.InvalidValue,
+                "params.configuration must be a string holding the text of a configuration " +
+                "save_instance_configuration_to_string produced, on this host or another. The string crosses the " +
+                "wire in both directions -- openDAQ's saveConfiguration/loadConfiguration take a string and have " +
+                "no path overload, and the file is for the user at the other end of this socket, not for this " +
+                $"host's disk. Got {(node is null ? "no configuration at all" : node.ToJsonString())}");
+
+        if (configuration.Length == 0)
+            throw new WireError(WireErrorCode.InvalidValue,
+                "params.configuration is the empty string; openDAQ has nothing to deserialise from it");
+
+        backend.LoadInstanceConfigurationFromString(configuration);
+        return null;
     }
 
     // --- data plane ---------------------------------------------------------

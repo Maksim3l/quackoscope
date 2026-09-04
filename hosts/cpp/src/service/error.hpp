@@ -59,11 +59,35 @@ private:
 // OPENDAQ_ERR_NOTIMPLEMENTED / OPENDAQ_ERR_NOT_SUPPORTED). Answering outside an
 // operation's declared subset is the class (b) failure the conformance harness
 // exists to catch, so this context maps into the four codes and no others.
+//
+// The eight contexts below the first two exist for that one reason and no
+// other: contract section 5 gives each operation a SUBSET of the closed error
+// set, and the General table can produce codes outside it. Each context names
+// the operation whose subset it confines the General answer to, and the fallback
+// each uses is stated at its case in error.cpp.
 enum class MapContext
 {
     General,
     PropertyWrite,
-    ModuleLoad
+    ModuleLoad,
+    // set_component_attribute: not_found, read_only, invalid_value.
+    AttributeWrite,
+    // list_server_types: not_connected.
+    ServerTypeList,
+    // add_server: not_connected, unsupported, invalid_value, internal.
+    ServerAdd,
+    // set_server_discovery_enabled: not_found, unsupported, internal.
+    ServerDiscoveryEnable,
+    // start_recording and stop_recording: not_found, unsupported, internal.
+    RecorderControl,
+    // begin_batched_property_update: not_found, not_connected.
+    BatchedPropertyUpdateBegin,
+    // end_batched_property_update: not_found, not_connected, invalid_value.
+    BatchedPropertyUpdateEnd,
+    // save_instance_configuration_to_string: not_connected, internal.
+    ConfigurationSave,
+    // load_instance_configuration_from_string: not_connected, invalid_value, internal.
+    ConfigurationLoad
 };
 
 // Native openDAQ ErrCode -> closed set. Anything unrecognised becomes Internal.

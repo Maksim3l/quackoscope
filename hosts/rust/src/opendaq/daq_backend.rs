@@ -33,6 +33,23 @@
 // device-scoped operations all begin with) and module-component-types (the
 // four type dictionaries a module advertises).
 //
+// The eleven rows added with attribute.read, attribute.write, server.add,
+// server.discovery, recorder.control, property.batched_update,
+// configuration.save and configuration.load bring four more, and their names are
+// hosts/cpp/src/opendaq/daq_backend.cpp's, so the extractor pairs the columns:
+// server-of-component and recorder-of-component (the two interface queries that
+// decide whether a component has a discovery control or a Start/Stop control at
+// all), property-object-update-state (IPropertyObject::getUpdating, which is
+// Node.updating and is also what tells begin from end), and
+// component-attribute-rows (the whole attribute enumeration, which
+// get_component_attributes answers with and set_component_attribute consults
+// before it writes, so the two can never disagree about what is writable).
+//
+// One name here does NOT match the C++ host and is left alone deliberately:
+// this file's device-facet-of-component is hosts/cpp's device-of-component. That
+// pair predates these rows, renaming it would touch four operations this change
+// is not about, and it is stated here rather than left to be discovered.
+//
 // Session bookkeeping, JSON marshalling, node-id registry lookups and the
 // native-status-code mapping stay OUTSIDE every region: they are this host's
 // plumbing, not openDAQ.
@@ -44,9 +61,9 @@ use std::thread::JoinHandle;
 
 use opendaq::{
     Component, ComponentKind, ComponentStatusContainer, ComponentType, CoreType, Device,
-    DevicePrivate, Folder, Instance, InstanceBuilder, Interface, LogLevel, ModuleManager,
-    OperationModeType, Property, PropertyObject, Signal, StreamReader, Struct, StructBuilder,
-    Value as DaqValue,
+    DevicePrivate, Folder, InputPort, Instance, InstanceBuilder, Interface, LogLevel,
+    ModuleManager, OperationModeType, Property, PropertyObject, Recorder, Server, Signal,
+    StreamReader, Struct, StructBuilder, TagsPrivate, Value as DaqValue,
 };
 use serde_json::{Map, Value as Json};
 
@@ -55,7 +72,8 @@ use crate::service::error::{
     map_native_error_code, ErrorCode, MapContext, ServiceError, ServiceResult,
 };
 use crate::service::types::{
-    ComponentTypeInfo, DeviceInfo, ModuleInfo as WireModuleInfo, Node, PropertyDescriptor,
+    ComponentAttribute, ComponentTypeInfo, DeviceInfo, ModuleInfo as WireModuleInfo, Node,
+    PropertyDescriptor,
 };
 
 /// How many samples one pump read asks for, and how long it waits for them.
@@ -163,13 +181,73 @@ fn kind_of(component: &Component) -> &'static str {
         Some(ComponentKind::Device) => "device",
         Some(ComponentKind::FunctionBlock) => "function_block",
         Some(ComponentKind::Signal) => "signal",
-        // Everything else -- input ports, folders and plain components such as
-        // Synchronization -- is reported as a folder; the contract's kind set
-        // has no other container.
-        _ => "folder",
+        // A server is INVISIBLE to that probe. openDAQ's IServer derives from
+        // IFolder, so component_kind() answers Folder for one, and the crate's
+        // ComponentKind enum has no Server variant at all -- it is
+        // (Channel, FunctionBlock, Device, Signal, InputPort, Folder, Component).
+        // The only thing that tells a server row from a folder row is asking the
+        // object for the IServer interface, which is what NodeKind's `server`
+        // value and the row menu's discovery items both need.
+        //
+        // Input ports still fall through to "folder": the contract's NodeKind
+        // has no input_port value, and this host does not invent one.
+        _ => match component.as_base_object().try_cast::<Server>() {
+            Some(_) => "server",
+            None => "folder",
+        },
     };
     // quack-snippet end
     wire_kind
+}
+
+/// The Server facet of a component. The shared region server-of-component;
+/// component-kind uses it, and so does set_server_discovery_enabled.
+fn server_facet_of(component: &Component) -> Option<Server> {
+    // quack-snippet shared=server-of-component
+    // openDAQ declares enableDiscovery() and disableDiscovery() on IServer
+    // (server.h:66 and server.h:90) and on no other interface, so a component
+    // has to be queried for IServer before either can be called. A Server IS a
+    // Folder and a Component; the reverse does not hold, which is why this is an
+    // interface query and not a reinterpretation.
+    let server = component.as_base_object().try_cast::<Server>();
+    // quack-snippet end
+    server
+}
+
+/// The Recorder facet of a component. The shared region
+/// recorder-of-component; component-node reads Node.recording through it,
+/// and start_recording and stop_recording both begin with it.
+fn recorder_facet_of(component: &Component) -> Option<Recorder> {
+    // quack-snippet shared=recorder-of-component
+    // A recorder is a function block that ALSO carries IRecorder, which is
+    // where getIsRecording(), startRecording() and stopRecording() live
+    // (recorder.h:62 and below). Nothing about a function block's type id or its
+    // place in the tree says whether it is one, so the question is an interface
+    // query -- the same one the reference asks with
+    // daq.IRecorder.can_cast_from(self.node) before it builds RecorderView
+    // (block_view.py:169-171).
+    let recorder = component.as_base_object().try_cast::<Recorder>();
+    // quack-snippet end
+    recorder
+}
+
+/// Whether a batched property update is open on this component. The shared
+/// region property-object-update-state; component-node fills Node.updating from
+/// it and the two batched-update operations bracket it.
+fn batched_update_is_open_on(component: &Component) -> Option<bool> {
+    // quack-snippet shared=property-object-update-state
+    // IPropertyObject::getUpdating(Bool*) (property_object.h:361) answers "a
+    // beginUpdate has been called on this object and no endUpdate has closed
+    // it", and while that holds every setPropertyValue against the object is
+    // STAGED rather than applied. Almost every openDAQ component is an
+    // IPropertyObject, but not literally every one, so the facet is queried
+    // rather than assumed and a component without it reports null.
+    let updating = component
+        .as_base_object()
+        .try_cast::<PropertyObject>()
+        .and_then(|object| object.updating().ok());
+    // quack-snippet end
+    updating
 }
 
 // --- component state -------------------------------------------------------
@@ -675,7 +753,7 @@ impl DaqBackend {
     /// The whole component -> Node mapping. The shared region component-node:
     /// connect_device and get_component_tree both use it.
     fn build_node(&self, component: &Component) -> ServiceResult<Node> {
-        // quack-snippet shared=component-node uses=component-kind,property-wire-value-type,component-status-container,effective-device-lock-state,operation-mode-names
+        // quack-snippet shared=component-node uses=component-kind,property-wire-value-type,component-status-container,effective-device-lock-state,operation-mode-names,property-object-update-state,recorder-of-component
         // Identity, then the two structural facts openDAQ exposes: a component
         // knows its parent, and a component that is a Folder knows its items.
         // Properties come from the PropertyObject facet, which most but not all
@@ -734,6 +812,18 @@ impl DaqBackend {
                 .and_then(operation_mode_wire_name), // shared region operation-mode-names
             None => None,
         };
+
+        // The two facts added with the batched-update and recorder rows, and
+        // both are here for the same reason the six above are: a per-row fact
+        // must not cost a per-row call. `updating` is asked of every component,
+        // because the reference reads it on every component too
+        // (_set_node_update_status_recursive walks the whole tree). `recording`
+        // is null unless the component carries IRecorder, and that null means
+        // BOTH "not a recorder" and "not reported" -- the client draws no
+        // Start/Stop control either way.
+        let updating = batched_update_is_open_on(component); // shared region property-object-update-state
+        let recording = recorder_facet_of(component) // shared region recorder-of-component
+            .and_then(|recorder| recorder.is_recording().ok());
         // quack-snippet end
 
         let component_status = component_status_enumerator
@@ -758,6 +848,8 @@ impl DaqBackend {
             component_status_message,
             connection_status,
             operation_mode: operation_mode.map(str::to_string),
+            updating,
+            recording,
         })
     }
 
@@ -786,6 +878,79 @@ impl DaqBackend {
                  interface, so it has no lock and no operation mode",
                 kind_of(&component)
             ))
+        })
+    }
+
+    /// The two halves of one Start/Stop control, which are the same three steps
+    /// with one call swapped, so they are written once.
+    ///
+    /// A node that exists but is not a recorder is answered `unsupported`, never
+    /// `not_found`: the node IS there, it simply carries no IRecorder. That is
+    /// the same reading resolve_device already gives a node that is not a
+    /// device, and contract/contract.yaml names the code for each of these two
+    /// rows in as many words.
+    fn drive_recorder(&self, node_id: &str, start: bool) -> ServiceResult<()> {
+        let driven = (|| -> ServiceResult<()> {
+            let component = self.resolve(node_id)?;
+            let recorder = recorder_facet_of(&component).ok_or_else(|| {
+                // shared region recorder-of-component
+                ServiceError::unsupported(format!(
+                    "component \"{node_id}\" is a {} and carries no openDAQ IRecorder interface, so it \
+                     has no recording to start or stop. contract types.Node.recording is null for it on \
+                     every tree read, which is how a client knows not to draw the control at all",
+                    kind_of(&component)
+                ))
+            })?;
+
+            // quack-snippet capability=recorder.control uses=recorder-of-component step=1
+            // IRecorder::startRecording() and IRecorder::stopRecording(), both
+            // taking nothing. The state they move is IRecorder::getIsRecording(),
+            // which contract types.Node.recording already carries on every tree
+            // row -- so a client never calls these to find out where it is, only
+            // to change it.
+            let result = if start {
+                recorder.start_recording()
+            } else {
+                recorder.stop_recording()
+            };
+            // quack-snippet end
+
+            result.map_err(|e| translate_general(&e))?;
+
+            // Read back rather than assume, exactly as lock_device does: what
+            // the next get_component_tree will put in Node.recording is what
+            // openDAQ reports now, not what this call intended.
+            println!(
+                "[opendaq] {} {node_id}: daqRecorder_{} returned success; daqRecorder_getIsRecording \
+                 now reports {}",
+                if start {
+                    "start_recording"
+                } else {
+                    "stop_recording"
+                },
+                if start {
+                    "startRecording"
+                } else {
+                    "stopRecording"
+                },
+                match recorder.is_recording() {
+                    Ok(state) => state.to_string(),
+                    Err(ref e) => format!("<unreadable: {e}>"),
+                }
+            );
+            Ok(())
+        })();
+
+        // contract errors for both rows: [not_found, unsupported, internal].
+        driven.map_err(|e| match e.code {
+            ErrorCode::NotFound | ErrorCode::Unsupported | ErrorCode::Internal => e,
+            other => ServiceError::internal(format!(
+                "{} -- restated as internal because contract/contract.yaml declares the error subset \
+                 [not_found, unsupported, internal] for start_recording and stop_recording, which does \
+                 not carry {}",
+                e.detail,
+                other.to_wire()
+            )),
         })
     }
 
@@ -1007,6 +1172,496 @@ fn describe_component_type(
         },
         connection_string_prefix: connection_string_prefix.filter(|prefix| !prefix.is_empty()),
     })
+}
+
+// --- component attributes ---------------------------------------------------
+//
+// An attribute is NOT a property. A property lives in the component's property
+// bag and is read with getPropertyValue; an attribute is a fixed member of an
+// openDAQ INTERFACE, with its own getter and, where openDAQ declares one, its
+// own setter. Which rows exist therefore depends on which interfaces the
+// component carries, and a cast that does not succeed yields fewer rows rather
+// than a row with a null value.
+
+/// The name openDAQ's IComponent::getLockedAttributes() uses for an attribute
+/// this contract calls by a wire id, or None where openDAQ has no lockable
+/// attribute of that name.
+///
+/// The seven names are openDAQ's own, read out of the headers rather than
+/// guessed: COMPONENT_AVAILABLE_ATTRIBUTES is {"Name", "Description", "Visible",
+/// "Active"} at component_impl.h:59, SIGNAL_AVAILABLE_ATTRIBUTES is {"Public",
+/// "DomainSignal", "RelatedSignals"} at signal_impl.h:53 and
+/// INPUT_PORT_AVAILABLE_ATTRIBUTES is {"Public"} at input_port_impl.h:47. Those
+/// are exactly the strings a locked-attributes list can contain, so an attribute
+/// with no name here can never appear in one.
+///
+/// No SDK call: this is a wire mapping, so it sits outside every region.
+fn locked_attribute_name_of(wire_id: &str) -> Option<&'static str> {
+    match wire_id {
+        "name" => Some("Name"),
+        "description" => Some("Description"),
+        "active" => Some("Active"),
+        "visible" => Some("Visible"),
+        "public" => Some("Public"),
+        "domain_signal_id" => Some("DomainSignal"),
+        "related_signal_ids" => Some("RelatedSignals"),
+        _ => None,
+    }
+}
+
+/// The attributes this host reports read_only whatever the component says,
+/// each with the reason established from the openDAQ surface rather than
+/// assumed. contract/contract.yaml names the same eight as the set the
+/// reference hardcodes Locked.
+///
+/// Six of them have no setter at all on the interface that declares them. The
+/// opendaq crate 0.1.1 was enumerated to say so: in its vendored source at
+/// ~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opendaq-0.1.1/, the
+/// inherent `impl Component` block of src/generated/component.rs declares
+/// exactly four setters -- set_active, set_description, set_name, set_visible --
+/// and neither global_id nor local_id is among them; `impl Signal` in the same
+/// file declares set_public and set_streamed and no setter for domain_signal,
+/// related_signals or last_value; `impl InputPort` in src/generated/reader.rs
+/// declares set_public and no setter for signal or requires_signal.
+///
+/// `streamed` is the eighth and it is the one with a setter, so its reason is a
+/// different one and it is stated rather than lumped in: openDAQ's
+/// SignalBase::setStreamed returns OPENDAQ_IGNORED
+/// (core/opendaq/signal/include/opendaq/signal_impl.h:1332), and signal.h:127-130
+/// documents it in as many words -- "Setting the 'Streamed' flag has no effect
+/// if the signal is local to the current Instance. Method returns
+/// OPENDAQ_IGNORED if that is the case." A write that is silently ignored is
+/// worse than a refused one, so this host reports the attribute read_only
+/// instead of offering an editor that appears to work.
+fn attribute_is_read_only_whatever_the_component_says(wire_id: &str) -> Option<&'static str> {
+    match wire_id {
+        "global_id" => Some(
+            "IComponent declares getGlobalId() and no setter; the opendaq crate's `impl Component` \
+             carries set_active, set_description, set_name and set_visible only",
+        ),
+        "local_id" => Some(
+            "IComponent declares getLocalId() and no setter; the opendaq crate's `impl Component` \
+             carries set_active, set_description, set_name and set_visible only",
+        ),
+        "domain_signal_id" => Some(
+            "ISignal declares getDomainSignal() and no setter; setting a domain signal is \
+             ISignalConfig's, which is the signal's owner's interface and not this component's",
+        ),
+        "related_signal_ids" => Some(
+            "ISignal declares getRelatedSignals() and no setter; adding and removing related \
+             signals is ISignalConfig's",
+        ),
+        "streamed" => Some(
+            "ISignal does declare setStreamed(Bool), but SignalBase::setStreamed returns \
+             OPENDAQ_IGNORED (signal_impl.h:1332) and signal.h:127-130 says a write has no effect \
+             for a signal local to this instance; a write that is silently ignored is reported \
+             read-only rather than offered as an editor that appears to work",
+        ),
+        "last_value" => Some(
+            "ISignal declares getLastValue() and no setter; the last value is what the signal \
+             produced, not a field of it",
+        ),
+        "signal_id" => Some(
+            "IInputPort declares getSignal() and no setSignal; a signal is put on an input port \
+             with connect(ISignal*), which is an act on the connection and not a write of this \
+             attribute, and no row of this contract asks for it",
+        ),
+        "requires_signal" => Some(
+            "IInputPort declares getRequiresSignal() and no setter; the opendaq crate's \
+             `impl InputPort` carries set_public only",
+        ),
+        _ => None,
+    }
+}
+
+/// One attribute row, built from a value this host has already read.
+fn attribute_row(
+    wire_id: &str,
+    label: &str,
+    value: Json,
+    value_type: &str,
+    locked_attributes: &[String],
+) -> ComponentAttribute {
+    // read_only has exactly the two sources contract/contract.yaml names, and
+    // NEITHER of them is "this host has no writer": a host with no writer
+    // declares no attribute.write capability and the client disables the editor
+    // from the gap. Saying read_only there would claim openDAQ locked the
+    // attribute, which is a cause nobody established.
+    //
+    // The comparison is CASE-INSENSITIVE, and that is not defensive spelling:
+    // openDAQ's own inserts use the canonical case (component_impl.h:269 inserts
+    // "Visible", COMPONENT_AVAILABLE_ATTRIBUTES is {"Name", "Description",
+    // "Visible", "Active"}), while IComponentPrivate::lockAttributes lower-cases
+    // whatever a caller passes it (component_impl.h:702) and documents its list
+    // as "not case sensitive" (component_private.h:40). So one list can hold
+    // both spellings, and an exact match would miss an attribute a caller had
+    // locked.
+    let read_only = attribute_is_read_only_whatever_the_component_says(wire_id).is_some()
+        || locked_attribute_name_of(wire_id).is_some_and(|opendaq_name| {
+            locked_attributes
+                .iter()
+                .any(|held| held.eq_ignore_ascii_case(opendaq_name))
+        });
+
+    ComponentAttribute {
+        id: wire_id.to_string(),
+        name: label.to_string(),
+        value,
+        value_type: value_type.to_string(),
+        read_only,
+    }
+}
+
+/// Pushes one string-valued attribute row, or records why it was left out.
+///
+/// An attribute whose getter FAILED is omitted rather than reported with a null
+/// value, because a null row would say "this attribute exists on this component
+/// and has no value", which is a different claim from "this host could not read
+/// it". No SDK call of its own: the read has already happened at the call site,
+/// inside the region that shows it.
+fn push_string_attribute(
+    rows: &mut Vec<ComponentAttribute>,
+    skipped: &mut Vec<String>,
+    wire_id: &str,
+    label: &str,
+    read: Result<String, opendaq::Error>,
+    locked_attributes: &[String],
+) {
+    match read {
+        Ok(text) => rows.push(attribute_row(
+            wire_id,
+            label,
+            Json::String(text),
+            "string",
+            locked_attributes,
+        )),
+        Err(e) => skipped.push(format!("{wire_id} ({e})")),
+    }
+}
+
+/// An openDAQ value rendered for a `last_value` row, plus the wire value_type
+/// that matches it. ComponentAttributeValueType is a closed set of five, so a
+/// value with no member of it crosses as its openDAQ string rendering and is
+/// typed `string` -- which is what the reference's own fall-through does when
+/// its editor branch finds no Python type it can edit.
+fn attribute_value_and_type(value: &DaqValue) -> (Json, &'static str) {
+    match value {
+        DaqValue::Bool(b) => (Json::Bool(*b), "bool"),
+        DaqValue::Int(i) => (Json::from(*i), "int"),
+        DaqValue::Float(f) => (
+            serde_json::Number::from_f64(*f)
+                .map(Json::Number)
+                .unwrap_or(Json::Null),
+            "float",
+        ),
+        DaqValue::Str(s) => (Json::String(s.clone()), "string"),
+        DaqValue::Null => (Json::Null, "string"),
+        other => (Json::String(other.to_string()), "string"),
+    }
+}
+
+/// Every attribute row of one component, in the order the reference's
+/// attributes treeview builds them. The shared region
+/// component-attribute-rows: get_component_attributes answers with these rows,
+/// and set_component_attribute reads the same rows to learn whether a write is
+/// refused BEFORE it makes it, so the two operations can never disagree about
+/// which attribute is writable.
+fn component_attribute_rows(
+    component: &Component,
+    node_id: &str,
+) -> ServiceResult<Vec<ComponentAttribute>> {
+    // quack-snippet shared=component-attribute-rows step=1
+    // ONE call decides read_only for every row below.
+    // IComponent::getLockedAttributes() answers the attribute names
+    // openDAQ has locked on THIS component -- the strings are openDAQ's
+    // own, from COMPONENT_AVAILABLE_ATTRIBUTES {"Name", "Description",
+    // "Visible", "Active"}, SIGNAL_AVAILABLE_ATTRIBUTES {"Public",
+    // "DomainSignal", "RelatedSignals"} and
+    // INPUT_PORT_AVAILABLE_ATTRIBUTES {"Public"}. It is read once here
+    // rather than per row, because the answer is per component.
+    let locked_attributes = component.locked_attributes();
+    // quack-snippet end
+
+    let locked_attributes = locked_attributes.map_err(|e| translate_general(&e))?;
+    let mut rows: Vec<ComponentAttribute> = Vec::new();
+
+    // quack-snippet shared=component-attribute-rows step=2
+    // The seven every IComponent carries. Each is a getter on the
+    // interface itself, NOT an entry in the property bag: none of them
+    // is reachable through getPropertyValue, and the reference writes
+    // them with setattr rather than through the property API.
+    let name = component.name();
+    let description = component.description();
+    let active = component.active();
+    let global_id = component.global_id();
+    let local_id = component.local_id();
+    let visible = component.visible();
+    let tags = component.tags();
+    // quack-snippet end
+
+    let mut skipped: Vec<String> = Vec::new();
+    push_string_attribute(
+        &mut rows,
+        &mut skipped,
+        "name",
+        "Name",
+        name,
+        &locked_attributes,
+    );
+    push_string_attribute(
+        &mut rows,
+        &mut skipped,
+        "description",
+        "Description",
+        description,
+        &locked_attributes,
+    );
+    match active {
+        Ok(state) => rows.push(attribute_row(
+            "active",
+            "Active",
+            Json::Bool(state),
+            "bool",
+            &locked_attributes,
+        )),
+        Err(e) => skipped.push(format!("active ({e})")),
+    }
+    push_string_attribute(
+        &mut rows,
+        &mut skipped,
+        "global_id",
+        "Global ID",
+        global_id,
+        &locked_attributes,
+    );
+    push_string_attribute(
+        &mut rows,
+        &mut skipped,
+        "local_id",
+        "Local ID",
+        local_id,
+        &locked_attributes,
+    );
+
+    match tags.map_err(|e| translate_general(&e))? {
+        Some(tag_object) => {
+            // quack-snippet shared=component-attribute-rows step=3
+            // ITags is READ-ONLY as an interface: it declares getList(),
+            // contains() and query() and nothing that changes the set.
+            // Adding, removing and replacing tags live on ITagsPrivate,
+            // a separate interface the tags object has to be queried
+            // for, so whether this component's tags can be written at
+            // all is established by that query rather than assumed.
+            let listed = tag_object.list();
+            let writable = tag_object.as_base_object().try_cast::<TagsPrivate>();
+            // quack-snippet end
+
+            match listed {
+                Ok(list) => {
+                    let mut row = attribute_row(
+                        "tags",
+                        "Tags",
+                        Json::Array(
+                            list.iter().map(|tag| Json::String(tag.clone())).collect(),
+                        ),
+                        "string_list",
+                        &locked_attributes,
+                    );
+                    if writable.is_none() {
+                        row.read_only = true;
+                    }
+                    rows.push(row);
+                }
+                Err(e) => skipped.push(format!("tags ({e})")),
+            }
+        }
+        None => skipped.push(
+            "tags (this component reports no ITags object at all, so there is no tag list to \
+             report and a row with a null value would claim otherwise)"
+                .to_string(),
+        ),
+    }
+
+    match visible {
+        Ok(state) => rows.push(attribute_row(
+            "visible",
+            "Visible",
+            Json::Bool(state),
+            "bool",
+            &locked_attributes,
+        )),
+        Err(e) => skipped.push(format!("visible ({e})")),
+    }
+
+    // quack-snippet shared=component-attribute-rows step=4
+    // Five more attributes exist only if the component carries ISignal,
+    // and three more only if it carries IInputPort. The two sets do not
+    // overlap except in `public`, which both declare. A cast that does
+    // not succeed yields FEWER ROWS -- never a row with a null value,
+    // which would claim the attribute exists and has none.
+    let signal_facet = component.as_base_object().try_cast::<Signal>();
+    let input_port_facet = component.as_base_object().try_cast::<InputPort>();
+    // quack-snippet end
+
+    if let Some(signal) = &signal_facet {
+        // quack-snippet shared=component-attribute-rows step=5
+        // The domain signal and the related signals are OBJECTS in
+        // openDAQ; what crosses this wire is their global ids, which is
+        // why the wire ids carry _id and _ids and the binding's own
+        // names (domain_signal, related_signals) do not.
+        let public = signal.public();
+        let streamed = signal.streamed();
+        let last_value = signal.last_value();
+        let domain_signal = signal.domain_signal();
+        let related_signals = signal.related_signals();
+        // quack-snippet end
+
+        match public {
+            Ok(state) => rows.push(attribute_row(
+                "public",
+                "Public",
+                Json::Bool(state),
+                "bool",
+                &locked_attributes,
+            )),
+            Err(e) => skipped.push(format!("public ({e})")),
+        }
+        match domain_signal.map_err(|e| translate_general(&e))? {
+            Some(domain) => push_string_attribute(
+                &mut rows,
+                &mut skipped,
+                "domain_signal_id",
+                "Domain Signal ID",
+                domain.global_id(),
+                &locked_attributes,
+            ),
+            None => rows.push(attribute_row(
+                "domain_signal_id",
+                "Domain Signal ID",
+                Json::Null,
+                "string",
+                &locked_attributes,
+            )),
+        }
+        match related_signals {
+            Ok(related) => {
+                let mut ids = Vec::new();
+                for signal in &related {
+                    ids.push(Json::String(
+                        signal.global_id().map_err(|e| translate_general(&e))?,
+                    ));
+                }
+                rows.push(attribute_row(
+                    "related_signal_ids",
+                    "Related Signal IDs",
+                    Json::Array(ids),
+                    "string_list",
+                    &locked_attributes,
+                ));
+            }
+            Err(e) => skipped.push(format!("related_signal_ids ({e})")),
+        }
+        match streamed {
+            Ok(state) => rows.push(attribute_row(
+                "streamed",
+                "Streamed",
+                Json::Bool(state),
+                "bool",
+                &locked_attributes,
+            )),
+            Err(e) => skipped.push(format!("streamed ({e})")),
+        }
+        match last_value {
+            Ok(value) => {
+                let (rendered, value_type) = attribute_value_and_type(&value);
+                rows.push(attribute_row(
+                    "last_value",
+                    "Last Value",
+                    rendered,
+                    value_type,
+                    &locked_attributes,
+                ));
+            }
+            Err(e) => skipped.push(format!("last_value ({e})")),
+        }
+    }
+
+    if let Some(input_port) = &input_port_facet {
+        // quack-snippet shared=component-attribute-rows step=6
+        let public = input_port.public();
+        let requires_signal = input_port.requires_signal();
+        let connected_signal = input_port.signal();
+        // quack-snippet end
+
+        if signal_facet.is_none() {
+            match public {
+                Ok(state) => rows.push(attribute_row(
+                    "public",
+                    "Public",
+                    Json::Bool(state),
+                    "bool",
+                    &locked_attributes,
+                )),
+                Err(e) => skipped.push(format!("public ({e})")),
+            }
+        }
+        match connected_signal.map_err(|e| translate_general(&e))? {
+            Some(signal) => push_string_attribute(
+                &mut rows,
+                &mut skipped,
+                "signal_id",
+                "Signal ID",
+                signal.global_id(),
+                &locked_attributes,
+            ),
+            None => rows.push(attribute_row(
+                "signal_id",
+                "Signal ID",
+                Json::Null,
+                "string",
+                &locked_attributes,
+            )),
+        }
+        match requires_signal {
+            Ok(state) => rows.push(attribute_row(
+                "requires_signal",
+                "Requires Signal",
+                Json::Bool(state),
+                "bool",
+                &locked_attributes,
+            )),
+            Err(e) => skipped.push(format!("requires_signal ({e})")),
+        }
+    }
+
+    println!(
+        "[opendaq] component attribute rows for {node_id}: the component is a {}; ISignal cast {}, \
+         IInputPort cast {}. IComponent_getLockedAttributes reported [{}]. {} row(s) reported{}",
+        kind_of(component),
+        if signal_facet.is_some() {
+            "succeeded"
+        } else {
+            "did not succeed"
+        },
+        if input_port_facet.is_some() {
+            "succeeded"
+        } else {
+            "did not succeed"
+        },
+        locked_attributes.join(", "),
+        rows.len(),
+        if skipped.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "; {} attribute(s) left out rather than reported with a null value: {}",
+                skipped.len(),
+                skipped.join(", ")
+            )
+        }
+    );
+
+    Ok(rows)
 }
 
 impl Drop for DaqBackend {
@@ -1707,6 +2362,672 @@ impl DaqBackendTrait for DaqBackend {
                 "{} -- restated as internal because contract/contract.yaml declares the error subset \
                  [not_found, not_connected, invalid_value, internal] for load_module_from_host_path, \
                  which does not carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
+    }
+
+    // --- get_component_attributes -------------------------------------------
+
+    fn component_attributes(&self, node_id: &str) -> ServiceResult<Vec<ComponentAttribute>> {
+        let read = (|| -> ServiceResult<Vec<ComponentAttribute>> {
+            let component = self.resolve(node_id)?;
+
+            // quack-snippet capability=attribute.read uses=component-attribute-rows
+            // ONE PANEL, ONE CALL. The attributes view is a panel over one
+            // selected component, so every row it draws is read here in a single
+            // pass -- the shared region component-attribute-rows, which is also
+            // what set_component_attribute consults before it writes.
+            let rows = component_attribute_rows(&component, node_id);
+            // quack-snippet end
+
+            let rows = rows?;
+            println!(
+                "[opendaq] get_component_attributes {node_id}: {} attribute row(s) answered",
+                rows.len()
+            );
+            Ok(rows)
+        })();
+
+        // contract errors: [not_found, not_connected] and nothing else.
+        read.map_err(|e| match e.code {
+            ErrorCode::NotFound | ErrorCode::NotConnected => e,
+            other => ServiceError::not_found(format!(
+                "{} -- restated as not_found because contract/contract.yaml declares the error subset \
+                 [not_found, not_connected] for get_component_attributes, which does not carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
+    }
+
+    // --- set_component_attribute ---------------------------------------------
+
+    fn set_component_attribute(
+        &self,
+        node_id: &str,
+        attribute_id: &str,
+        value: &Json,
+    ) -> ServiceResult<()> {
+        let written = (|| -> ServiceResult<()> {
+            let component = self.resolve(node_id)?;
+
+            // quack-snippet capability=attribute.write uses=component-attribute-rows step=1
+            // THE SAME ROWS get_component_attributes ANSWERS WITH, read again
+            // here rather than remembered from that call, because openDAQ fills
+            // getLockedAttributes() at runtime and it can have changed since.
+            // Checking read_only before the write is the same discipline
+            // set_property_value follows with Property.read_only: openDAQ
+            // answers a refused attribute write with a status code that does not
+            // distinguish "locked" from "bad value", so the flag is asked for
+            // first and the two failures stay distinguishable on the wire.
+            let rows = component_attribute_rows(&component, node_id);
+            // quack-snippet end
+
+            let rows = rows?;
+            let Some(row) = rows.iter().find(|row| row.id == attribute_id) else {
+                let reported: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
+                return Err(ServiceError::not_found(format!(
+                    "\"{attribute_id}\" is not an attribute this host reports for \"{node_id}\"; \
+                     get_component_attributes answers [{}] for it",
+                    reported.join(", ")
+                )));
+            };
+            if row.read_only {
+                let reason = attribute_is_read_only_whatever_the_component_says(attribute_id)
+                    .map(str::to_string)
+                    .unwrap_or_else(|| {
+                        format!(
+                            "openDAQ reports it locked on this component -- \
+                             IComponent_getLockedAttributes named \"{}\"",
+                            locked_attribute_name_of(attribute_id).unwrap_or(attribute_id)
+                        )
+                    });
+                return Err(ServiceError::read_only(format!(
+                    "attribute \"{attribute_id}\" on \"{node_id}\" cannot be written: {reason}"
+                )));
+            }
+
+            match attribute_id {
+                "name" | "description" => {
+                    let Json::String(text) = value else {
+                        return Err(ServiceError::invalid_value(format!(
+                            "attribute \"{attribute_id}\" is value_type string; got {value}"
+                        )));
+                    };
+                    // quack-snippet capability=attribute.write step=2
+                    // Attribute setters are declared on the INTERFACE, one per
+                    // attribute: IComponent::setName(IString*) and
+                    // setDescription(IString*). There is no generic
+                    // "set attribute by name" call anywhere in openDAQ, which is
+                    // why this is a branch and not a table lookup.
+                    let result = if attribute_id == "name" {
+                        component.set_name(text)
+                    } else {
+                        component.set_description(text)
+                    };
+                    // quack-snippet end
+                    result.map_err(|e| translate(&e, MapContext::PropertyWrite))?;
+                }
+                "active" | "visible" => {
+                    let Json::Bool(state) = value else {
+                        return Err(ServiceError::invalid_value(format!(
+                            "attribute \"{attribute_id}\" is value_type bool; got {value}"
+                        )));
+                    };
+                    // quack-snippet capability=attribute.write step=3
+                    let result = if attribute_id == "active" {
+                        component.set_active(*state)
+                    } else {
+                        component.set_visible(*state)
+                    };
+                    // quack-snippet end
+                    result.map_err(|e| translate(&e, MapContext::PropertyWrite))?;
+                }
+                "public" => {
+                    let Json::Bool(state) = value else {
+                        return Err(ServiceError::invalid_value(format!(
+                            "attribute \"public\" is value_type bool; got {value}"
+                        )));
+                    };
+                    // quack-snippet capability=attribute.write step=4
+                    // `public` is declared TWICE in openDAQ, on ISignal and on
+                    // IInputPort, and they are different methods on different
+                    // interfaces. Which one to call is decided by which
+                    // interface this component actually carries.
+                    let signal_facet = component.as_base_object().try_cast::<Signal>();
+                    let input_port_facet = component.as_base_object().try_cast::<InputPort>();
+                    let result = match (&signal_facet, &input_port_facet) {
+                        (Some(signal), _) => Some(signal.set_public(*state)),
+                        (None, Some(input_port)) => Some(input_port.set_public(*state)),
+                        (None, None) => None,
+                    };
+                    // quack-snippet end
+                    match result {
+                        Some(result) => {
+                            result.map_err(|e| translate(&e, MapContext::PropertyWrite))?
+                        }
+                        None => {
+                            return Err(ServiceError::not_found(format!(
+                                "component \"{node_id}\" is a {} and carries neither ISignal nor \
+                                 IInputPort, so it has no \"public\" attribute; \
+                                 get_component_attributes does not report one for it either",
+                                kind_of(&component)
+                            )))
+                        }
+                    }
+                }
+                "tags" => {
+                    let Json::Array(items) = value else {
+                        return Err(ServiceError::invalid_value(format!(
+                            "attribute \"tags\" is value_type string_list; got {value}"
+                        )));
+                    };
+                    let mut tags: Vec<String> = Vec::with_capacity(items.len());
+                    for item in items {
+                        match item {
+                            Json::String(text) => tags.push(text.clone()),
+                            other => {
+                                return Err(ServiceError::invalid_value(format!(
+                                    "attribute \"tags\" is value_type string_list and every element \
+                                     must be a string; got {other}"
+                                )))
+                            }
+                        }
+                    }
+
+                    // quack-snippet capability=attribute.write step=5
+                    // ITags cannot be written through: it declares getList(),
+                    // contains() and query() and nothing else. add(), remove()
+                    // and replace() are on ITagsPrivate, so the tags object has
+                    // to be queried for that interface first. `replace` is the
+                    // one that matches this row, which carries the WHOLE list.
+                    let tag_object = component.tags();
+                    let private = tag_object.as_ref().ok().and_then(|held| {
+                        held.as_ref()
+                            .and_then(|tags| tags.as_base_object().try_cast::<TagsPrivate>())
+                    });
+                    let borrowed: Vec<&str> = tags.iter().map(String::as_str).collect();
+                    let result = private.map(|private| private.replace(&borrowed));
+                    // quack-snippet end
+
+                    tag_object.map_err(|e| translate_general(&e))?;
+                    match result {
+                        Some(result) => {
+                            result.map_err(|e| translate(&e, MapContext::PropertyWrite))?
+                        }
+                        None => {
+                            return Err(ServiceError::read_only(format!(
+                                "the ITags object of \"{node_id}\" does not carry ITagsPrivate, which is \
+                                 the only interface in openDAQ that can add, remove or replace a tag; \
+                                 get_component_attributes reports this attribute read_only for the same \
+                                 reason"
+                            )))
+                        }
+                    }
+                }
+                other => {
+                    // Unreachable through the two checks above -- the id was
+                    // found among the rows and the row was not read_only, and
+                    // every such id has a branch here. Stated as a refusal
+                    // rather than left as a silent fall-through, so a row added
+                    // to component_attribute_rows without a writer says so
+                    // instead of appearing to succeed.
+                    return Err(ServiceError::read_only(format!(
+                        "attribute \"{other}\" on \"{node_id}\" is reported writable by \
+                         get_component_attributes but quackoscope-host-rust has no setter branch for \
+                         it, so nothing was written; that disagreement is this host's, not openDAQ's"
+                    )));
+                }
+            }
+
+            println!(
+                "[opendaq] set_component_attribute {node_id}.{attribute_id} = {value} (openDAQ's own \
+                 setter on the interface, not a property write)"
+            );
+            Ok(())
+        })();
+
+        // contract errors: [not_found, read_only, invalid_value].
+        written.map_err(|e| match e.code {
+            ErrorCode::NotFound | ErrorCode::ReadOnly | ErrorCode::InvalidValue => e,
+            other => ServiceError::invalid_value(format!(
+                "{} -- restated as invalid_value because contract/contract.yaml declares the error \
+                 subset [not_found, read_only, invalid_value] for set_component_attribute, which does \
+                 not carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
+    }
+
+    // --- list_server_types ----------------------------------------------------
+
+    fn list_server_types(&self) -> ServiceResult<Vec<ComponentTypeInfo>> {
+        let read = (|| -> ServiceResult<Vec<ComponentTypeInfo>> {
+            // quack-snippet capability=server.add uses=instance-with-module-path step=1
+            // What the INSTANCE will accept, asked of the instance. This is not
+            // the same question as "what server types does each loaded module
+            // offer" -- that is daqModule_getAvailableServerTypes, which
+            // list_loaded_modules asks -- and the two are only accidentally
+            // equal. The answer is a dictionary keyed by type id whose values
+            // are IServerType, and every IServerType IS an IComponentType.
+            let available = self.instance.available_server_types();
+            // quack-snippet end
+
+            let available = available.map_err(|e| translate_general(&e))?;
+
+            let mut out = Vec::new();
+            for (_, server_type) in available {
+                // IServerType has no connection string prefix: a server is
+                // created by type id, never by a connection string. Only
+                // IDeviceType and IStreamingType carry one.
+                out.push(describe_component_type(&server_type, "server", None)?);
+            }
+            out.sort_by(|left, right| left.id.cmp(&right.id));
+
+            println!(
+                "[opendaq] list_server_types: daqInstance_getAvailableServerTypes reported {} type(s): {}",
+                out.len(),
+                if out.is_empty() {
+                    "none".to_string()
+                } else {
+                    out.iter()
+                        .map(|entry| format!("{} ({})", entry.id, entry.name))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                }
+            );
+            Ok(out)
+        })();
+
+        // contract errors: [not_connected] and nothing else.
+        read.map_err(|e| match e.code {
+            ErrorCode::NotConnected => e,
+            other => ServiceError::not_connected(format!(
+                "{} -- restated as not_connected because contract/contract.yaml declares the error \
+                 subset [not_connected] for list_server_types, which does not carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
+    }
+
+    // --- add_server -----------------------------------------------------------
+
+    fn add_server(&self, type_id: &str) -> ServiceResult<Node> {
+        let added = (|| -> ServiceResult<Node> {
+            // quack-snippet capability=server.add uses=instance-with-module-path step=2
+            // The type id is checked against what the instance will accept
+            // before the add is attempted, because openDAQ answers an unknown
+            // type id with a status code that does not distinguish it from a
+            // socket that could not be bound -- and this row's contract gives
+            // those two different codes (unsupported and internal).
+            let available = self.instance.available_server_types();
+            // quack-snippet end
+
+            let available = available.map_err(|e| translate_general(&e))?;
+            let Some(server_type) = available.get(type_id) else {
+                let mut offered: Vec<&String> = available.keys().collect();
+                offered.sort();
+                return Err(ServiceError::unsupported(format!(
+                    "\"{type_id}\" is not a server type this instance accepts; \
+                     daqInstance_getAvailableServerTypes offers {}",
+                    if offered.is_empty() {
+                        "no server type at all".to_string()
+                    } else {
+                        offered
+                            .iter()
+                            .map(|id| id.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    }
+                )));
+            };
+
+            // quack-snippet capability=server.add step=3
+            // openDAQ's addServer takes a config PROPERTY OBJECT, not an
+            // optional one: IDevice::addServer(IString* typeId,
+            // IPropertyObject* config, IServer** server). The default config is
+            // the type's own -- IComponentType::createDefaultConfig() -- which
+            // is exactly what the reference builds for its "Add with config"
+            // screen before letting a user edit it. This contract carries no
+            // config on the row, so the default is passed unedited.
+            let default_config = server_type.create_default_config();
+            // quack-snippet end
+
+            let default_config = default_config.map_err(|e| translate_general(&e))?;
+            let default_config = match default_config {
+                Some(config) => config,
+                None => {
+                    // A type that offers no default config still has to be
+                    // given something, because the parameter is not optional.
+                    PropertyObject::new().map_err(|e| translate_general(&e))?
+                }
+            };
+
+            // quack-snippet capability=server.add uses=component-node step=4
+            // addServer is called ON THE INSTANCE and on nothing else:
+            // IDevice::onAddServer refuses every device but the root, which is
+            // why this contract's row takes no parent id -- it would be a
+            // parameter with exactly one legal value. Adding a server OPENS A
+            // LISTENING SOCKET in this process, which is why a failure here can
+            // be about a bound port rather than about the type id.
+            let server = self.instance.add_server(type_id, &default_config);
+            // quack-snippet end
+
+            let server = server.map_err(|e| translate_general(&e))?.ok_or_else(|| {
+                ServiceError::internal(format!(
+                    "daqDevice_addServer reported success for type \"{type_id}\" but handed back no \
+                     IServer, so there is no component for contract types.Node to describe"
+                ))
+            })?;
+
+            let component = server
+                .as_base_object()
+                .cast::<Component>()
+                .map_err(|e| translate_general(&e))?;
+            // The component -> Node mapping is the shared region component-node;
+            // its kind_of() answers "server" here, which is the NodeKind value
+            // this row is the reason for.
+            let node = self.build_node(&component)?;
+
+            println!(
+                "[opendaq] add_server {type_id}: daqDevice_addServer on the root instance created {} \
+                 (name {}, kind {}). It is listening from now on and every session can see it; the M1 \
+                 contract declares no remove_server row, so nothing on this wire takes it down again",
+                node.id, node.name, node.kind
+            );
+            Ok(node)
+        })();
+
+        // contract errors: [not_connected, unsupported, invalid_value, internal].
+        added.map_err(|e| match e.code {
+            ErrorCode::NotConnected
+            | ErrorCode::Unsupported
+            | ErrorCode::InvalidValue
+            | ErrorCode::Internal => e,
+            other => ServiceError::internal(format!(
+                "{} -- restated as internal because contract/contract.yaml declares the error subset \
+                 [not_connected, unsupported, invalid_value, internal] for add_server, which does not \
+                 carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
+    }
+
+    // --- set_server_discovery_enabled ------------------------------------------
+
+    fn set_server_discovery_enabled(&self, node_id: &str, enabled: bool) -> ServiceResult<()> {
+        let written = (|| -> ServiceResult<()> {
+            let component = self.resolve(node_id)?;
+            let server = server_facet_of(&component).ok_or_else(|| {
+                // shared region server-of-component
+                ServiceError::unsupported(format!(
+                    "component \"{node_id}\" is a {}, not a server; it carries no openDAQ IServer \
+                     interface, so it has no discovery to enable or disable",
+                    kind_of(&component)
+                ))
+            })?;
+
+            // quack-snippet capability=server.discovery uses=server-of-component step=1
+            // TWO METHODS, NOT ONE SETTER: openDAQ declares
+            // IServer::enableDiscovery() at server.h:66 and
+            // IServer::disableDiscovery() at server.h:90, each taking nothing.
+            // The contract's single boolean row picks between them here.
+            //
+            // AND THERE IS NO GETTER. IServer's whole surface is stop, getId,
+            // enableDiscovery, getSignals, getStreaming and disableDiscovery --
+            // nothing reports whether discovery is currently on. That is why no
+            // field of contract types.Node carries this state: no host could
+            // fill it.
+            let result = if enabled {
+                server.enable_discovery()
+            } else {
+                server.disable_discovery()
+            };
+            // quack-snippet end
+
+            result.map_err(|e| translate_general(&e))?;
+
+            println!(
+                "[opendaq] set_server_discovery_enabled {node_id} = {enabled}: \
+                 daqServer_{} returned success. openDAQ has no discovery-state getter, so this host \
+                 cannot read the setting back and does not pretend to -- nothing on the next \
+                 get_component_tree will report it",
+                if enabled {
+                    "enableDiscovery"
+                } else {
+                    "disableDiscovery"
+                }
+            );
+            Ok(())
+        })();
+
+        // contract errors: [not_found, unsupported, internal].
+        written.map_err(|e| match e.code {
+            ErrorCode::NotFound | ErrorCode::Unsupported | ErrorCode::Internal => e,
+            other => ServiceError::internal(format!(
+                "{} -- restated as internal because contract/contract.yaml declares the error subset \
+                 [not_found, unsupported, internal] for set_server_discovery_enabled, which does not \
+                 carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
+    }
+
+    // --- start_recording / stop_recording ---------------------------------------
+
+    fn start_recording(&self, node_id: &str) -> ServiceResult<()> {
+        self.drive_recorder(node_id, true)
+    }
+
+    fn stop_recording(&self, node_id: &str) -> ServiceResult<()> {
+        self.drive_recorder(node_id, false)
+    }
+
+    // --- begin_batched_property_update -------------------------------------------
+
+    fn begin_batched_property_update(&self, node_id: &str) -> ServiceResult<()> {
+        let opened = (|| -> ServiceResult<()> {
+            let object = self.resolve_property_object(node_id)?;
+            let was_open = batched_update_is_open_on(&self.resolve(node_id)?); // shared region property-object-update-state
+
+            // quack-snippet capability=property.batched_update step=1
+            // IPropertyObject::beginUpdate() (property_object.h:330-349). While
+            // it is open, setPropertyValue STAGES the value instead of applying
+            // it: reads still answer the old value and no OnPropertyValueWrite
+            // or OnEndUpdate event fires. It is RECURSIVE over child property
+            // objects (property_object.h:335), so one call on a device puts a
+            // whole subtree into batch mode -- for every session at once, not
+            // just the one that called it.
+            //
+            // The crate also offers an RAII bracket, BatchedPropertyUpdate,
+            // which opens the batch on construction and commits it on drop.
+            // That shape cannot serve these two rows: the contract's begin and
+            // end are two separate requests on two separate frames, and a guard
+            // that commits when its scope ends would end the batch before the
+            // client's next frame arrived.
+            let result = object.begin_update();
+            // quack-snippet end
+
+            result.map_err(|e| translate_general(&e))?;
+
+            println!(
+                "[opendaq] begin_batched_property_update {node_id}: daqPropertyObject_beginUpdate \
+                 returned success (getUpdating reported {} before the call, {} after). The batch is \
+                 recursive over this component's child property objects and belongs to the COMPONENT, \
+                 not to the socket that opened it",
+                match was_open {
+                    Some(state) => state.to_string(),
+                    None => "nothing".to_string(),
+                },
+                match object.updating() {
+                    Ok(state) => state.to_string(),
+                    Err(ref e) => format!("<unreadable: {e}>"),
+                }
+            );
+            Ok(())
+        })();
+
+        // contract errors: [not_found, not_connected].
+        opened.map_err(|e| match e.code {
+            ErrorCode::NotFound | ErrorCode::NotConnected => e,
+            other => ServiceError::not_found(format!(
+                "{} -- restated as not_found because contract/contract.yaml declares the error subset \
+                 [not_found, not_connected] for begin_batched_property_update, which does not carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
+    }
+
+    // --- end_batched_property_update ---------------------------------------------
+
+    fn end_batched_property_update(&self, node_id: &str) -> ServiceResult<()> {
+        let closed = (|| -> ServiceResult<()> {
+            let object = self.resolve_property_object(node_id)?;
+
+            // A call that arrives with no batch open is the closed set's
+            // invalid_value -- the request is well formed and the STATE refuses
+            // it -- and this host answers exactly that rather than swallowing
+            // it. The reference swallows it with a bare `except RuntimeError:
+            // pass` (gui_demo.py:1374-1378); silence here would tell a user
+            // their batch was applied when nothing was ever staged.
+            let updating = object.updating().map_err(|e| translate_general(&e))?;
+            if !updating {
+                return Err(ServiceError::invalid_value(format!(
+                    "no batched property update is open on \"{node_id}\": \
+                     daqPropertyObject_getUpdating reports false, so there is nothing for \
+                     daqPropertyObject_endUpdate to apply. contract types.Node.updating carries this \
+                     state on every tree row, so a client can tell which of Begin and End is the live \
+                     item without asking"
+                )));
+            }
+
+            // quack-snippet capability=property.batched_update step=2
+            // IPropertyObject::endUpdate() applies everything staged since the
+            // matching beginUpdate, all at once, and fires the OnEndUpdate event
+            // with the list of changed properties. It raises when no beginUpdate
+            // is open.
+            let result = object.end_update();
+            // quack-snippet end
+
+            result.map_err(|e| translate(&e, MapContext::PropertyWrite))?;
+
+            println!(
+                "[opendaq] end_batched_property_update {node_id}: daqPropertyObject_endUpdate applied \
+                 the staged values (getUpdating now reports {})",
+                match object.updating() {
+                    Ok(state) => state.to_string(),
+                    Err(ref e) => format!("<unreadable: {e}>"),
+                }
+            );
+            Ok(())
+        })();
+
+        // contract errors: [not_found, not_connected, invalid_value].
+        closed.map_err(|e| match e.code {
+            ErrorCode::NotFound | ErrorCode::NotConnected | ErrorCode::InvalidValue => e,
+            other => ServiceError::invalid_value(format!(
+                "{} -- restated as invalid_value because contract/contract.yaml declares the error \
+                 subset [not_found, not_connected, invalid_value] for end_batched_property_update, \
+                 which does not carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
+    }
+
+    // --- save_instance_configuration_to_string ------------------------------------
+
+    fn save_instance_configuration_to_string(&self) -> ServiceResult<String> {
+        let saved = (|| -> ServiceResult<String> {
+            // quack-snippet capability=configuration.save uses=instance-with-module-path step=1
+            // IDevice::saveConfiguration(IString** configuration), device.h:242
+            // -- "Saves the configuration of the device to string". It answers a
+            // STRING and there is no path overload anywhere in openDAQ, which is
+            // why this contract's row carries the string over the wire instead
+            // of writing a file on the host: the host would have had to invent
+            // file I/O openDAQ never asked for, and put the result on a machine
+            // the user may have no shell on.
+            //
+            // Called on the Instance, which IS a Device, so the whole instance
+            // and every device under it is serialised in one call.
+            let configuration = self.instance.save_configuration();
+            // quack-snippet end
+
+            let configuration = configuration.map_err(|e| translate_general(&e))?;
+            println!(
+                "[opendaq] save_instance_configuration_to_string: \
+                 daqDevice_saveConfiguration produced {} characters covering the whole instance",
+                configuration.len()
+            );
+            Ok(configuration)
+        })();
+
+        // contract errors: [not_connected, internal].
+        saved.map_err(|e| match e.code {
+            ErrorCode::NotConnected | ErrorCode::Internal => e,
+            other => ServiceError::internal(format!(
+                "{} -- restated as internal because contract/contract.yaml declares the error subset \
+                 [not_connected, internal] for save_instance_configuration_to_string, which does not \
+                 carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
+    }
+
+    // --- load_instance_configuration_from_string ----------------------------------
+
+    fn load_instance_configuration_from_string(&self, configuration: &str) -> ServiceResult<()> {
+        let loaded = (|| -> ServiceResult<()> {
+            // quack-snippet capability=configuration.load uses=instance-with-module-path step=1
+            // IDevice::loadConfiguration(IString* configuration,
+            // IUpdateParameters* config = nullptr), device.h:248. The second
+            // argument is openDAQ's UpdateParameters board -- per device a
+            // LocalId, Manufacturer, SerialNumber, ConnectionString and
+            // UpdateMode, recursively down the device tree. This contract's row
+            // carries none of it, so the null default is used, which is what
+            // openDAQ does with no second argument and what the reference's own
+            // _load_config path does.
+            //
+            // This REPLACES the configuration of every device under the
+            // instance, in one call, for every session at once. There is no
+            // narrower form of it in openDAQ and none on this row.
+            let result = self.instance.load_configuration(configuration);
+            // quack-snippet end
+
+            // MapContext::ConfigurationLoad, not the general table. A string
+            // openDAQ will not deserialise comes back as
+            // OPENDAQ_ERR_DESERIALIZE_PARSE_ERROR and friends, which the general
+            // table sends to internal because no other operation raises them --
+            // and contract/contract.yaml is explicit that this row must answer
+            // invalid_value there, because it is a refusal of the file the user
+            // chose and not a fault of the instance.
+            result.map_err(|e| translate(&e, MapContext::ConfigurationLoad))?;
+
+            println!(
+                "[opendaq] load_instance_configuration_from_string: \
+                 daqDevice_loadConfiguration applied {} characters to the whole instance with \
+                 openDAQ's default UpdateParameters. Every node id, property value and device under \
+                 this instance may now be different, in this session and in every other one",
+                configuration.len()
+            );
+            Ok(())
+        })();
+
+        // contract errors: [not_connected, invalid_value, internal].
+        loaded.map_err(|e| match e.code {
+            ErrorCode::NotConnected | ErrorCode::InvalidValue | ErrorCode::Internal => e,
+            other => ServiceError::invalid_value(format!(
+                "{} -- restated as invalid_value because contract/contract.yaml declares the error \
+                 subset [not_connected, invalid_value, internal] for \
+                 load_instance_configuration_from_string, which does not carry {}",
                 e.detail,
                 other.to_wire()
             )),

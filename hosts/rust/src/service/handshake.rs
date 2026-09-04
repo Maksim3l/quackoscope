@@ -19,20 +19,29 @@ use super::manifest::Manifest;
 /// contract.protocol_version.
 pub const PROTOCOL_VERSION: &str = "1.0";
 
-/// The 12 baseline capability ids of contract section 4, in contract order.
+/// The 20 baseline capability ids of contract section 4, in contract order.
 /// hosts/cpp reads these from generated/cpp/quackoscope-contract.hpp; the
 /// contract compiler emits no equivalent Rust module (generated/rust holds
 /// symbol-list.json only), so they are spelled out here and the wire method
 /// names below are cross-checked against generated/rust/symbol-list.json at
 /// startup instead. generated/wire/capability-baseline.json carries the same
-/// 12 ids and the same wire-method grouping.
+/// 20 ids and the same wire-method grouping, and
+/// verify_capability_table_against_generated_baseline below refuses to start
+/// the host when this file and that artifact disagree, so growing the contract
+/// cannot leave a host announcing a capability set computed against the old
+/// baseline.
 ///
 /// module.load is its own id and not part of module.read: listing the loaded
 /// modules is an enumeration, while load_module_from_host_path makes THIS
 /// process dlopen a file off its own disk and run that file's initialisation.
 /// Capabilities are ALL-OF, so folding the two together would leave a host no
-/// way to serve the Modules view without also serving the loader.
-pub const BASELINE_CAPABILITY_IDS: [&str; 12] = [
+/// way to serve the Modules view without also serving the loader. The eight ids
+/// added with the attributes, servers, recorder, batched-update and
+/// configuration rows split along the same line and for the same reason:
+/// attribute.read from attribute.write, server.discovery from server.add,
+/// property.batched_update from property.write, configuration.save from
+/// configuration.load.
+pub const BASELINE_CAPABILITY_IDS: [&str; 20] = [
     "device.scan",
     "device.connect",
     "tree.read",
@@ -45,10 +54,18 @@ pub const BASELINE_CAPABILITY_IDS: [&str; 12] = [
     "device.lock",
     "module.read",
     "module.load",
+    "attribute.read",
+    "attribute.write",
+    "server.add",
+    "server.discovery",
+    "recorder.control",
+    "property.batched_update",
+    "configuration.save",
+    "configuration.load",
 ];
 
 /// Which capability owns which wire method, contract section 5.
-pub const CONTRACT_OPERATION_TABLE: [(&str, &str); 19] = [
+pub const CONTRACT_OPERATION_TABLE: [(&str, &str); 30] = [
     ("scan_available_devices", "device.scan"),
     ("connect_device", "device.connect"),
     ("disconnect_device", "device.connect"),
@@ -68,6 +85,23 @@ pub const CONTRACT_OPERATION_TABLE: [(&str, &str); 19] = [
     ("unlock_device", "device.lock"),
     ("list_loaded_modules", "module.read"),
     ("load_module_from_host_path", "module.load"),
+    ("get_component_attributes", "attribute.read"),
+    ("set_component_attribute", "attribute.write"),
+    ("list_server_types", "server.add"),
+    ("add_server", "server.add"),
+    ("set_server_discovery_enabled", "server.discovery"),
+    ("start_recording", "recorder.control"),
+    ("stop_recording", "recorder.control"),
+    ("begin_batched_property_update", "property.batched_update"),
+    ("end_batched_property_update", "property.batched_update"),
+    (
+        "save_instance_configuration_to_string",
+        "configuration.save",
+    ),
+    (
+        "load_instance_configuration_from_string",
+        "configuration.load",
+    ),
 ];
 
 /// contract gap_generation.kinds: exactly these two, whether or not this host
@@ -258,6 +292,120 @@ pub fn verify_operation_table_against_generated_symbol_list(
     }
 
     Ok(generated_wire_methods.len())
+}
+
+/// The capability table above is checked against
+/// generated/wire/capability-baseline.json -- the artifact the contract compiler
+/// writes and every host, the snippet extractor and the conformance harness read
+/// -- before the handshake is built.
+///
+/// This exists because the gap list is COMPUTED as baseline minus served: a
+/// baseline this file has fallen behind on does not fail loudly, it silently
+/// shrinks the set a gap can be computed against, and the host announces a clean
+/// sweep of a contract that has since grown. hosts/csharp does the same check in
+/// CapabilityBaselineArtifact.cs.
+pub fn verify_capability_table_against_generated_baseline(
+    capability_baseline_path: &Path,
+) -> Result<usize, String> {
+    let text = std::fs::read_to_string(capability_baseline_path).map_err(|e| {
+        format!(
+            "the generated capability baseline could not be read: {} ({e}); it is what the capability \
+             table in hosts/rust/src/service/handshake.rs is checked against, and the gap list is \
+             computed as that baseline minus the capabilities this host serves",
+            capability_baseline_path.display()
+        )
+    })?;
+
+    let parsed: Json = serde_json::from_str(&text).map_err(|e| {
+        format!(
+            "the generated capability baseline is not valid JSON ({}): {e}",
+            capability_baseline_path.display()
+        )
+    })?;
+
+    let capabilities = parsed
+        .get("capabilities")
+        .and_then(Json::as_array)
+        .ok_or_else(|| {
+            format!(
+                "the generated capability baseline has no \"capabilities\" array: {}",
+                capability_baseline_path.display()
+            )
+        })?;
+
+    let mut baseline_pairs: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut baseline_ids: Vec<String> = Vec::new();
+    for capability in capabilities {
+        let id = capability
+            .get("id")
+            .and_then(Json::as_str)
+            .ok_or_else(|| {
+                format!(
+                    "a capability entry in {} has no string \"id\"",
+                    capability_baseline_path.display()
+                )
+            })?
+            .to_string();
+        for wire_method in capability
+            .get("wire_methods")
+            .and_then(Json::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Json::as_str)
+        {
+            baseline_pairs.insert((wire_method.to_string(), id.clone()));
+        }
+        baseline_ids.push(id);
+    }
+
+    if baseline_ids.len() != BASELINE_CAPABILITY_IDS.len() {
+        return Err(format!(
+            "{} lists {} capability ids ({}) but BASELINE_CAPABILITY_IDS in \
+             hosts/rust/src/service/handshake.rs holds {} ({})",
+            capability_baseline_path.display(),
+            baseline_ids.len(),
+            baseline_ids.join(", "),
+            BASELINE_CAPABILITY_IDS.len(),
+            BASELINE_CAPABILITY_IDS.join(", ")
+        ));
+    }
+    for (index, id) in baseline_ids.iter().enumerate() {
+        if BASELINE_CAPABILITY_IDS[index] != id {
+            return Err(format!(
+                "capability id {} of {} is \"{id}\" but BASELINE_CAPABILITY_IDS in \
+                 hosts/rust/src/service/handshake.rs has \"{}\" there; the two must agree in contract order",
+                index + 1,
+                capability_baseline_path.display(),
+                BASELINE_CAPABILITY_IDS[index]
+            ));
+        }
+    }
+
+    let table_pairs: BTreeSet<(String, String)> = CONTRACT_OPERATION_TABLE
+        .iter()
+        .map(|(wire_method, capability)| (wire_method.to_string(), capability.to_string()))
+        .collect();
+
+    for (wire_method, capability) in &baseline_pairs {
+        if !table_pairs.contains(&(wire_method.clone(), capability.clone())) {
+            return Err(format!(
+                "{} maps wire method \"{wire_method}\" to capability \"{capability}\", which the operation \
+                 table of hosts/rust/src/service/handshake.rs does not",
+                capability_baseline_path.display()
+            ));
+        }
+    }
+    for (wire_method, capability) in &table_pairs {
+        if !baseline_pairs.contains(&(wire_method.clone(), capability.clone())) {
+            return Err(format!(
+                "the operation table of hosts/rust/src/service/handshake.rs maps wire method \
+                 \"{wire_method}\" to capability \"{capability}\", which {} does not",
+                capability_baseline_path.display()
+            ));
+        }
+    }
+
+    Ok(baseline_pairs.len())
 }
 
 /// A capability is served only when EVERY wire method it owns has a handler.

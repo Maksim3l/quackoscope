@@ -46,7 +46,7 @@ pub const MAX_PIXEL_COLUMNS: u32 =
 /// The wire methods this host dispatches. Adding a name here (and the matching
 /// arm in `dispatch`) is what adds its capability to the handshake; removing
 /// one is what turns the capability back into a gap.
-pub const SERVED_WIRE_METHODS: [&str; 15] = [
+pub const SERVED_WIRE_METHODS: [&str; 26] = [
     "scan_available_devices",
     "connect_device",
     "disconnect_device",
@@ -62,6 +62,17 @@ pub const SERVED_WIRE_METHODS: [&str; 15] = [
     "unlock_device",
     "list_loaded_modules",
     "load_module_from_host_path",
+    "get_component_attributes",
+    "set_component_attribute",
+    "list_server_types",
+    "add_server",
+    "set_server_discovery_enabled",
+    "start_recording",
+    "stop_recording",
+    "begin_batched_property_update",
+    "end_batched_property_update",
+    "save_instance_configuration_to_string",
+    "load_instance_configuration_from_string",
 ];
 
 /// The values of Node.operation_mode in contract section 3, which are also the
@@ -84,6 +95,19 @@ struct SessionState {
     subscriptions: BTreeMap<u32, Subscription>,
     /// connection string -> the device node id connect_device answered with
     device_node_ids_by_connection_string: BTreeMap<String, String>,
+    /// The node ids add_server answered with on THIS session.
+    ///
+    /// A server is not under any connected device: openDAQ's
+    /// IDevice::onAddServer refuses every device but the root, so add_server
+    /// puts the server under the ROOT INSTANCE, whose id is not a prefix of any
+    /// id connect_device hands out. Without this set the very node add_server
+    /// just returned would be unaddressable from the session that created it,
+    /// and set_server_discovery_enabled could never be called on it.
+    ///
+    /// The rule the rest of this file already follows is unchanged: a session
+    /// addresses what it reached itself. This is the second way to reach
+    /// something, beside connect_device.
+    server_node_ids: BTreeSet<String>,
 }
 
 #[derive(Default)]
@@ -219,7 +243,16 @@ impl SessionHub {
             }
         }
 
-        if state.device_node_ids_by_connection_string.is_empty() {
+        // A server this session added itself, and anything beneath it.
+        for server_node_id in &state.server_node_ids {
+            if node_id == *server_node_id || node_id.starts_with(&format!("{server_node_id}/")) {
+                return Ok(node_id);
+            }
+        }
+
+        if state.device_node_ids_by_connection_string.is_empty()
+            && state.server_node_ids.is_empty()
+        {
             return Err(ServiceError::not_connected(format!(
                 "this session has connected no device, so \"{node_id}\" is not addressable; call \
                  connect_device first"
@@ -229,6 +262,7 @@ impl SessionHub {
         let reachable = state
             .device_node_ids_by_connection_string
             .values()
+            .chain(state.server_node_ids.iter())
             .cloned()
             .collect::<Vec<_>>()
             .join(", ");
@@ -302,6 +336,27 @@ impl SessionHub {
             "unlock_device" => self.unlock_device(connection_id, params),
             "list_loaded_modules" => self.list_loaded_modules(),
             "load_module_from_host_path" => self.load_module_from_host_path(params),
+            "get_component_attributes" => self.component_attributes(connection_id, params),
+            "set_component_attribute" => self.set_component_attribute(connection_id, params),
+            "list_server_types" => self.list_server_types(),
+            "add_server" => self.add_server(connection_id, params),
+            "set_server_discovery_enabled" => {
+                self.set_server_discovery_enabled(connection_id, params)
+            }
+            "start_recording" => self.start_recording(connection_id, params),
+            "stop_recording" => self.stop_recording(connection_id, params),
+            "begin_batched_property_update" => {
+                self.begin_batched_property_update(connection_id, params)
+            }
+            "end_batched_property_update" => {
+                self.end_batched_property_update(connection_id, params)
+            }
+            "save_instance_configuration_to_string" => {
+                self.save_instance_configuration_to_string()
+            }
+            "load_instance_configuration_from_string" => {
+                self.load_instance_configuration_from_string(params)
+            }
             other => Err(self.explain_unserved_method(other)),
         }
     }
@@ -324,7 +379,7 @@ impl SessionHub {
         ))
     }
 
-    // --- the fifteen served methods ----------------------------------------
+    // --- the twenty-six served methods --------------------------------------
 
     fn scan_available_devices(&self) -> ServiceResult<Json> {
         // Discovery asks the modules what is out there; it needs no connected
@@ -803,6 +858,365 @@ impl SessionHub {
         );
         Ok(module.to_json())
     }
+
+    // --- attribute.read ------------------------------------------------------
+
+    fn component_attributes(&self, connection_id: u64, params: &Json) -> ServiceResult<Json> {
+        // errors: [not_found, not_connected]. A node_id that is absent or not a
+        // string would be invalid_value, which this row does not declare, so it
+        // is restated as not_found -- the true thing sayable from inside the
+        // subset.
+        let node_id = self.resolve_node_within_declared_error_subset(
+            connection_id,
+            params,
+            "node_id",
+            &[ErrorCode::NotFound, ErrorCode::NotConnected],
+        )?;
+
+        let attributes = self.backend.component_attributes(&node_id)?;
+        println!(
+            "[service] get_component_attributes {node_id}: {} attribute row(s): {}",
+            attributes.len(),
+            attributes
+                .iter()
+                .map(|attribute| format!(
+                    "{}={} ({}{})",
+                    attribute.id,
+                    attribute.value,
+                    attribute.value_type,
+                    if attribute.read_only {
+                        ", read-only"
+                    } else {
+                        ", writable"
+                    }
+                ))
+                .collect::<Vec<_>>()
+                .join("; ")
+        );
+        Ok(Json::Array(
+            attributes
+                .iter()
+                .map(super::types::ComponentAttribute::to_json)
+                .collect(),
+        ))
+    }
+
+    // --- attribute.write -----------------------------------------------------
+
+    fn set_component_attribute(&self, connection_id: u64, params: &Json) -> ServiceResult<Json> {
+        // errors: [not_found, read_only, invalid_value]. invalid_value IS in
+        // this subset, so a malformed node_id keeps its own code here.
+        let node_id = self.resolve_node_within_declared_error_subset(
+            connection_id,
+            params,
+            "node_id",
+            &[
+                ErrorCode::NotFound,
+                ErrorCode::ReadOnly,
+                ErrorCode::InvalidValue,
+            ],
+        )?;
+        let attribute_id = require_string(params, "attribute_id")?;
+        let Some(value) = params.get("value") else {
+            return Err(ServiceError::invalid_value(
+                "params.value of set_component_attribute is declared {type: any, presence: required} in \
+                 contract/contract.yaml and is absent",
+            ));
+        };
+
+        self.backend
+            .set_component_attribute(&node_id, &attribute_id, value)?;
+        println!("[service] set_component_attribute {node_id}.{attribute_id} = {value}");
+        Ok(Json::Null)
+    }
+
+    // --- server.add ----------------------------------------------------------
+
+    fn list_server_types(&self) -> ServiceResult<Json> {
+        // errors: [not_connected]. This row names no node and needs no
+        // connected device: the server types are the INSTANCE's, and the
+        // instance exists from process start, so the add-server grid draws
+        // before anything is connected.
+        let types = self.backend.list_server_types()?;
+        println!(
+            "[service] list_server_types: the instance accepts {} server type(s): {}",
+            types.len(),
+            if types.is_empty() {
+                "none".to_string()
+            } else {
+                types
+                    .iter()
+                    .map(|entry| entry.id.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            }
+        );
+        Ok(Json::Array(
+            types
+                .iter()
+                .map(super::types::ComponentTypeInfo::to_json)
+                .collect(),
+        ))
+    }
+
+    fn add_server(&self, connection_id: u64, params: &Json) -> ServiceResult<Json> {
+        // errors: [not_connected, unsupported, invalid_value, internal], and
+        // invalid_value is among them, so a malformed type_id keeps its code.
+        let type_id = require_string(params, "type_id")?;
+        if type_id.is_empty() {
+            return Err(ServiceError::invalid_value(
+                "params.type_id of add_server is empty; it must be one of the ComponentTypeInfo.id \
+                 values list_server_types answered with",
+            ));
+        }
+
+        let node = self.backend.add_server(&type_id)?;
+
+        // The server is under the ROOT INSTANCE, not under any device this
+        // session connected, so it is recorded here or it would not be
+        // addressable from the very session that created it.
+        {
+            let mut hub = self.lock_hub();
+            match hub.sessions.get_mut(&connection_id) {
+                Some(state) => {
+                    state.server_node_ids.insert(node.id.clone());
+                }
+                None => {
+                    return Err(ServiceError::internal(format!(
+                        "add_server created server \"{}\" but this WebSocket session is already closed, \
+                         so the node id cannot be recorded against it; the server is in the openDAQ \
+                         Instance and this host offers no remove_server row to undo it",
+                        node.id
+                    )))
+                }
+            }
+        }
+
+        println!(
+            "[service] add_server {type_id} -> node {} (kind {}, name {}); it is addressable from this \
+             session from now on",
+            node.id, node.kind, node.name
+        );
+        Ok(node.to_json())
+    }
+
+    // --- server.discovery ----------------------------------------------------
+
+    fn set_server_discovery_enabled(
+        &self,
+        connection_id: u64,
+        params: &Json,
+    ) -> ServiceResult<Json> {
+        // errors: [not_found, unsupported, internal] -- no invalid_value at all,
+        // which is what forces the malformed-parameter branch below to answer
+        // unsupported, exactly as unlock_device's `force` does.
+        let declared_errors = [
+            ErrorCode::NotFound,
+            ErrorCode::Unsupported,
+            ErrorCode::Internal,
+        ];
+        let node_id = self.resolve_node_within_declared_error_subset(
+            connection_id,
+            params,
+            "node_id",
+            &declared_errors,
+        )?;
+
+        let enabled = match params.get("enabled") {
+            Some(Json::Bool(value)) => *value,
+            other => {
+                return Err(ServiceError::unsupported(format!(
+                    "params.enabled of set_server_discovery_enabled is declared \
+                     {{type: bool, presence: required}} in contract/contract.yaml; got {}. This \
+                     operation's declared error subset is [not_found, unsupported, internal] and carries \
+                     no invalid_value, so the malformed parameter is refused as unsupported rather than \
+                     with a code the contract does not permit here",
+                    other.unwrap_or(&Json::Null)
+                )))
+            }
+        };
+
+        self.backend
+            .set_server_discovery_enabled(&node_id, enabled)?;
+        println!(
+            "[service] set_server_discovery_enabled {node_id} = {enabled}. There is no getter for this \
+             state anywhere in openDAQ, so nothing on Node reports it back and a client must draw two \
+             named actions rather than a switch with a position"
+        );
+        Ok(Json::Null)
+    }
+
+    // --- recorder.control ----------------------------------------------------
+
+    fn start_recording(&self, connection_id: u64, params: &Json) -> ServiceResult<Json> {
+        // errors: [not_found, unsupported, internal].
+        let node_id = self.resolve_node_within_declared_error_subset(
+            connection_id,
+            params,
+            "node_id",
+            &[
+                ErrorCode::NotFound,
+                ErrorCode::Unsupported,
+                ErrorCode::Internal,
+            ],
+        )?;
+        self.backend.start_recording(&node_id)?;
+        println!("[service] start_recording {node_id}");
+        Ok(Json::Null)
+    }
+
+    fn stop_recording(&self, connection_id: u64, params: &Json) -> ServiceResult<Json> {
+        let node_id = self.resolve_node_within_declared_error_subset(
+            connection_id,
+            params,
+            "node_id",
+            &[
+                ErrorCode::NotFound,
+                ErrorCode::Unsupported,
+                ErrorCode::Internal,
+            ],
+        )?;
+        self.backend.stop_recording(&node_id)?;
+        println!("[service] stop_recording {node_id}");
+        Ok(Json::Null)
+    }
+
+    // --- property.batched_update ---------------------------------------------
+    //
+    // WHAT THIS HOST DELIBERATELY DOES NOT DO, because contract/contract.yaml
+    // states it as an OPEN question and names it the same one already escalated
+    // for device.lock: it does not end an abandoned batch when the session that
+    // began it drops, and it does not refuse an end from a session that did not
+    // begin. Either would be a policy this host invented and called the
+    // contract. openDAQ's beginUpdate is recursive over child property objects,
+    // so a batch is a property of the COMPONENT and outlives the socket; what
+    // this host does instead is report Node.updating on every tree row, so the
+    // next session SEES the open batch rather than writing properties that
+    // silently never land.
+
+    fn begin_batched_property_update(
+        &self,
+        connection_id: u64,
+        params: &Json,
+    ) -> ServiceResult<Json> {
+        // errors: [not_found, not_connected].
+        let node_id = self.resolve_node_within_declared_error_subset(
+            connection_id,
+            params,
+            "node_id",
+            &[ErrorCode::NotFound, ErrorCode::NotConnected],
+        )?;
+        self.backend.begin_batched_property_update(&node_id)?;
+        println!(
+            "[service] begin_batched_property_update {node_id}: every set_property_value against this \
+             component and its child property objects is now HELD until end_batched_property_update. \
+             The batch belongs to the component, not to this socket: it survives this session closing, \
+             and contract/contract.yaml leaves who may end it open"
+        );
+        Ok(Json::Null)
+    }
+
+    fn end_batched_property_update(
+        &self,
+        connection_id: u64,
+        params: &Json,
+    ) -> ServiceResult<Json> {
+        // errors: [not_found, not_connected, invalid_value]. invalid_value is
+        // this row's and not begin's: endUpdate raises when no beginUpdate is
+        // open. The reference swallows exactly that with a bare
+        // `except RuntimeError: pass`; this host must not, because silence would
+        // tell a user their batch was applied.
+        let node_id = self.resolve_node_within_declared_error_subset(
+            connection_id,
+            params,
+            "node_id",
+            &[
+                ErrorCode::NotFound,
+                ErrorCode::NotConnected,
+                ErrorCode::InvalidValue,
+            ],
+        )?;
+        self.backend.end_batched_property_update(&node_id)?;
+        println!(
+            "[service] end_batched_property_update {node_id}: everything set since the matching \
+             begin has been applied at once"
+        );
+        Ok(Json::Null)
+    }
+
+    // --- configuration.save --------------------------------------------------
+
+    fn save_instance_configuration_to_string(&self) -> ServiceResult<Json> {
+        // errors: [not_connected, internal].
+        let configuration = self.backend.save_instance_configuration_to_string()?;
+
+        // The frame-limit check the contract assigns to the HOST on this row.
+        // The result is measured as the encoded JSON envelope will carry it --
+        // the string plus the quoting and escaping serde_json applies -- not as
+        // raw character count, because it is the frame that has to fit.
+        let encoded = Json::String(configuration.clone()).to_string();
+        if encoded.len() as i64 > MAX_FRAME_BYTES {
+            return Err(ServiceError::internal(format!(
+                "save_instance_configuration_to_string produced a configuration of {} characters, which \
+                 encodes to {} JSON bytes, and this session's handshake announced \
+                 max_frame_bytes {MAX_FRAME_BYTES}. The result is not sent, because a frame over the \
+                 limit this host itself declared may never arrive as a parseable envelope. Both byte \
+                 counts are stated here rather than a bare failure, so this is distinguishable from a \
+                 broken instance; a deployment that expects configurations this large declares a larger \
+                 max_frame_bytes, which is what that handshake field is for",
+                configuration.len(),
+                encoded.len()
+            )));
+        }
+
+        println!(
+            "[service] save_instance_configuration_to_string: {} characters, {} JSON bytes encoded, \
+             within the announced max_frame_bytes {MAX_FRAME_BYTES}",
+            configuration.len(),
+            encoded.len()
+        );
+        Ok(Json::String(configuration))
+    }
+
+    // --- configuration.load --------------------------------------------------
+
+    fn load_instance_configuration_from_string(&self, params: &Json) -> ServiceResult<Json> {
+        // errors: [not_connected, invalid_value, internal]. The matching
+        // frame-limit check on THIS direction belongs to the client, not here:
+        // an oversize request frame may never arrive as a parseable envelope, in
+        // which case this host has no id to answer with at all. A request that
+        // did arrive is by definition within the limit.
+        let configuration = match params.get("configuration") {
+            Some(Json::String(text)) => text.clone(),
+            other => {
+                return Err(ServiceError::invalid_value(format!(
+                    "params.configuration of load_instance_configuration_from_string is declared \
+                     {{type: string, presence: required}} in contract/contract.yaml; got {}. It is the \
+                     text of a configuration a save_instance_configuration_to_string produced, on this \
+                     host or another -- not a path on either machine",
+                    other.unwrap_or(&Json::Null)
+                )))
+            }
+        };
+        if configuration.trim().is_empty() {
+            return Err(ServiceError::invalid_value(
+                "params.configuration of load_instance_configuration_from_string is empty; openDAQ has \
+                 no configuration to apply from an empty string",
+            ));
+        }
+
+        self.backend
+            .load_instance_configuration_from_string(&configuration)?;
+        println!(
+            "[service] load_instance_configuration_from_string: {} characters applied to the whole \
+             openDAQ Instance with openDAQ's default UpdateParameters. This is NOT session-scoped -- it \
+             replaces the configuration of every device under the instance, including devices other \
+             live sessions connected -- and contract/contract.yaml carries no UpdateParameters on this \
+             row, so nothing narrower could have been asked for",
+            configuration.len()
+        );
+        Ok(Json::Null)
+    }
 }
 
 impl ConnectionHandler for SessionHub {
@@ -888,6 +1302,31 @@ impl ConnectionHandler for SessionHub {
             state.device_node_ids_by_connection_string.len(),
             devices_to_release.len()
         );
+
+        // What teardown does NOT undo, said plainly rather than left to be
+        // discovered. A server this session added stays in the openDAQ Instance
+        // with its listening socket open: contract/contract.yaml declares no
+        // remove_server row -- IDevice::removeServer exists, but the reference's
+        // menu_server_groups offers no removal on any surface, so nothing in
+        // this contract can undo an add_server. And a batch this session opened
+        // with begin_batched_property_update stays open on the component,
+        // because who may end an abandoned batch is the open question the
+        // contract escalates alongside device.lock, and ending it here would be
+        // this host answering it.
+        if !state.server_node_ids.is_empty() {
+            println!(
+                "[service] session teardown: {} server(s) this session added stay in the openDAQ \
+                 Instance and keep listening -- {}. The M1 contract has no remove_server row, so \
+                 nothing on this wire can take them down; the process exiting is what closes them",
+                state.server_node_ids.len(),
+                state
+                    .server_node_ids
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
     }
 
     fn on_request(&self, connection: &Arc<Connection>, method: &str, params: &Json) -> Outcome {

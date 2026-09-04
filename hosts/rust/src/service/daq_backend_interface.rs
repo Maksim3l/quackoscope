@@ -10,14 +10,16 @@ use std::sync::Arc;
 use serde_json::Value as Json;
 
 use super::error::ServiceResult;
-use super::types::{DeviceInfo, ModuleInfo, Node, PropertyDescriptor};
+use super::types::{
+    ComponentAttribute, ComponentTypeInfo, DeviceInfo, ModuleInfo, Node, PropertyDescriptor,
+};
 
 /// Raw samples straight out of the SDK reader. Decimation into the pixel
 /// envelope is the service layer's job, not the backend's.
 pub type SampleSink = Arc<dyn Fn(u32, u64, &[f64]) + Send + Sync>;
 
 pub trait DaqBackend: Send + Sync {
-    // --- the fifteen operations this host serves ---------------------------
+    // --- the twenty-six operations this host serves -------------------------
     //
     // One method per wire method of contract section 5 that
     // hosts/rust/src/service/session.rs dispatches. The four it does not serve
@@ -87,4 +89,84 @@ pub trait DaqBackend: Send + Sync {
     // loadModule's out-parameter IS the loaded module; the Modules grid gets
     // its new card without re-listing.
     fn load_module_from_host_path(&self, host_path: &str) -> ServiceResult<ModuleInfo>;
+
+    // --- attribute.read / attribute.write -----------------------------------
+    //
+    // The attributes panel, which is a different surface from the properties
+    // table and reads a different thing: fixed members of the openDAQ
+    // interfaces a component carries, not entries in its property bag. The name
+    // `component_attributes` is what generated/rust/symbol-list.json makes of
+    // the wire method get_component_attributes -- rust drops a getter's leading
+    // `get` -- and the setter keeps `set`.
+    //
+    // `value` is `any` on the wire, so it arrives as JSON and the attribute's
+    // own openDAQ type decides whether it fits.
+    fn component_attributes(&self, node_id: &str) -> ServiceResult<Vec<ComponentAttribute>>;
+    fn set_component_attribute(
+        &self,
+        node_id: &str,
+        attribute_id: &str,
+        value: &Json,
+    ) -> ServiceResult<()>;
+
+    // --- server.add ---------------------------------------------------------
+    //
+    // The types the INSTANCE will accept, which is a different question from
+    // the server types each loaded module offers -- that is list_loaded_modules,
+    // and the two are only accidentally equal.
+    //
+    // add_server takes no parent id: openDAQ's IDevice::onAddServer refuses
+    // every device but the root, so a parent would be a parameter with exactly
+    // one legal value. It answers the Node it created, whose kind is `server`.
+    fn list_server_types(&self) -> ServiceResult<Vec<ComponentTypeInfo>>;
+    fn add_server(&self, type_id: &str) -> ServiceResult<Node>;
+
+    // --- server.discovery ---------------------------------------------------
+    //
+    // One setter over a bool, because openDAQ has two methods
+    // (IServer::enableDiscovery, IServer::disableDiscovery) and no getter at
+    // all. There is no discovery STATE this host can report, which is why
+    // nothing on Node carries it.
+    fn set_server_discovery_enabled(&self, node_id: &str, enabled: bool) -> ServiceResult<()>;
+
+    // --- recorder.control ---------------------------------------------------
+    //
+    // The two halves of one Start/Stop control. Whether the node IS a recorder
+    // is Node.recording, which the tree read already answered, so a client
+    // never has to call these to find out.
+    fn start_recording(&self, node_id: &str) -> ServiceResult<()>;
+    fn stop_recording(&self, node_id: &str) -> ServiceResult<()>;
+
+    // --- property.batched_update --------------------------------------------
+    //
+    // IPropertyObject::beginUpdate / endUpdate. Between them set_property_value
+    // stages rather than applies, and endUpdate applies everything at once.
+    // The open/closed state is Node.updating.
+    //
+    // WHO MAY END A BATCH IS NOT RULED by contract/contract.yaml, which says so
+    // in as many words on begin_batched_property_update and names it the same
+    // open question already escalated for device.lock. This host therefore
+    // invents no policy: it does not end an abandoned batch on disconnect and
+    // it does not refuse an end from a session that did not begin. What it does
+    // instead is report the state -- Node.updating on every row -- so the
+    // unruled situation is visible rather than silent.
+    fn begin_batched_property_update(&self, node_id: &str) -> ServiceResult<()>;
+    fn end_batched_property_update(&self, node_id: &str) -> ServiceResult<()>;
+
+    // --- configuration.save / configuration.load ----------------------------
+    //
+    // The configuration string crosses the wire in both directions, which both
+    // names say. openDAQ's own API is a string in both directions with no path
+    // overload (IDevice::saveConfiguration(IString**),
+    // IDevice::loadConfiguration(IString*)), and the file is produced for and
+    // consumed by the user in a browser, not by this process -- the opposite of
+    // load_module_from_host_path, whose file is dlopen'd here.
+    //
+    // The save side checks the serialised length against the max_frame_bytes
+    // this host announced BEFORE it answers, because a result that cannot fit
+    // its own declared limit has to say so with both numbers rather than fail
+    // like a broken instance. That limit lives in the service layer, so the
+    // check is made there and this method just produces the string.
+    fn save_instance_configuration_to_string(&self) -> ServiceResult<String>;
+    fn load_instance_configuration_from_string(&self, configuration: &str) -> ServiceResult<()>;
 }

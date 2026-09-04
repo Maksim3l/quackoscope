@@ -44,6 +44,35 @@ struct Node
     std::optional<std::string> component_status_message;
     std::optional<std::string> connection_status;  // device rows only: connected|reconnecting|unrecoverable|removed
     std::optional<std::string> operation_mode;     // device rows only: unknown|idle|operation|safe_operation
+
+    // IPropertyObject::getUpdating(): true between a beginUpdate and its
+    // endUpdate, during which every set_property_value against the component is
+    // HELD rather than applied. Every openDAQ component is an IPropertyObject,
+    // so this host fills it on every row.
+    std::optional<bool> updating;
+    // IRecorder::getIsRecording(). Recorder function-block rows only; null on
+    // every other kind, because the cast to IRecorder is what decides whether a
+    // node is a recorder at all and null is this host saying "not a recorder".
+    std::optional<bool> recording;
+};
+
+// One row of the ATTRIBUTES panel over a single component: a fixed member of
+// the openDAQ interface itself (IComponent.name, ISignal.public,
+// IInputPort.requires_signal, ...), which is a different thing from a property
+// in the component's property bag.
+//
+// read_only is openDAQ's answer about the COMPONENT -- the reference's own
+// hardcoded Locked flag for the ids that cannot be written at all, plus
+// IComponent::getLockedAttributes() folded in -- and never this host's answer
+// about itself. This host implements the writer, so it never reports read_only
+// in place of a missing writer.
+struct ComponentAttribute
+{
+    std::string id;
+    std::string name;       // the reference's own label: "Global ID", "Domain Signal ID"
+    Json value = nullptr;
+    std::string value_type;  // "bool" | "int" | "float" | "string" | "string_list"
+    bool read_only = false;
 };
 
 // One component type a loaded module offers: a row of one of the four type
@@ -87,6 +116,7 @@ struct PropertyDescriptor
 
 Json toJson(const DeviceInfo& info);
 Json toJson(const Node& node);
+Json toJson(const ComponentAttribute& attribute);
 Json toJson(const PropertyDescriptor& descriptor);
 Json toJson(const ComponentTypeInfo& type);
 Json toJson(const ModuleInfo& module);

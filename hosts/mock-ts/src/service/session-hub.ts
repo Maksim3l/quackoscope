@@ -1,11 +1,13 @@
 // quackoscope-host-mock -- service layer.
 //
-// Seventeen of the contract's eighteen operations, the five events and the
-// closed error set (read_samples_raw is the one not answered here). This file
-// knows nothing about sockets: it is handed an object that can send text and
-// binary, and hands back an outcome the transport turns into an envelope.
+// Twenty-eight of the contract's thirty operations, the five events and the
+// closed error set. The two not answered here are read_samples_raw and
+// load_module_from_host_path, and GAP_KIND_AND_REASON_BY_CAPABILITY below says
+// why for each. This file knows nothing about sockets: it is handed an object
+// that can send text and binary, and hands back an outcome the transport turns
+// into an envelope.
 
-import { encodeDataFrame, type RequestOutcome } from "../transport/wire-envelope.ts";
+import { encodeDataFrame, encodeResult, type RequestOutcome } from "../transport/wire-envelope.ts";
 import { decimateToPixelColumns } from "./decimate-to-pixel-columns.ts";
 import { ServiceRefusal } from "./wire-errors.ts";
 import { DEVICE_NODE_ID, SyntheticReferenceDevice, type DeviceEvent } from "../synthetic-device/synthetic-reference-device.ts";
@@ -43,8 +45,8 @@ interface SessionState {
 }
 
 /** The wire methods dispatch() below actually answers. Every name here is one
- *  of the 19 in generated/typescript/contract-types.ts; adding a case to
- *  dispatch() and a name here is what grows the declared capability list. */
+ *  of the wire methods in generated/typescript/contract-types.ts; adding a case
+ *  to dispatch() and a name here is what grows the declared capability list. */
 export const SERVED_WIRE_METHODS: readonly WireMethodName[] = [
   "scan_available_devices",
   "connect_device",
@@ -63,6 +65,17 @@ export const SERVED_WIRE_METHODS: readonly WireMethodName[] = [
   "lock_device",
   "unlock_device",
   "list_loaded_modules",
+  "get_component_attributes",
+  "set_component_attribute",
+  "list_server_types",
+  "add_server",
+  "set_server_discovery_enabled",
+  "start_recording",
+  "stop_recording",
+  "begin_batched_property_update",
+  "end_batched_property_update",
+  "save_instance_configuration_to_string",
+  "load_instance_configuration_from_string",
 ];
 
 const REASON_TABLE_FILE = "hosts/mock-ts/src/service/session-hub.ts";
@@ -77,7 +90,30 @@ const REASON_TABLE_FILE = "hosts/mock-ts/src/service/session-hub.ts";
 // SDK binding in this process at all -- the device is synthesised in
 // hosts/mock-ts/src/synthetic-device/ -- so no binding could be at fault, and
 // "binding" would be a claim about openDAQ that this host has no standing to
-// make.
+// make. The ruling is explicit that "binding" is earned only by enumerating an
+// API surface, and there is no API surface here to enumerate.
+//
+// THE EIGHT CAPABILITY IDS THAT ARRIVED WITH THE ATTRIBUTE, SERVER, RECORDER,
+// BATCHED-UPDATE AND CONFIGURATION ROWS ADD NOTHING TO THIS TABLE, because all
+// eleven of those operations have a case in dispatch(). A synthetic device can
+// serve them honestly and the synthetic device now does: it carries attributes
+// that are not properties, server rows of NodeKind `server`, one recorder row
+// with a non-null Node.recording, a real batch depth that really holds writes,
+// and a configuration round trip. Two of those five carry a consequence that is
+// reported upward rather than buried, and neither is a gap:
+//
+//   * configuration.save/load round trip THIS HOST'S OWN format, stamped
+//     "quackoscope_mock_synthetic_instance_configuration" in the string's own
+//     first field. There is no openDAQ instance here to call saveConfiguration
+//     on, so a configuration saved here is not loadable by an SDK host and one
+//     saved there is refused here with invalid_value naming the format found.
+//     The capability is declared because the control it gates -- File > Save
+//     configuration and File > Load configuration -- genuinely works against
+//     this host end to end.
+//   * server.discovery is declared, and the flag it moves is readable only as
+//     that server row's component_status_message, because the contract states
+//     there is no getter and no Node field for it. Nothing is advertised in
+//     either state: these servers bind no socket.
 const GAP_KIND_AND_REASON_BY_CAPABILITY: Readonly<
   Partial<Record<CapabilityId, { kind: "binding" | "host"; reason: string }>>
 > = {
@@ -189,10 +225,28 @@ export class SessionHub {
     const heldTheLock = this.device.lockRefusalFacing(state.sessionKey) === null && this.device.isLocked();
     if (heldTheLock) this.device.releaseLockHeldBy(state.sessionKey, state.describedSession);
     this.sessions.delete(socket);
+    // An open batched update is NOT ended here, and that is a decision this
+    // host declines to make rather than one it makes quietly. contract.yaml's
+    // begin_batched_property_update row says whether a host must end an
+    // abandoned batch on disconnect is unruled, that it is the same question
+    // already escalated for device.lock, and that a host must not invent an
+    // answer. So the depths stay where they are and this line prints them:
+    // Node.updating is what the contract gives the next session to see the
+    // abandoned batch with, and it will.
+    const openBatchNodeIds = this.device.nodeIdsInsideAnOpenBatch();
     console.log(
       `[service] session closed for ${socket.describedPeer}: ${state.subscriptions.size} subscription(s) and ${state.deviceNodeIdsByConnectionString.size} device holding(s) dropped` +
         `${heldTheLock ? `, and the device lock ${state.describedSession} held was released` : ""}; ${this.sessions.size} session(s) still live`,
     );
+    if (openBatchNodeIds.length > 0) {
+      console.log(
+        `[service]   ${openBatchNodeIds.length} component(s) are still inside an open batched update and were LEFT ` +
+          `there, holding ${this.device.heldPropertyWriteCount()} unapplied property write(s): ` +
+          `${openBatchNodeIds.join(", ")}. Every one of them reports Node.updating true, so the next session can see ` +
+          "it. Whether a disconnect should have ended those batches, and whether another session may end them, is " +
+          "open in contract/contract.yaml and is not answered here.",
+      );
+    }
   }
 
   answerRequest(socket: SessionSocket, method: string, params: Record<string, unknown>): RequestOutcome {
@@ -251,6 +305,28 @@ export class SessionHub {
         return this.unlockDevice(state, params);
       case "list_loaded_modules":
         return this.listLoadedModules();
+      case "get_component_attributes":
+        return this.getComponentAttributes(state, params);
+      case "set_component_attribute":
+        return this.setComponentAttribute(state, params);
+      case "list_server_types":
+        return this.listServerTypes(state);
+      case "add_server":
+        return this.addServer(state, params);
+      case "set_server_discovery_enabled":
+        return this.setServerDiscoveryEnabled(state, params);
+      case "start_recording":
+        return this.startRecording(state, params);
+      case "stop_recording":
+        return this.stopRecording(state, params);
+      case "begin_batched_property_update":
+        return this.beginBatchedPropertyUpdate(state, params);
+      case "end_batched_property_update":
+        return this.endBatchedPropertyUpdate(state, params);
+      case "save_instance_configuration_to_string":
+        return this.saveInstanceConfigurationToString(state);
+      case "load_instance_configuration_from_string":
+        return this.loadInstanceConfigurationFromString(state, params);
       default:
         // A name that is in SERVED_WIRE_METHODS and has no case above is not
         // an unknown method: it is this file lying in its handshake, because
@@ -430,13 +506,19 @@ export class SessionHub {
           "nothing was stored. unlock_device on the device row first, with force true if the lock is not this session's.",
       );
     }
-    const stored = this.device.setPropertyValue(nodeId, propertyId, params.value);
-    if (JSON.stringify(stored) !== JSON.stringify(params.value)) {
-      console.log(
-        `[service] set_property_value coerced ${nodeId}.${propertyId}: submitted ${JSON.stringify(params.value)}, stored ${JSON.stringify(stored)}`,
-      );
+    const { stored, appliedNow } = this.device.setPropertyValue(nodeId, propertyId, params.value);
+    const coercion =
+      JSON.stringify(stored) !== JSON.stringify(params.value)
+        ? `coerced: submitted ${JSON.stringify(params.value)}, stored ${JSON.stringify(stored)}`
+        : `stored ${JSON.stringify(stored)}`;
+    if (appliedNow) {
+      console.log(`[service] set_property_value ${nodeId}.${propertyId} ${coercion}`);
     } else {
-      console.log(`[service] set_property_value stored ${nodeId}.${propertyId} = ${JSON.stringify(stored)}`);
+      console.log(
+        `[service] set_property_value ${nodeId}.${propertyId} ${coercion}, but HELD rather than applied: that ` +
+          "component is inside an open batched update, so it reports Node.updating true and " +
+          "end_batched_property_update is what will apply it. No property_changed event was emitted.",
+      );
     }
     // The result is null by contract: the value on screen must come from the
     // property_changed event or a read-back, never from what was submitted.
@@ -586,6 +668,221 @@ export class SessionHub {
         `(${this.device.listFunctionBlockTypeIds().join(", ")}).`,
     );
     return modules;
+  }
+
+  // --- component attributes ------------------------------------------------
+
+  /**
+   * errors [not_found, not_connected] -- the same subset
+   * get_property_descriptors declares, so the same resolver serves it.
+   */
+  private getComponentAttributes(state: SessionState, params: Record<string, unknown>): unknown {
+    this.requireNodeIdNamesSomethingOrNotFound(params, "get_component_attributes");
+    const nodeId = this.requireNodeReachableFromSession(state, params, "node_id");
+    const attributes = this.device.getComponentAttributes(nodeId);
+    const writable = attributes.filter((attribute) => !attribute.read_only);
+    console.log(
+      `[service] get_component_attributes ${nodeId} answered with ${attributes.length} attribute(s), ` +
+        `${writable.length} of them writable: ` +
+        attributes
+          .map((attribute) => `${attribute.id}=${JSON.stringify(attribute.value)} (${attribute.value_type}${attribute.read_only ? ", read only" : ""})`)
+          .join(", ") +
+        ". These are members of the component itself, not entries in its property bag: no PropertyDescriptor on this " +
+        "node names any of them.",
+    );
+    return attributes;
+  }
+
+  /**
+   * errors [not_found, read_only, invalid_value]. not_connected is NOT on the
+   * list, so a session holding no device is refused not_found -- the same rule
+   * add_function_block follows.
+   */
+  private setComponentAttribute(state: SessionState, params: Record<string, unknown>): null {
+    if (!("value" in params)) throw new ServiceRefusal("invalid_value", "params.value is required");
+    const nodeId = this.requireNodeReachableOrNotFound(state, params, "node_id");
+    const attributeId = requireStringParam(params, "attribute_id");
+    // The device lock is deliberately NOT consulted -- see
+    // SyntheticReferenceDevice.setComponentAttribute, which states why and
+    // states the consequence.
+    const whatChanged = this.device.setComponentAttribute(nodeId, attributeId, params.value);
+    console.log(`[service] set_component_attribute ${nodeId}.${attributeId} for ${state.describedSession}: ${whatChanged}`);
+    return null;
+  }
+
+  // --- servers ---------------------------------------------------------------
+
+  /** errors [not_connected] only, exactly as list_function_block_types. */
+  private listServerTypes(state: SessionState): unknown {
+    this.requireDeviceInSession(state);
+    const types = this.device.describeServerTypes();
+    console.log(
+      `[service] list_server_types answered with ${types.length} ComponentTypeInfo row(s), kind "server" on every ` +
+        `one: ${this.device.describeServerTypesForTheLog()}. This is what the INSTANCE will accept, and it is not ` +
+        "read off list_loaded_modules -- that answers what each module offers, which is only accidentally the same list.",
+    );
+    return types;
+  }
+
+  /**
+   * errors [not_connected, unsupported, invalid_value, internal]. There is no
+   * parent_id on this row: contract.yaml records that the reference's
+   * AddServerDialog stores the selected component and then always calls
+   * add_server on the instance, so a parent_id would have exactly one legal
+   * value.
+   */
+  private addServer(state: SessionState, params: Record<string, unknown>): unknown {
+    this.requireDeviceInSession(state);
+    const typeId = requireStringParam(params, "type_id");
+    const node = this.device.addServer(typeId);
+    console.log(
+      `[service] add_server "${typeId}" for ${state.describedSession} answered with ${node.id} (kind ${node.kind}); ` +
+        `component_added was published to ${this.sessions.size} session(s). No socket was bound and no port was ` +
+        "opened: the only listening port in this process is the one this WebSocket arrived on.",
+    );
+    return node;
+  }
+
+  /**
+   * errors [not_found, unsupported, internal].
+   *
+   * A NON-BOOLEAN `enabled` IS A HOLE IN THE CONTRACT AND IS REPORTED AS ONE.
+   * params.enabled is `presence: required, type: bool`, and this row's declared
+   * error list carries no code for a request that violates that: not_found
+   * would be a claim about a node id that is perfectly good, unsupported is
+   * this row's word for "the component is not a server", and internal is for a
+   * native failure. This host answers invalid_value, which is in the contract's
+   * closed set and is what its own envelope layer already answers for a
+   * malformed request (see decodeRequest in ../transport/wire-envelope.ts), and
+   * it does not silently coerce a non-boolean into false the way unlock_device
+   * is allowed to do with its OPTIONAL force. It is flagged rather than hidden:
+   * a sweep that drove this row with a non-boolean would record the refusal as
+   * outside the declared subset, and it would be right to.
+   */
+  private setServerDiscoveryEnabled(state: SessionState, params: Record<string, unknown>): null {
+    this.requireNodeIdNamesSomethingOrNotFound(params, "set_server_discovery_enabled");
+    const nodeId = this.requireNodeReachableOrNotFound(state, params, "node_id");
+    if (typeof params.enabled !== "boolean") {
+      throw new ServiceRefusal(
+        "invalid_value",
+        `params.enabled of set_server_discovery_enabled is a required bool and this request carries ` +
+          `${JSON.stringify(params.enabled)}. Nothing was changed. Note that invalid_value is NOT in this ` +
+          "operation's declared error list [not_found, unsupported, internal]; the contract gives this row no code " +
+          "for a malformed enabled, and this host will not answer not_found about a node id that is fine, nor " +
+          "guess a boolean.",
+      );
+    }
+    const whatChanged = this.device.setServerDiscoveryEnabled(nodeId, params.enabled);
+    console.log(`[service] set_server_discovery_enabled ${nodeId} by ${state.describedSession}: ${whatChanged}`);
+    return null;
+  }
+
+  // --- the recorder ----------------------------------------------------------
+
+  /** errors [not_found, unsupported, internal] on both rows. */
+  private startRecording(state: SessionState, params: Record<string, unknown>): null {
+    this.requireNodeIdNamesSomethingOrNotFound(params, "start_recording");
+    const nodeId = this.requireNodeReachableOrNotFound(state, params, "node_id");
+    console.log(`[service] start_recording ${nodeId} for ${state.describedSession}: ${this.device.startRecording(nodeId)}`);
+    return null;
+  }
+
+  private stopRecording(state: SessionState, params: Record<string, unknown>): null {
+    this.requireNodeIdNamesSomethingOrNotFound(params, "stop_recording");
+    const nodeId = this.requireNodeReachableOrNotFound(state, params, "node_id");
+    console.log(`[service] stop_recording ${nodeId} for ${state.describedSession}: ${this.device.stopRecording(nodeId)}`);
+    return null;
+  }
+
+  // --- batched property updates ----------------------------------------------
+
+  /**
+   * errors [not_found, not_connected] on begin, plus invalid_value on end.
+   * Neither carries unsupported, because every openDAQ component is an
+   * IPropertyObject -- which is why the reference casts unconditionally instead
+   * of testing can_cast_from as it does for IRecorder and IServer.
+   */
+  private beginBatchedPropertyUpdate(state: SessionState, params: Record<string, unknown>): null {
+    this.requireNodeIdNamesSomethingOrNotFound(params, "begin_batched_property_update");
+    const nodeId = this.requireNodeReachableFromSession(state, params, "node_id");
+    console.log(
+      `[service] begin_batched_property_update by ${state.describedSession}: ${this.device.beginBatchedPropertyUpdate(nodeId)}`,
+    );
+    return null;
+  }
+
+  private endBatchedPropertyUpdate(state: SessionState, params: Record<string, unknown>): null {
+    this.requireNodeIdNamesSomethingOrNotFound(params, "end_batched_property_update");
+    const nodeId = this.requireNodeReachableFromSession(state, params, "node_id");
+    console.log(
+      `[service] end_batched_property_update by ${state.describedSession}: ${this.device.endBatchedPropertyUpdate(nodeId)}`,
+    );
+    return null;
+  }
+
+  // --- instance configuration ------------------------------------------------
+
+  /**
+   * errors [not_connected, internal], params none.
+   *
+   * THE FRAME LIMIT IS CHECKED HERE, BEFORE THE STRING IS SENT, which
+   * contract.yaml assigns to the host on this direction: "a result it cannot
+   * fit inside its own declared limit is answered internal, whose detail states
+   * both numbers". What is measured is the RESULT ENVELOPE the transport will
+   * put on the socket, not the bare configuration -- the envelope is what the
+   * limit is about - and it is measured with the widest correlation id the wire
+   * can carry, so the answer never depends on which request asked.
+   */
+  private saveInstanceConfigurationToString(state: SessionState): string {
+    this.requireDeviceInSession(state);
+    const configuration = this.device.saveInstanceConfigurationToString();
+    const configurationBytes = Buffer.byteLength(configuration, "utf8");
+    const envelopeBytes = Buffer.byteLength(encodeResult(Number.MAX_SAFE_INTEGER, configuration), "utf8");
+    if (envelopeBytes > MAX_FRAME_BYTES) {
+      throw new ServiceRefusal(
+        "internal",
+        `the saved configuration does not fit this host's own declared frame limit, so it was not sent: the ` +
+          `configuration is ${configurationBytes} bytes, the result envelope carrying it would be ${envelopeBytes} ` +
+          `bytes, and handshake.limits.max_frame_bytes is ${MAX_FRAME_BYTES}. Nothing is wrong with the device. On ` +
+          `this host the padding is deliberate: ${DEVICE_NODE_ID}.saved_configuration_padding_bytes is ` +
+          `${JSON.stringify(this.device.getPropertyValue(DEVICE_NODE_ID, "saved_configuration_padding_bytes"))}; ` +
+          "write 0 to it and save again.",
+      );
+    }
+    console.log(
+      `[service] save_instance_configuration_to_string answered with ${configurationBytes} bytes ` +
+        `(${envelopeBytes} bytes as a result envelope, against max_frame_bytes ${MAX_FRAME_BYTES}). It is NOT an ` +
+        "openDAQ saveConfiguration string and says so in its own first two fields: there is no openDAQ instance in " +
+        "this process, so this host serialises its synthetic device instead and stamps the format into the value.",
+    );
+    return configuration;
+  }
+
+  /**
+   * errors [not_connected, invalid_value, internal].
+   *
+   * THE DEVICE LOCK IS CHECKED, and answered `internal`, which is one of the
+   * two codes contract.yaml names for exactly this: "a locked device inside the
+   * instance is a refusal openDAQ raises during the load, which arrives as
+   * invalid_value or internal with the native text in detail". read_only is not
+   * on this row's list. The check runs before anything is applied, so a refusal
+   * here leaves the device untouched rather than half loaded.
+   */
+  private loadInstanceConfigurationFromString(state: SessionState, params: Record<string, unknown>): null {
+    this.requireDeviceInSession(state);
+    const configuration = requireStringParam(params, "configuration");
+    const lockRefusal = this.device.lockRefusalFacing(state.sessionKey);
+    if (lockRefusal !== null) {
+      throw new ServiceRefusal(
+        "internal",
+        `${lockRefusal}, and a configuration load writes every component under it, so the ${configuration.length}-` +
+          "character configuration was refused before anything was applied and the device is unchanged. " +
+          "unlock_device on the device row first, with force true if the lock is not this session's.",
+      );
+    }
+    const whatHappened = this.device.loadInstanceConfigurationFromString(configuration);
+    console.log(`[service] load_instance_configuration_from_string by ${state.describedSession}: ${whatHappened}`);
+    return null;
   }
 
   // --- session scoping -----------------------------------------------------

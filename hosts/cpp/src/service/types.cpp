@@ -22,10 +22,13 @@ Json toJson(const DeviceInfo& info)
 
 Json toJson(const Node& node)
 {
-    // The six state keys are always written. A key that is absent would say
+    // The eight state keys are always written. A key that is absent would say
     // "this host has never heard of component state"; null says "this host did
     // not determine this one fact about this one component", which is what the
-    // contract asks a nullable field to mean.
+    // contract asks a nullable field to mean. updating and recording joined the
+    // six when the contract grew property.batched_update and recorder.control:
+    // both are per-row facts the reference reads per row, so both travel with
+    // the row rather than costing a call.
     return Json{{"id", node.id},
                 {"name", node.name},
                 {"kind", node.kind},
@@ -37,7 +40,18 @@ Json toJson(const Node& node)
                 {"component_status", orNull(node.component_status)},
                 {"component_status_message", orNull(node.component_status_message)},
                 {"connection_status", orNull(node.connection_status)},
-                {"operation_mode", orNull(node.operation_mode)}};
+                {"operation_mode", orNull(node.operation_mode)},
+                {"updating", orNull(node.updating)},
+                {"recording", orNull(node.recording)}};
+}
+
+Json toJson(const ComponentAttribute& attribute)
+{
+    return Json{{"id", attribute.id},
+                {"name", attribute.name},
+                {"value", attribute.value},
+                {"value_type", attribute.value_type},
+                {"read_only", attribute.read_only}};
 }
 
 Json toJson(const ComponentTypeInfo& t)

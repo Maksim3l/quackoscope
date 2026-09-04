@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace qs::opendaq
 {
@@ -40,6 +41,19 @@ public:
     void unlockDevice(const std::string& nodeId, bool force) override;
     std::vector<service::ModuleInfo> listLoadedModules() override;
     service::ModuleInfo loadModuleFromHostPath(const std::string& hostPath) override;
+    std::vector<service::ComponentAttribute> getComponentAttributes(const std::string& nodeId) override;
+    void setComponentAttribute(const std::string& nodeId,
+                               const std::string& attributeId,
+                               const service::Json& value) override;
+    std::vector<service::ComponentTypeInfo> listServerTypes() override;
+    service::Node addServer(const std::string& typeId) override;
+    void setServerDiscoveryEnabled(const std::string& nodeId, bool enabled) override;
+    void startRecording(const std::string& nodeId) override;
+    void stopRecording(const std::string& nodeId) override;
+    void beginBatchedPropertyUpdate(const std::string& nodeId) override;
+    void endBatchedPropertyUpdate(const std::string& nodeId) override;
+    std::string saveInstanceConfigurationToString() override;
+    void loadInstanceConfigurationFromString(const std::string& configuration) override;
 
     // Reported display-only at startup.
     std::string rootId() const;

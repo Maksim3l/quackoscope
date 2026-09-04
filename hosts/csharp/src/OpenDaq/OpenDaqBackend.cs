@@ -119,6 +119,15 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
             return "function_block";
         if (component.CanCastTo<Signal>())
             return "signal";
+        // IServer derives from IFolder, not from IFunctionBlock, so a server
+        // would otherwise fall through to "folder" and no client could tell a
+        // server row from the "Srv" folder holding it. The reference makes the
+        // same distinction: tree_add_component gives IServer its own icon
+        // branch and menu_groups dispatches an IServer node to
+        // menu_server_groups. It is tested after the four above because none of
+        // them is a server, and before the folder fallback because it is one.
+        if (component.CanCastTo<Server>())
+            return "server";
         // Everything else -- folders and plain components such as Synchronization
         // -- is reported as a folder; the contract's kind set has no other
         // container.
@@ -262,6 +271,49 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
                 return null;
             var message = container.GetStatusMessage(statusName);
             return string.IsNullOrEmpty(message) ? null : message;
+            // quack-snippet end
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    // IPropertyObject.updating -- true between a beginUpdate and its endUpdate,
+    // while every property write against the component is held rather than
+    // applied. Every openDAQ component IS an IPropertyObject (in the .NET
+    // binding Daq.Core.OpenDAQ.Component derives from
+    // Daq.Core.Objects.PropertyObject), so this is read on every row with no
+    // cast, which is what makes contract types.Node.updating a per-row field
+    // rather than a per-row call.
+    private static bool? UpdatingStateOf(Component component)
+    {
+        try
+        {
+            // quack-snippet shared=component-updating
+            return component.Updating;
+            // quack-snippet end
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    // IRecorder.isRecording, and only for a component that casts to IRecorder.
+    // null therefore means BOTH "not a recorder" and "this host did not
+    // determine it" -- the conflation contract types.Node.recording names --
+    // and the client draws no recorder control in either case. This is the
+    // question the reference asks with a cast in block_view.py:169-171 before
+    // it builds RecorderView at all.
+    private static bool? RecordingStateOf(Component component)
+    {
+        try
+        {
+            // quack-snippet shared=component-recording
+            if (!component.CanCastTo<Recorder>())
+                return null;
+            return component.Cast<Recorder>().IsRecording;
             // quack-snippet end
         }
         catch (Exception)
@@ -613,7 +665,7 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
     {
         var node = new ComponentNode();
 
-        // quack-snippet shared=component-node uses=component-kind,property-wire-value-type,component-active,component-locked-effective,component-status-container,component-status-message,device-operation-mode-current,operation-mode-wire-names
+        // quack-snippet shared=component-node uses=component-kind,property-wire-value-type,component-active,component-locked-effective,component-status-container,component-status-message,device-operation-mode-current,operation-mode-wire-names,component-updating,component-recording
         node.Id = component.GlobalId;
         node.Name = component.Name;
         node.Kind = KindOf(component);  // shared region component-kind
@@ -636,6 +688,8 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
         node.ComponentStatus = InsideTheContractEnum(
             WireJoinOf(StatusValueOf(component, "ComponentStatus")), ComponentStatusWireValues);
         node.ComponentStatusMessage = StatusMessageOf(component, "ComponentStatus");
+        node.Updating = UpdatingStateOf(component);                    // shared region component-updating
+        node.Recording = RecordingStateOf(component);                  // shared region component-recording
 
         // connection_status and operation_mode are device rows only; contract
         // types.Node says null on every other kind, so they are not even read
@@ -1529,6 +1583,825 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
         described.Id ??= "";
         described.Name ??= "";
         return described;
+    }
+
+    // --- get_component_attributes / set_component_attribute ------------------
+    //
+    // The reference's ATTRIBUTES treeview, which reads a different thing from
+    // its properties treeview: seven attributes off IComponent, five more if
+    // the component casts to ISignal, three more if it casts to IInputPort.
+
+    // The per-attribute Locked flag the reference hardcodes, transcribed row by
+    // row from generic_attributes_treeview.py tree_update (lines 126-166):
+    // Global ID, Local ID, Domain Signal ID, Related Signals IDs, Streamed,
+    // Last Value, Signal ID and Requires Signal are written 'Locked': True;
+    // Name, Description, Active, Tags, Visible and Public are written
+    // 'Locked': False. IComponent.lockedAttributes is folded in on top of this,
+    // exactly as the reference folds it in at lines 168-178.
+    private static readonly string[] AttributesTheReferenceHardcodesLocked =
+    {
+        "global_id", "local_id", "domain_signal_id", "related_signal_ids",
+        "streamed", "last_value", "signal_id", "requires_signal"
+    };
+
+    // Why `tags` is reported read_only by THIS host although the reference
+    // marks it unlocked. Stated once and printed verbatim into the refusal, so
+    // a client shows what was enumerated rather than "not exposed".
+    //
+    // This is a per-ATTRIBUTE statement about openDAQ's .NET binding, not this
+    // host's answer about itself: quackoscope-host-csharp declares
+    // attribute.write and writes the five attributes that have a setter. What
+    // contract types.ComponentAttribute.read_only forbids is a host with no
+    // writer at all reporting read_only on every row; that is not this.
+    public const string TagsAreUnwritableThroughTheDotnetBinding =
+        "the attribute \"tags\" cannot be written through openDAQ's .NET binding. System.Reflection over " +
+        "openDAQ.Net, Version=3.41.0.0 lists Daq.Core.OpenDAQ.Tags with exactly four declared public members -- " +
+        "\"Boolean Contains(String)\", \"Boolean Query(String)\", \"IListObject`1[StringObject] get_List()\" and " +
+        "the List property it backs -- so there is no Add, Remove, Set or Clear to call, and none of the 213 " +
+        "exported types of that assembly is named TagsPrivate or TagsConfig, so there is no private interface to " +
+        "query for one either. Component.Tags is a get-only property: the assembly declares get_Tags() and no " +
+        "set_Tags. The reference reaches the same outcome by another route -- generic_attributes_treeview.py " +
+        "marks Tags unlocked, and its handle_double_click has no branch for a list value (lines 88-110), so " +
+        "new_value stays None and the write silently never happens.";
+
+    // A locked-attribute name as openDAQ spells it ("Name", "Global ID"),
+    // reduced to the form the wire id compares equal in. Bookkeeping, not an
+    // SDK call.
+    private static string ComparableAttributeName(string text)
+    {
+        if (text is null)
+            return "";
+        var reduced = new System.Text.StringBuilder();
+        foreach (var character in text)
+            if (char.IsLetterOrDigit(character))
+                reduced.Append(char.ToLowerInvariant(character));
+        return reduced.ToString();
+    }
+
+    // One attribute row plus the sentence this host has for why it is
+    // read-only. The sentence never crosses the wire on the read -- contract
+    // types.ComponentAttribute carries a bool and no reason -- but it is what
+    // set_component_attribute's read_only refusal says.
+    private sealed class AttributeRowAndItsReadOnlyReason
+    {
+        public Service.ComponentAttribute Row;
+        public string ReadOnlyReason;
+    }
+
+    private static JsonNode WireStringOrEmpty(string text) => JsonValue.Create(text ?? "");
+
+    private static List<AttributeRowAndItsReadOnlyReason> ReadAttributeRowsOf(Component component, string nodeId)
+    {
+        var rows = new List<AttributeRowAndItsReadOnlyReason>();
+
+        void Add(string id, string label, string valueType, JsonNode value)
+        {
+            rows.Add(new AttributeRowAndItsReadOnlyReason
+            {
+                Row = new Service.ComponentAttribute
+                {
+                    Id = id,
+                    Name = label,
+                    ValueType = valueType,
+                    Value = value,
+                    ReadOnly = false
+                }
+            });
+        }
+
+        // quack-snippet shared=component-attribute-rows step=1
+        // The seven every IComponent carries. In the .NET binding each C++
+        // getter/setter pair has collapsed into a property, so there is no
+        // getName()/setName() to look for: it is Component.Name, and the four
+        // writable ones are the four that also declare a setter
+        // (set_Name, set_Description, set_Active, set_Visible).
+        Add("name", "Name", "string", WireStringOrEmpty(component.Name));
+        Add("description", "Description", "string", WireStringOrEmpty(component.Description));
+        Add("active", "Active", "bool", JsonValue.Create(component.Active));
+        Add("global_id", "Global ID", "string", WireStringOrEmpty(component.GlobalId));
+        Add("local_id", "Local ID", "string", WireStringOrEmpty(component.LocalId));
+
+        var tagList = new JsonArray();
+        var tags = component.Tags;
+        if (tags is not null)
+            foreach (var tag in tags.List)
+                tagList.Add(tag?.ToString() ?? "");
+        Add("tags", "Tags", "string_list", tagList);
+
+        Add("visible", "Visible", "bool", JsonValue.Create(component.Visible));
+        // quack-snippet end
+
+        if (component.CanCastTo<Signal>())
+        {
+            // quack-snippet shared=component-attribute-rows step=2
+            // The five an ISignal adds. domain_signal and related_signals hold
+            // OBJECTS in the binding; what crosses the wire is their global
+            // ids, which is why the wire ids carry _id and _ids and the
+            // reference's own Attribute keys ('.domain_signal',
+            // 'related_signals') do not.
+            var signal = component.Cast<Signal>();
+            Add("public", "Public", "bool", JsonValue.Create(signal.Public));
+
+            var domainSignal = signal.DomainSignal;
+            Add("domain_signal_id", "Domain Signal ID", "string",
+                WireStringOrEmpty(domainSignal is null ? "" : domainSignal.GlobalId));
+
+            var relatedIds = new JsonArray();
+            var relatedSignals = signal.RelatedSignals;
+            if (relatedSignals is not null)
+                foreach (var related in relatedSignals)
+                    relatedIds.Add(related?.GlobalId ?? "");
+            Add("related_signal_ids", "Related Signals IDs", "string_list", relatedIds);
+
+            Add("streamed", "Streamed", "bool", JsonValue.Create(signal.Streamed));
+
+            // ISignal.lastValue is an IBaseObject of whatever core type the
+            // signal's descriptor produced, and contract
+            // types.ComponentAttribute.value_type has no `any` member, so it
+            // crosses as the string the binding's ToString() gives -- which is
+            // the same thing the reference displays through
+            // utils.get_last_value_for_signal.
+            var lastValue = signal.LastValue;
+            Add("last_value", "Last Value", "string", WireStringOrEmpty(lastValue?.ToString()));
+            // quack-snippet end
+        }
+
+        if (component.CanCastTo<InputPort>())
+        {
+            // quack-snippet shared=component-attribute-rows step=3
+            // The three an IInputPort adds. IInputPort.signal is a get-only
+            // property in this binding -- the writer is Connect(Signal), a
+            // different act with a different name -- so signal_id is read here
+            // and never written from this row.
+            var inputPort = component.Cast<InputPort>();
+            Add("public", "Public", "bool", JsonValue.Create(inputPort.Public));
+
+            var connectedSignal = inputPort.Signal;
+            Add("signal_id", "Signal ID", "string",
+                WireStringOrEmpty(connectedSignal is null ? "" : connectedSignal.GlobalId));
+
+            Add("requires_signal", "Requires Signal", "bool", JsonValue.Create(inputPort.RequiresSignal));
+            // quack-snippet end
+        }
+
+        // The reference's hardcoded flag first, then openDAQ's own
+        // lockedAttributes on top -- the same two sources and the same order as
+        // generic_attributes_treeview.py, whose loop marks by the row's LABEL
+        // ("Name", "Visible"), which is what openDAQ fills that list with.
+        var lockedByOpenDaq = new List<string>();
+        try
+        {
+            // quack-snippet shared=component-attribute-rows step=4
+            foreach (var lockedAttribute in component.LockedAttributes)
+                lockedByOpenDaq.Add(lockedAttribute?.ToString() ?? "");
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            Console.WriteLine($"[opendaq] get_component_attributes {nodeId}: IComponent.lockedAttributes refused " +
+                              $"with {e.GetType().Name}: {e.Message}; no row is marked read-only from that source");
+        }
+
+        var lockedComparable = lockedByOpenDaq.Select(ComparableAttributeName).ToArray();
+
+        foreach (var entry in rows)
+        {
+            if (Array.IndexOf(AttributesTheReferenceHardcodesLocked, entry.Row.Id) >= 0)
+            {
+                entry.Row.ReadOnly = true;
+                entry.ReadOnlyReason =
+                    $"attribute \"{entry.Row.Id}\" is one of the eight generic_attributes_treeview.py writes " +
+                    "'Locked': True for in tree_update (global_id, local_id, domain_signal_id, " +
+                    "related_signal_ids, streamed, last_value, signal_id, requires_signal), so no client offers " +
+                    "an editor for it and this host does not write it";
+                continue;
+            }
+
+            if (entry.Row.Id == "tags")
+            {
+                entry.Row.ReadOnly = true;
+                entry.ReadOnlyReason = TagsAreUnwritableThroughTheDotnetBinding;
+                continue;
+            }
+
+            var comparable = ComparableAttributeName(entry.Row.Id);
+            var comparableLabel = ComparableAttributeName(entry.Row.Name);
+            var matched = lockedComparable
+                .Select((value, index) => (value, index))
+                .Where(pair => pair.value == comparable || pair.value == comparableLabel)
+                .Select(pair => lockedByOpenDaq[pair.index])
+                .FirstOrDefault();
+            if (matched is not null)
+            {
+                entry.Row.ReadOnly = true;
+                entry.ReadOnlyReason =
+                    $"openDAQ reports \"{matched}\" in IComponent.lockedAttributes on \"{nodeId}\", which is this " +
+                    $"component locking the attribute; the whole list it answered is " +
+                    $"[{string.Join(", ", lockedByOpenDaq)}]";
+            }
+        }
+
+        return rows;
+    }
+
+    public IReadOnlyList<Service.ComponentAttribute> GetComponentAttributes(string nodeId)
+    {
+        var component = ResolveComponent(nodeId);
+
+        List<AttributeRowAndItsReadOnlyReason> rows;
+        try
+        {
+            // quack-snippet capability=attribute.read uses=component-by-global-id,component-attribute-rows step=1
+            rows = ReadAttributeRowsOf(component, nodeId);  // shared region component-attribute-rows
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[get_component_attributes].errors is
+            // [not_found, not_connected] and neither is a native read failure,
+            // so this is left to the hub's unmapped-native catch, which is
+            // error_policy.unmapped_native_error_becomes: internal.
+            throw new WireError(WireErrorCode.Internal,
+                $"reading the attributes of \"{nodeId}\" failed: {e.GetType().Name}: {e.Message}");
+        }
+
+        Console.WriteLine($"[opendaq] get_component_attributes {nodeId} -> {rows.Count} attribute(s), " +
+                          $"{rows.Count(entry => entry.Row.ReadOnly)} of them read-only: " +
+                          string.Join(", ", rows.Select(entry =>
+                              $"{entry.Row.Id} ({entry.Row.ValueType}) = {entry.Row.Value?.ToJsonString() ?? "null"}" +
+                              (entry.Row.ReadOnly ? " [read-only]" : ""))));
+
+        return rows.Select(entry => entry.Row).ToList();
+    }
+
+    public void SetComponentAttribute(string nodeId, string attributeId, JsonNode value)
+    {
+        var component = ResolveComponent(nodeId);
+        var rows = ReadAttributeRowsOf(component, nodeId);
+
+        var entry = rows.FirstOrDefault(candidate => candidate.Row.Id == attributeId);
+        if (entry is null)
+            throw new WireError(WireErrorCode.NotFound,
+                $"component \"{nodeId}\" reports no attribute \"{attributeId}\"; get_component_attributes " +
+                $"answered with {rows.Count}: {string.Join(", ", rows.Select(candidate => candidate.Row.Id))}");
+
+        if (entry.Row.ReadOnly)
+            throw new WireError(WireErrorCode.ReadOnly, entry.ReadOnlyReason);
+
+        var before = entry.Row.Value?.ToJsonString() ?? "null";
+
+        bool RequireBool()
+        {
+            if (value is JsonValue booleanNode && booleanNode.TryGetValue(out bool boolean))
+                return boolean;
+            throw new WireError(WireErrorCode.InvalidValue,
+                $"attribute \"{attributeId}\" on \"{nodeId}\" is value_type bool, so params.value must be true or " +
+                $"false; got {value?.ToJsonString() ?? "null"}");
+        }
+
+        string RequireText()
+        {
+            if (value is JsonValue textNode && textNode.TryGetValue(out string text))
+                return text;
+            throw new WireError(WireErrorCode.InvalidValue,
+                $"attribute \"{attributeId}\" on \"{nodeId}\" is value_type string, so params.value must be a " +
+                $"JSON string; got {value?.ToJsonString() ?? "null"}");
+        }
+
+        try
+        {
+            switch (attributeId)
+            {
+                case "name":
+                    // quack-snippet capability=attribute.write uses=component-by-global-id,component-attribute-rows step=1
+                    // IComponent's setters, which the .NET binding collapsed
+                    // into the same properties the read uses: assigning to
+                    // Component.Name calls set_Name, and openDAQ refuses it
+                    // with ACCESSDENIED when the attribute is in
+                    // lockedAttributes.
+                    component.Name = RequireText();
+                    // quack-snippet end
+                    break;
+                case "description":
+                    // quack-snippet capability=attribute.write uses=component-by-global-id step=2
+                    component.Description = RequireText();
+                    // quack-snippet end
+                    break;
+                case "active":
+                    // quack-snippet capability=attribute.write uses=component-by-global-id step=3
+                    component.Active = RequireBool();
+                    // quack-snippet end
+                    break;
+                case "visible":
+                    // quack-snippet capability=attribute.write uses=component-by-global-id step=4
+                    component.Visible = RequireBool();
+                    // quack-snippet end
+                    break;
+                case "public":
+                    // quack-snippet capability=attribute.write uses=component-by-global-id,component-kind step=5
+                    // `public` is not on IComponent: ISignal and IInputPort each
+                    // declare their own, so the write goes through whichever
+                    // cast produced the row that was read.
+                    if (component.CanCastTo<Signal>())
+                        component.Cast<Signal>().Public = RequireBool();
+                    else
+                        component.Cast<InputPort>().Public = RequireBool();
+                    // quack-snippet end
+                    break;
+                default:
+                    // Unreachable while the writable set is exactly the five
+                    // above: every other row is marked read_only and was
+                    // refused before this switch. Stated rather than left to a
+                    // silent fall-through, so a sixth writable attribute added
+                    // to the read without a case here fails loudly.
+                    throw new WireError(WireErrorCode.InvalidValue,
+                        $"attribute \"{attributeId}\" on \"{nodeId}\" is reported writable by " +
+                        "get_component_attributes and quackoscope-host-csharp has no writer for it; the five it " +
+                        "writes are name, description, active, visible and public");
+            }
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[set_component_attribute].errors is
+            // [not_found, read_only, invalid_value]. openDAQ's refusal of a
+            // locked attribute is ACCESSDENIED, which is read_only here for the
+            // same reason lock_device uses it; everything else openDAQ refuses
+            // a value with is invalid_value, and the native text rides along.
+            var code = e.ErrorCode == Daq.Core.Types.ErrorCode.OPENDAQ_ERR_ACCESSDENIED
+                ? WireErrorCode.ReadOnly
+                : WireErrorCode.InvalidValue;
+            throw new WireError(code,
+                $"writing {value?.ToJsonString() ?? "null"} to attribute \"{attributeId}\" on \"{nodeId}\" was " +
+                $"refused by openDAQ with {NativeCodeTextOf(e)}: {OpenDaqOwnMessageOf(e)}");
+        }
+
+        var after = ReadAttributeRowsOf(component, nodeId)
+            .FirstOrDefault(candidate => candidate.Row.Id == attributeId)?.Row.Value?.ToJsonString() ?? "null";
+
+        Console.WriteLine($"[opendaq] set_component_attribute {nodeId}.{attributeId} = " +
+                          $"{value?.ToJsonString() ?? "null"} accepted; the attribute read {before} before and " +
+                          $"reads {after} now");
+    }
+
+    // --- list_server_types / add_server --------------------------------------
+
+    public IReadOnlyList<Service.ComponentTypeInfo> ListServerTypes()
+    {
+        var types = new List<Service.ComponentTypeInfo>();
+
+        try
+        {
+            // quack-snippet capability=server.add uses=instance-with-module-path,component-type-info step=1
+            // IInstance.availableServerTypes -- what THIS INSTANCE will accept,
+            // which is not the union of what the loaded modules offer. In the
+            // .NET binding the C++ getAvailableServerTypes(IDict**) collapses
+            // into the property Instance.AvailableServerTypes, typed
+            // IDictObject<StringObject, ServerType>, and IServerType derives
+            // from IComponentType, which is where id, name and description are.
+            foreach (var pair in instance.AvailableServerTypes)
+                types.Add(DescribeComponentType(pair.Value, "server", null));
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[list_server_types].errors is [not_connected]
+            // alone, and a native read failure is not that, so it is left to
+            // the hub's unmapped-native catch.
+            throw new WireError(WireErrorCode.Internal,
+                $"reading IInstance.availableServerTypes failed: {e.GetType().Name}: {e.Message}");
+        }
+
+        Console.WriteLine($"[opendaq] list_server_types -> {types.Count} server type(s): " +
+                          (types.Count == 0
+                              ? "(none)"
+                              : string.Join("; ", types.Select(type =>
+                                  $"\"{type.Id}\" \"{type.Name}\" {type.Description ?? "(no description)"}"))));
+        return types;
+    }
+
+    public ComponentNode AddServer(string typeId)
+    {
+        var available = ListServerTypes();
+        if (!available.Any(type => type.Id == typeId))
+            throw new WireError(WireErrorCode.Unsupported,
+                $"\"{typeId}\" is not one of the {available.Count} server type ids this instance accepts; " +
+                $"IInstance.availableServerTypes answers " +
+                $"[{(available.Count == 0 ? "" : string.Join(", ", available.Select(type => type.Id)))}]");
+
+        Server server;
+        try
+        {
+            // quack-snippet capability=server.add uses=instance-with-module-path step=2
+            // IDevice::addServer(IString* typeId, IPropertyObject* config,
+            // IServer**) collapses in the .NET binding into
+            // Server AddServer(String, PropertyObject) on
+            // Daq.Core.OpenDAQ.Device, which Instance derives from. The config
+            // is null: this row carries no config object, so openDAQ builds the
+            // server type's default configuration itself, which is what
+            // add_server_dialog.py's plain Add path does too.
+            //
+            // It is called on the INSTANCE and takes no parent: only the root
+            // device accepts servers, and IDevice::onAddServer refuses the rest.
+            server = instance.AddServer(typeId, null);
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[add_server].errors is
+            // [not_connected, unsupported, invalid_value, internal]. The type
+            // id was already checked against the instance's own list above, so
+            // a refusal here is either this instance refusing this addition
+            // (invalid_value) or the listening socket the server opens failing
+            // -- a port already bound, an OS permission refused -- which is
+            // internal, exactly as that row's comment splits them.
+            throw new WireError(AddServerRefusalCodeFor(e),
+                $"IDevice::addServer(\"{typeId}\", null) on the instance was refused with {NativeCodeTextOf(e)}: " +
+                OpenDaqOwnMessageOf(e));
+        }
+
+        if (server is null)
+            throw new WireError(WireErrorCode.Internal,
+                $"IDevice::addServer(\"{typeId}\", null) returned without an error and without a server, so there " +
+                "is no IServer to build the contract's Node record from");
+
+        var node = BuildNode(server);
+        Console.WriteLine($"[opendaq] add_server \"{typeId}\" -> node id {node.Id}, name \"{node.Name}\", " +
+                          $"kind {node.Kind}, IServer.id \"{ServerIdTextOf(server)}\"; the instance now holds " +
+                          $"{CountServersOnTheInstance()} server(s)");
+        return node;
+    }
+
+    // A refusal of addServer, split into the two codes that row's error subset
+    // distinguishes. Classified on the native code, which is exact, rather than
+    // on message text.
+    private static WireErrorCode AddServerRefusalCodeFor(OpenDaqException e) =>
+        e.ErrorCode is Daq.Core.Types.ErrorCode.OPENDAQ_ERR_INVALIDPARAMETER
+                    or Daq.Core.Types.ErrorCode.OPENDAQ_ERR_NOTFOUND
+                    or Daq.Core.Types.ErrorCode.OPENDAQ_ERR_ALREADYEXISTS
+                    or Daq.Core.Types.ErrorCode.OPENDAQ_ERR_DUPLICATEITEM
+            ? WireErrorCode.InvalidValue
+            : WireErrorCode.Internal;
+
+    private string ServerIdTextOf(Server server)
+    {
+        try
+        {
+            return server.Id ?? "";
+        }
+        catch (Exception)
+        {
+            return "(IServer.id refused)";
+        }
+    }
+
+    private int CountServersOnTheInstance()
+    {
+        try
+        {
+            var count = 0;
+            foreach (var _ in instance.Servers)
+                count++;
+            return count;
+        }
+        catch (Exception)
+        {
+            return -1;
+        }
+    }
+
+    // --- set_server_discovery_enabled ----------------------------------------
+
+    // A node that must be a server. The node existing but not being a server is
+    // `unsupported` and not `not_found`, which is the use
+    // get_device_operation_modes already makes of that code for a node that is
+    // not a device.
+    private Server ResolveServerOnly(string nodeId, string wireMethod)
+    {
+        var component = ResolveComponent(nodeId);
+
+        // quack-snippet shared=server-of-component uses=component-by-global-id,component-kind
+        if (!component.CanCastTo<Server>())
+            throw new WireError(WireErrorCode.Unsupported,
+                $"component \"{nodeId}\" is a {KindOf(component)} and not a server, so {wireMethod} has nothing " +
+                "to act on; openDAQ puts enableDiscovery and disableDiscovery on IServer");
+        var server = component.Cast<Server>();
+        // quack-snippet end
+
+        return server;
+    }
+
+    public void SetServerDiscoveryEnabled(string nodeId, bool enabled)
+    {
+        var server = ResolveServerOnly(nodeId, "set_server_discovery_enabled");
+
+        try
+        {
+            // quack-snippet capability=server.discovery uses=server-of-component step=1
+            // IServer::enableDiscovery (server.h:66) and
+            // IServer::disableDiscovery (server.h:90), which the .NET binding
+            // spells EnableDiscovery() and DisableDiscovery(), both taking no
+            // argument. Nothing in openDAQ reports the resulting state back --
+            // IServer declares stop, getId, enableDiscovery, getSignals,
+            // getStreaming and disableDiscovery and no discovery-state getter --
+            // which is why this contract has one setter, no getter, and no Node
+            // field for it.
+            if (enabled)
+                server.EnableDiscovery();
+            else
+                server.DisableDiscovery();
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[set_server_discovery_enabled].errors is
+            // [not_found, unsupported, internal]. The node was found and it is
+            // a server, so a failure here is the mDNS advertising itself -- the
+            // path the reference prints as 'Server added but enable_discovery
+            // failed' -- and internal is the only member of the subset it can be.
+            throw new WireError(WireErrorCode.Internal,
+                $"IServer::{(enabled ? "enableDiscovery" : "disableDiscovery")}() on \"{nodeId}\" failed with " +
+                $"{NativeCodeTextOf(e)}: {OpenDaqOwnMessageOf(e)}");
+        }
+
+        // There is no read-back to print, and that is the substance of the row:
+        // openDAQ has no member that reports whether discovery is on, so this
+        // line states what was CALLED and does not claim a resulting state.
+        Console.WriteLine($"[opendaq] set_server_discovery_enabled {nodeId} enabled={enabled.ToString().ToLowerInvariant()}: " +
+                          $"IServer::{(enabled ? "enableDiscovery" : "disableDiscovery")}() returned. openDAQ " +
+                          "exposes no discovery-state getter, so nothing reads the new state back and this host " +
+                          "does not claim one");
+    }
+
+    // --- start_recording / stop_recording ------------------------------------
+
+    // A node that must be a recorder. This is the cast block_view.py:169-171
+    // performs before it builds RecorderView at all; over a socket the same
+    // question is already answered by Node.recording, so reaching this refusal
+    // means a client asked anyway.
+    private Recorder ResolveRecorderOnly(string nodeId, string wireMethod)
+    {
+        var component = ResolveComponent(nodeId);
+
+        // quack-snippet shared=recorder-of-component uses=component-by-global-id,component-kind
+        if (!component.CanCastTo<Recorder>())
+            throw new WireError(WireErrorCode.Unsupported,
+                $"component \"{nodeId}\" is a {KindOf(component)} that does not carry IRecorder, so {wireMethod} " +
+                "has nothing to act on; Node.recording is null on exactly these components, which is what tells a " +
+                "client not to draw the Start/Stop control");
+        var recorder = component.Cast<Recorder>();
+        // quack-snippet end
+
+        return recorder;
+    }
+
+    public void StartRecording(string nodeId)
+    {
+        var recorder = ResolveRecorderOnly(nodeId, "start_recording");
+        var wasRecording = IsRecordingOrNull(recorder);
+
+        try
+        {
+            // quack-snippet capability=recorder.control uses=recorder-of-component step=1
+            // IRecorder::startRecording, which the .NET binding spells
+            // StartRecording() and which takes no argument. IRecorder.isRecording
+            // is what reads the state back, and it is already on every Node.
+            recorder.StartRecording();
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[start_recording].errors is
+            // [not_found, unsupported, internal]. The node was found and it is
+            // a recorder, so a refusal here -- no writable path, a file already
+            // open, a device error -- is internal, with the native text.
+            throw new WireError(WireErrorCode.Internal,
+                $"IRecorder::startRecording() on \"{nodeId}\" failed with {NativeCodeTextOf(e)}: " +
+                OpenDaqOwnMessageOf(e));
+        }
+
+        Console.WriteLine($"[opendaq] start_recording {nodeId}: IRecorder::startRecording() returned; " +
+                          $"IRecorder.isRecording was {wasRecording} and now reads {IsRecordingOrNull(recorder)}");
+    }
+
+    public void StopRecording(string nodeId)
+    {
+        var recorder = ResolveRecorderOnly(nodeId, "stop_recording");
+        var wasRecording = IsRecordingOrNull(recorder);
+
+        try
+        {
+            // quack-snippet capability=recorder.control uses=recorder-of-component step=2
+            // IRecorder::stopRecording, spelled StopRecording() in the .NET
+            // binding. openDAQ does not refuse a stop on a recorder that is not
+            // recording; the reference's single button relies on that.
+            recorder.StopRecording();
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            throw new WireError(WireErrorCode.Internal,
+                $"IRecorder::stopRecording() on \"{nodeId}\" failed with {NativeCodeTextOf(e)}: " +
+                OpenDaqOwnMessageOf(e));
+        }
+
+        Console.WriteLine($"[opendaq] stop_recording {nodeId}: IRecorder::stopRecording() returned; " +
+                          $"IRecorder.isRecording was {wasRecording} and now reads {IsRecordingOrNull(recorder)}");
+    }
+
+    private static string IsRecordingOrNull(Recorder recorder)
+    {
+        try
+        {
+            return recorder.IsRecording.ToString().ToLowerInvariant();
+        }
+        catch (Exception e)
+        {
+            return $"unreadable ({e.GetType().Name})";
+        }
+    }
+
+    // --- begin_batched_property_update / end_batched_property_update ---------
+
+    public void BeginBatchedPropertyUpdate(string nodeId)
+    {
+        var propertyObject = ResolvePropertyObject(nodeId);
+        var wasUpdating = UpdatingStateOf(ResolveComponent(nodeId));
+
+        try
+        {
+            // quack-snippet capability=property.batched_update uses=property-object-of-component step=1
+            // IPropertyObject::beginUpdate, spelled BeginUpdate() in the .NET
+            // binding. It is RECURSIVE over child property objects
+            // (property_object.h:335), so one call on a device puts the whole
+            // subtree into batch mode -- for every session, not just this one.
+            // While it holds, SetPropertyValue records the value instead of
+            // applying it.
+            propertyObject.BeginUpdate();
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[begin_batched_property_update].errors is
+            // [not_found, not_connected] and a native failure of beginUpdate is
+            // neither. Dressing it as not_connected would say the instance is
+            // gone, which is a cause this host has not established, so it is
+            // left to error_policy.unmapped_native_error_becomes: internal.
+            throw new WireError(WireErrorCode.Internal,
+                $"IPropertyObject::beginUpdate() on \"{nodeId}\" failed with {NativeCodeTextOf(e)}: " +
+                OpenDaqOwnMessageOf(e));
+        }
+
+        Console.WriteLine($"[opendaq] begin_batched_property_update {nodeId}: IPropertyObject::beginUpdate() " +
+                          $"returned; IPropertyObject.updating was " +
+                          $"{wasUpdating?.ToString().ToLowerInvariant() ?? "unreadable"} and now reads " +
+                          $"{UpdatingStateOf(ResolveComponent(nodeId))?.ToString().ToLowerInvariant() ?? "unreadable"}. " +
+                          "beginUpdate is recursive over child property objects, so every component beneath this " +
+                          "one is in batch mode too, for every session");
+    }
+
+    public void EndBatchedPropertyUpdate(string nodeId)
+    {
+        var propertyObject = ResolvePropertyObject(nodeId);
+        var wasUpdating = UpdatingStateOf(ResolveComponent(nodeId));
+
+        try
+        {
+            // quack-snippet capability=property.batched_update uses=property-object-of-component step=2
+            // IPropertyObject::endUpdate, spelled EndUpdate(). It APPLIES
+            // everything set since the matching beginUpdate, and it raises when
+            // no beginUpdate is open. This host does not swallow that the way
+            // gui_demo.py:1374-1378 does with a bare `except RuntimeError:
+            // pass` -- silence there would tell a user their batch was applied.
+            propertyObject.EndUpdate();
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[end_batched_property_update].errors is
+            // [not_found, not_connected, invalid_value]. A call that arrives
+            // with no batch open is a well-formed request the state refuses,
+            // which is invalid_value; openDAQ reports it as INVALIDSTATE.
+            if (e.ErrorCode == Daq.Core.Types.ErrorCode.OPENDAQ_ERR_INVALIDSTATE)
+                throw new WireError(WireErrorCode.InvalidValue,
+                    $"IPropertyObject::endUpdate() on \"{nodeId}\" was refused with {NativeCodeTextOf(e)}: " +
+                    $"{OpenDaqOwnMessageOf(e)}. No begin_batched_property_update is open on this component, so " +
+                    "there is nothing to apply; Node.updating reads " +
+                    $"{wasUpdating?.ToString().ToLowerInvariant() ?? "unreadable"} for it");
+            throw new WireError(WireErrorCode.Internal,
+                $"IPropertyObject::endUpdate() on \"{nodeId}\" failed with {NativeCodeTextOf(e)}: " +
+                OpenDaqOwnMessageOf(e));
+        }
+
+        Console.WriteLine($"[opendaq] end_batched_property_update {nodeId}: IPropertyObject::endUpdate() returned " +
+                          "and applied everything set since the matching beginUpdate; IPropertyObject.updating was " +
+                          $"{wasUpdating?.ToString().ToLowerInvariant() ?? "unreadable"} and now reads " +
+                          $"{UpdatingStateOf(ResolveComponent(nodeId))?.ToString().ToLowerInvariant() ?? "unreadable"}");
+    }
+
+    // --- save_instance_configuration_to_string / load_..._from_string --------
+
+    public string SaveInstanceConfigurationToString()
+    {
+        string configuration;
+        try
+        {
+            // quack-snippet capability=configuration.save uses=instance-with-module-path step=1
+            // IDevice::saveConfiguration(IString** configuration), device.h:242
+            // -- "Saves the configuration of the device to string". The .NET
+            // binding turns the out-parameter into the return value:
+            // String SaveConfiguration() on Daq.Core.OpenDAQ.Device, which
+            // Instance derives from. There is no path overload in openDAQ, so
+            // no host does file I/O for this row; the string is what crosses
+            // the wire.
+            configuration = instance.SaveConfiguration();
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[save_instance_configuration_to_string].errors
+            // is [not_connected, internal]. saveConfiguration throwing is not a
+            // statement that there is no instance, so it is internal, and the
+            // native text rides along whole.
+            throw new WireError(WireErrorCode.Internal,
+                $"IDevice::saveConfiguration() on the instance failed with {NativeCodeTextOf(e)}: " +
+                OpenDaqOwnMessageOf(e));
+        }
+
+        if (configuration is null)
+            throw new WireError(WireErrorCode.Internal,
+                "IDevice::saveConfiguration() returned without an error and with a null string, so there is no " +
+                "configuration text to answer with");
+
+        Console.WriteLine($"[opendaq] save_instance_configuration_to_string -> {configuration.Length} character(s), " +
+                          $"{System.Text.Encoding.UTF8.GetByteCount(configuration)} UTF-8 byte(s); it begins " +
+                          $"{configuration[..Math.Min(120, configuration.Length)]}");
+        return configuration;
+    }
+
+    public void LoadInstanceConfigurationFromString(string configuration)
+    {
+        var componentsBefore = CountComponentsUnderTheRootDevice();
+
+        try
+        {
+            // quack-snippet capability=configuration.load uses=instance-with-module-path step=1
+            // IDevice::loadConfiguration(IString* configuration,
+            // IUpdateParameters* config), device.h:248, spelled
+            // Void LoadConfiguration(String, UpdateParameters) in the .NET
+            // binding. The second argument is null, which is openDAQ's own
+            // default UpdateParameters and what gui_demo.py's _load_config path
+            // uses; this row carries no update-parameters board, because doing
+            // so would need a recursive record type this contract does not have.
+            //
+            // It REPLACES the configuration of every device under the instance
+            // in one call, which is why configuration.load is its own capability
+            // and not folded in with configuration.save.
+            instance.LoadConfiguration(configuration, null);
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[load_instance_configuration_from_string].errors
+            // is [not_connected, invalid_value, internal]. A string openDAQ will
+            // not load is invalid_value -- the likeliest answer a user ever sees
+            // from this row, and it means "the host would not load this file",
+            // not a fault. A failure partway through applying a string that
+            // parsed is internal.
+            var code = e.ErrorCode is Daq.Core.Types.ErrorCode.OPENDAQ_ERR_INVALIDPARAMETER
+                                   or Daq.Core.Types.ErrorCode.OPENDAQ_ERR_INVALIDVALUE
+                                   or Daq.Core.Types.ErrorCode.OPENDAQ_ERR_INVALIDTYPE
+                                   or Daq.Core.Types.ErrorCode.OPENDAQ_ERR_DESERIALIZE_PARSE_ERROR
+                                   or Daq.Core.Types.ErrorCode.OPENDAQ_ERR_DESERIALIZE_UNKNOWN_TYPE
+                                   or Daq.Core.Types.ErrorCode.OPENDAQ_ERR_DESERIALIZE_NO_TYPE
+                ? WireErrorCode.InvalidValue
+                : WireErrorCode.Internal;
+            throw new WireError(code,
+                $"IDevice::loadConfiguration(<{configuration?.Length ?? 0} characters>, null) on the instance was " +
+                $"refused with {NativeCodeTextOf(e)}: {OpenDaqOwnMessageOf(e)}");
+        }
+
+        var componentsAfter = CountComponentsUnderTheRootDevice();
+        Console.WriteLine($"[opendaq] load_instance_configuration_from_string: applied " +
+                          $"{configuration?.Length ?? 0} character(s) with openDAQ's default UpdateParameters " +
+                          $"(the second argument was null); the root device held {componentsBefore} component(s) " +
+                          $"before and holds {componentsAfter} now");
+    }
+
+    // How many components hang under the root device right now. Bookkeeping
+    // around the load so it can say whether the tree changed; the SDK reads it
+    // makes are the ones tree.read already marks.
+    private int CountComponentsUnderTheRootDevice()
+    {
+        try
+        {
+            var nodes = new List<ComponentNode>();
+            AppendSubtree(instance.RootDevice, nodes);
+            return nodes.Count;
+        }
+        catch (Exception)
+        {
+            return -1;
+        }
     }
 
     // Native openDAQ failure -> closed-set error. The .NET binding surfaces the

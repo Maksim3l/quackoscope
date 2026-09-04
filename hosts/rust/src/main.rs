@@ -5,6 +5,7 @@
 //
 // Usage:
 //   quackoscope-host-rust [--manifest <path>] [--symbol-list <path>]
+//                         [--capability-baseline <path>]
 //                         [--port <n>] [--address <ip>]
 //                         [--native-library-directory <path>]
 //
@@ -33,6 +34,10 @@ const WEBSOCKET_PATH: &str = "/ws";
 struct Options {
     manifest: PathBuf,
     symbol_list: PathBuf,
+    /// generated/wire/capability-baseline.json. The gap list is computed as
+    /// this artifact's capability ids minus the ones this host serves, so the
+    /// host checks its own table against it before it announces anything.
+    capability_baseline: PathBuf,
     address: String,
     port: u16,
     /// Where the openDAQ crate loads the native libraries from. Defaults to the
@@ -46,6 +51,7 @@ impl Default for Options {
         Options {
             manifest: PathBuf::from("./manifest.json"),
             symbol_list: PathBuf::from("./generated/rust/symbol-list.json"),
+            capability_baseline: PathBuf::from("./generated/wire/capability-baseline.json"),
             address: DEFAULT_ADDRESS.to_string(),
             port: DEFAULT_PORT,
             native_library_directory: None,
@@ -65,6 +71,9 @@ fn parse_args() -> Result<Option<Options>, String> {
         match arg.as_str() {
             "--manifest" => options.manifest = PathBuf::from(next("--manifest")?),
             "--symbol-list" => options.symbol_list = PathBuf::from(next("--symbol-list")?),
+            "--capability-baseline" => {
+                options.capability_baseline = PathBuf::from(next("--capability-baseline")?)
+            }
             "--address" => options.address = next("--address")?,
             "--port" => {
                 let text = next("--port")?;
@@ -78,8 +87,9 @@ fn parse_args() -> Result<Option<Options>, String> {
             }
             "--help" | "-h" => {
                 println!(
-                    "{PROCESS_NAME} [--manifest <path>] [--symbol-list <path>] [--port <n>] \
-                     [--address <ip>] [--native-library-directory <path>]"
+                    "{PROCESS_NAME} [--manifest <path>] [--symbol-list <path>] \
+                     [--capability-baseline <path>] [--port <n>] [--address <ip>] \
+                     [--native-library-directory <path>]"
                 );
                 return Ok(None);
             }
@@ -126,6 +136,10 @@ fn main() -> std::process::ExitCode {
         native_library_directory.display()
     );
     println!("[host] symbol list  {}", options.symbol_list.display());
+    println!(
+        "[host] baseline     {}",
+        options.capability_baseline.display()
+    );
 
     match run(&options, &manifest, &native_library_directory) {
         Ok(()) => std::process::ExitCode::SUCCESS,
@@ -152,6 +166,20 @@ fn run(
     println!(
         "[host] operation table agrees with {}: all {generated_call_symbols} call symbols matched",
         options.symbol_list.display()
+    );
+
+    // ...and against the artifact the gap list is actually computed from, so a
+    // capability the contract grew cannot go unnoticed and be announced as a
+    // clean sweep of a smaller baseline.
+    let baseline_pairs =
+        service::handshake::verify_capability_table_against_generated_baseline(
+            &options.capability_baseline,
+        )?;
+    println!(
+        "[host] capability table agrees with {}: {} capability ids in contract order and all \
+         {baseline_pairs} capability/wire-method pairs matched",
+        options.capability_baseline.display(),
+        service::handshake::BASELINE_CAPABILITY_IDS.len()
     );
 
     let backend = DaqBackend::new(

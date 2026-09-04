@@ -75,6 +75,12 @@ private:
         std::map<std::uint32_t, Subscription> subscriptions;
         // connection string -> the device node id connect_device answered with
         std::map<std::string, std::string> deviceNodeIdsByConnectionString;
+        // The node ids add_server answered with on THIS session. Servers hang
+        // under the openDAQ Instance's own root device, which no session
+        // connected, so they are not reachable through the device registry
+        // above and this set is a record of what this session created rather
+        // than a permission check -- a server outlives the socket that made it.
+        std::set<std::string> serverNodeIds;
     };
 
     using SessionStatePtr = std::shared_ptr<SessionState>;
@@ -109,6 +115,17 @@ private:
     Json unlockDevice(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
     Json listLoadedModules(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
     Json loadModuleFromHostPath(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json getComponentAttributes(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json setComponentAttribute(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json listServerTypes(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json addServer(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json setServerDiscoveryEnabled(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json startRecording(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json stopRecording(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json beginBatchedPropertyUpdate(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json endBatchedPropertyUpdate(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json saveInstanceConfigurationToString(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json loadInstanceConfigurationFromString(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
 
     SessionStatePtr lookUpSession(const transport::ConnectionPtr& connection);
     void requireDeviceInSession(const SessionStatePtr& state) const;
