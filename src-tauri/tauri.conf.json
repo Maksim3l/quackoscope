@@ -9,17 +9,11 @@
       "wait": false
     },
     "devUrl": "http://127.0.0.1:7788",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "node tools/windows-installer/stage-host-and-opendaq-runtime-into-the-installer-payload.mjs",
     "frontendDist": "http://127.0.0.1:7788"
   },
   "app": {
-    "windows": [
-      {
-        "title": "quackoscope",
-        "width": 800,
-        "height": 600
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }
@@ -33,6 +27,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "bundled-host-and-opendaq-runtime": "host-and-opendaq-runtime"
+    }
   }
 }

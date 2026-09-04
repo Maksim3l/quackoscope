@@ -1,0 +1,321 @@
+{
+  "what_this_file_is": [
+    "Every piece of third-party code that ends up INSIDE one of the binaries the Windows",
+    "installer ships, with the licence it is under and the exact file the licence was read",
+    "from. stage-host-and-opendaq-runtime-into-the-installer-payload.mjs reads this table,",
+    "copies every licence text named here into the payload, and writes openDAQ-NOTICE.txt",
+    "from it. Nothing here is guessed: every entry names the file whose SPDX identifier or",
+    "licence text was read, and the linker input or #include that puts the code in the box."
+  ],
+  "why_it_exists": [
+    "openDAQ-NOTICE.txt used to name openDAQ under Apache-2.0 and nothing else, while",
+    "modules/ref_fb_module-64-3.module.dll statically links kissfft under BSD-3-Clause and",
+    "SFML 3.0.2 with FreeType. BSD-3-Clause clause 2 and the FreeType Licence both require a",
+    "credit line in the documentation of a binary redistribution, so the shipped installer",
+    "was redistributing code it did not credit."
+  ],
+  "how_the_linkage_was_established": [
+    "For every archive linked into a bundled binary: the MSBuild link.read.1.tlog under the",
+    "openDAQ build tree, which records the exact set of .lib files the linker consumed. The",
+    "staging script re-reads those tlogs and fails if a bundled binary consumed a library no",
+    "entry below claims. For header-only libraries, which leave no linker input: the #include",
+    "in the openDAQ (or quackoscope host) source that compiles them into the binary."
+  ],
+  "roots": {
+    "opendaq_source": "the openDAQ source checkout, six directories above manifest.module_path",
+    "opendaq_build": "the openDAQ build tree, two directories above manifest.module_path; holds __external/src and _deps"
+  },
+  "components": [
+    {
+      "name": "openDAQ",
+      "version_from": "manifest.sdk_version",
+      "spdx": "Apache-2.0",
+      "copyright": "Copyright openDAQ d.o.o.",
+      "credit_line": null,
+      "linked_into": [
+        "opendaq-64-3.dll",
+        "daqcoreobjects-64-3.dll",
+        "daqcoretypes-64-3.dll",
+        "modules/ref_device_module-64-3.module.dll",
+        "modules/ref_fb_module-64-3.module.dll",
+        "quackoscope-host-cpp.exe"
+      ],
+      "linker_input_libraries": ["opendaq-64-3.lib", "daqcoreobjects-64-3.lib", "daqcoretypes-64-3.lib", "discovery.lib", "discovery_common.lib", "discovery_server.lib", "opendaq_utils.lib"],
+      "established_by": "these DLLs ARE openDAQ; the four .lib archives are openDAQ's own targets",
+      "licence_text": {"root": "opendaq_source", "path": "LICENSE"},
+      "licence_file_in_payload": "openDAQ-LICENSE.txt"
+    },
+    {
+      "name": "kissfft",
+      "version": "2.0.1",
+      "version_read_from": {"root": "opendaq_source", "path": "examples/modules/ref_fb_module/external/kissfft/CMakeLists.txt", "line": "project(${EXTERNAL_LIB} VERSION 2.0.1 LANGUAGES C CXX)"},
+      "spdx": "BSD-3-Clause",
+      "spdx_read_from": {"root": "opendaq_source", "path": "examples/modules/ref_fb_module/external/kissfft/kiss_fft.h", "line": "SPDX-License-Identifier: BSD-3-Clause"},
+      "copyright": "Copyright (c) 2003-2010, Mark Borgerding. All rights reserved.",
+      "credit_line": "This product includes software developed by Mark Borgerding (KISS FFT, https://github.com/mborgerding/kissfft), used under the BSD 3-Clause Licence.",
+      "linked_into": ["modules/ref_fb_module-64-3.module.dll"],
+      "linker_input_libraries": ["kissfft.lib"],
+      "established_by": "kissfft.lib in ref_fb_module's link.read.1.tlog; the sources are vendored at examples/modules/ref_fb_module/external/kissfft",
+      "licence_text_is_inline_because": "the copy openDAQ vendors carries the SPDX identifier in every source file and points at a COPYING file that was NOT vendored with it, so there is no licence text in the tree to copy. The BSD 3-Clause text below is the licence that identifier names, with the copyright holder from the vendored headers.",
+      "licence_text_inline": [
+        "Copyright (c) 2003-2010, Mark Borgerding. All rights reserved.",
+        "",
+        "Redistribution and use in source and binary forms, with or without modification,",
+        "are permitted provided that the following conditions are met:",
+        "",
+        "  * Redistributions of source code must retain the above copyright notice, this",
+        "    list of conditions and the following disclaimer.",
+        "  * Redistributions in binary form must reproduce the above copyright notice,",
+        "    this list of conditions and the following disclaimer in the documentation",
+        "    and/or other materials provided with the distribution.",
+        "  * Neither the author nor the names of any contributors may be used to endorse",
+        "    or promote products derived from this software without specific prior written",
+        "    permission.",
+        "",
+        "THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND",
+        "ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED",
+        "WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE",
+        "DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR",
+        "ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES",
+        "(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;",
+        "LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON",
+        "ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT",
+        "(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS",
+        "SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
+      ],
+      "licence_file_in_payload": "third-party-licences/kissfft-2.0.1-BSD-3-Clause.txt"
+    },
+    {
+      "name": "SFML",
+      "version": "3.0.2",
+      "version_read_from": {"root": "opendaq_source", "path": "examples/modules/ref_fb_module/external/sfml/CMakeLists.txt", "line": "REQUIRED_VERSION 3.0.2 / GIT_REF 3.0.2"},
+      "spdx": "Zlib",
+      "copyright": "Copyright (C) 2007-2025 Laurent Gomila - laurent@sfml-dev.org",
+      "credit_line": "This product includes SFML 3.0.2 (https://www.sfml-dev.org), used under the zlib/libpng licence.",
+      "linked_into": ["modules/ref_fb_module-64-3.module.dll"],
+      "linker_input_libraries": ["sfml-graphics-s.lib", "sfml-window-s.lib", "sfml-system-s.lib"],
+      "established_by": "sfml-graphics-s.lib, sfml-window-s.lib and sfml-system-s.lib in ref_fb_module's link.read.1.tlog. The -s suffix is SFML's static-library naming, so this code is inside the module DLL and not beside it.",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/sfml/license.md"},
+      "licence_file_in_payload": "third-party-licences/SFML-3.0.2-zlib-libpng.txt"
+    },
+    {
+      "name": "FreeType",
+      "version": "2.13.2",
+      "version_read_from": {"root": "opendaq_build", "path": "_deps/freetype-src/include/freetype/freetype.h", "line": "FREETYPE_MAJOR 2 / FREETYPE_MINOR 13 / FREETYPE_PATCH 2"},
+      "spdx": "FTL",
+      "spdx_note": "FreeType is dual-licensed FTL or GPL-2.0-or-later and the redistributor must choose one. This bundle is distributed under the FreeType Licence (FTL), whose credit clause is satisfied by the line below.",
+      "copyright": "Copyright (C) 1996-2023 by David Turner, Robert Wilhelm, and Werner Lemberg.",
+      "credit_line": "Portions of this software are copyright (c) 2023 The FreeType Project (www.freetype.org). All rights reserved.",
+      "credit_line_read_from": {"root": "opendaq_build", "path": "_deps/freetype-src/docs/FTL.TXT", "line": "we encourage you to use the following text: \"Portions of this software are copyright <year> The FreeType Project (www.freetype.org). All rights reserved.\""},
+      "linked_into": ["modules/ref_fb_module-64-3.module.dll"],
+      "linker_input_libraries": ["freetype.lib"],
+      "established_by": "freetype.lib in ref_fb_module's link.read.1.tlog; SFML's graphics module needs it for text rendering and SFML's own readme.md lists freetype among its external libraries",
+      "licence_text": {"root": "opendaq_build", "path": "_deps/freetype-src/docs/FTL.TXT"},
+      "licence_file_in_payload": "third-party-licences/FreeType-2.13.2-FTL.txt"
+    },
+    {
+      "name": "stb_image / stb_image_write",
+      "version": "stb_image v2.30",
+      "version_read_from": {"root": "opendaq_build", "path": "__external/src/sfml/extlibs/headers/stb_image/stb_image.h", "line": "stb_image - v2.30 - public domain image loader"},
+      "spdx": "MIT OR Unlicense",
+      "copyright": "Copyright (c) 2017 Sean Barrett",
+      "credit_line": null,
+      "linked_into": ["modules/ref_fb_module-64-3.module.dll"],
+      "linker_input_libraries": [],
+      "established_by": "compiled into sfml-graphics-s.lib from SFML's own extlibs/headers/stb_image; SFML's readme.md names stb_image and stb_image_write among its external libraries. Header-only, so it leaves no linker input of its own.",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/sfml/extlibs/headers/stb_image/stb_image.h", "extract_from_line_containing": "------------------------------------------------------------------------------\nALTERNATIVE A - MIT License"},
+      "licence_file_in_payload": "third-party-licences/stb_image-v2.30-MIT-or-Unlicense.txt"
+    },
+    {
+      "name": "Khronos OpenGL/EGL headers (via glad 2.0.0-beta)",
+      "version": "glad 2.0.0-beta generated loader; khrplatform.h (c) 2008-2018",
+      "version_read_from": {"root": "opendaq_build", "path": "__external/src/sfml/extlibs/headers/glad/include/glad/gl.h", "line": "Loader generated by glad 2.0.0-beta on Sat Mar 27 13:31:41 2021"},
+      "spdx": "MIT",
+      "copyright": "Copyright (c) 2008-2018 The Khronos Group Inc.",
+      "credit_line": null,
+      "linked_into": ["modules/ref_fb_module-64-3.module.dll"],
+      "linker_input_libraries": [],
+      "established_by": "compiled into sfml-window-s.lib and sfml-graphics-s.lib from SFML's own extlibs/headers/glad; header-only, so it leaves no linker input of its own",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/sfml/extlibs/headers/glad/include/glad/gl.h", "extract_lines": [2581, 2602]},
+      "licence_file_in_payload": "third-party-licences/Khronos-headers-via-glad-MIT.txt"
+    },
+    {
+      "name": "{fmt}",
+      "version": "12.1.1",
+      "version_read_from": {"root": "opendaq_source", "path": "external/fmt/CMakeLists.txt", "line": "GIT_REF 02d6f3d9e420e545509f49b5d827911a3c9690fc # v12.1.1"},
+      "spdx": "MIT",
+      "copyright": "Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors",
+      "credit_line": null,
+      "linked_into": [
+        "opendaq-64-3.dll",
+        "daqcoreobjects-64-3.dll",
+        "daqcoretypes-64-3.dll",
+        "modules/ref_device_module-64-3.module.dll",
+        "modules/ref_fb_module-64-3.module.dll"
+      ],
+      "linker_input_libraries": ["fmt.lib"],
+      "established_by": "fmt.lib in the link.read.1.tlog of every one of those five binaries",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/fmt/LICENSE"},
+      "licence_file_in_payload": "third-party-licences/fmt-12.1.1-MIT.txt"
+    },
+    {
+      "name": "xxHash",
+      "version": "0.8.3",
+      "version_read_from": {"root": "opendaq_source", "path": "external/xxHash/CMakeLists.txt", "line": "REQUIRED_VERSION 0.8.3 / GIT_REF v0.8.3"},
+      "spdx": "BSD-2-Clause",
+      "copyright": "xxHash Library, Copyright (c) 2012-2021 Yann Collet. All rights reserved.",
+      "credit_line": "This product includes xxHash 0.8.3, Copyright (c) 2012-2021 Yann Collet, used under the BSD 2-Clause Licence.",
+      "linked_into": [
+        "opendaq-64-3.dll",
+        "daqcoreobjects-64-3.dll",
+        "daqcoretypes-64-3.dll",
+        "modules/ref_device_module-64-3.module.dll",
+        "modules/ref_fb_module-64-3.module.dll",
+        "quackoscope-host-cpp.exe"
+      ],
+      "linker_input_libraries": ["xxhash.lib"],
+      "established_by": "xxhash.lib in the link.read.1.tlog of all five openDAQ binaries and of quackoscope-host-cpp.exe",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/xxHash/LICENSE"},
+      "licence_file_in_payload": "third-party-licences/xxHash-0.8.3-BSD-2-Clause.txt"
+    },
+    {
+      "name": "spdlog",
+      "version": "1.17.0",
+      "version_read_from": {"root": "opendaq_source", "path": "external/spdlog/CMakeLists.txt", "line": "REQUIRED_VERSION 1.17.0 / GIT_REF v1.17.0"},
+      "spdx": "MIT",
+      "copyright": "Copyright (c) 2016 - present, Gabi Melman and spdlog contributors.",
+      "credit_line": null,
+      "linked_into": ["opendaq-64-3.dll"],
+      "linker_input_libraries": ["spdlog.lib"],
+      "established_by": "spdlog.lib in opendaq-64-3.dll's link.read.1.tlog",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/spdlog/LICENSE"},
+      "licence_file_in_payload": "third-party-licences/spdlog-1.17.0-MIT.txt"
+    },
+    {
+      "name": "Boost",
+      "version": "1.82.0",
+      "version_read_from": {"root": "opendaq_build", "path": "bin/Release", "line": "the linked archives are named libboost_<component>-vc145-mt-x64-1_82.lib, and __external/src holds boost-1.82.0.tar.xz"},
+      "spdx": "BSL-1.0",
+      "copyright": "Distributed under the Boost Software License, Version 1.0.",
+      "credit_line": null,
+      "linked_into": [
+        "opendaq-64-3.dll",
+        "daqcoreobjects-64-3.dll",
+        "daqcoretypes-64-3.dll",
+        "quackoscope-host-cpp.exe"
+      ],
+      "linker_input_libraries": [
+        "libboost_atomic-vc145-mt-x64-1_82.lib",
+        "libboost_chrono-vc145-mt-x64-1_82.lib",
+        "libboost_container-vc145-mt-x64-1_82.lib",
+        "libboost_context-vc145-mt-x64-1_82.lib",
+        "libboost_coroutine-vc145-mt-x64-1_82.lib",
+        "libboost_date_time-vc145-mt-x64-1_82.lib",
+        "libboost_exception-vc145-mt-x64-1_82.lib",
+        "libboost_filesystem-vc145-mt-x64-1_82.lib",
+        "libboost_random-vc145-mt-x64-1_82.lib",
+        "libboost_thread-vc145-mt-x64-1_82.lib"
+      ],
+      "established_by": "ten libboost_*-1_82.lib archives across the three openDAQ DLLs' link.read.1.tlog files, plus the header-only Boost.Beast and Boost.Asio that hosts/cpp/CMakeLists.txt compiles into quackoscope-host-cpp.exe from ${openDAQ build}/__external/src/Boost/libs/*/include",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/Boost/LICENSE_1_0.txt"},
+      "licence_file_in_payload": "third-party-licences/Boost-1.82.0-BSL-1.0.txt"
+    },
+    {
+      "name": "tsl-ordered-map",
+      "version": "1.2.0",
+      "version_read_from": {"root": "opendaq_source", "path": "external/tsl-ordered-map/CMakeLists.txt", "line": "REQUIRED_VERSION 1.2.0 / GIT_REF v1.2.0"},
+      "spdx": "MIT",
+      "copyright": "Copyright (c) 2017 Thibaut Goetghebuer-Planchon <tessil@gmx.com>",
+      "credit_line": null,
+      "linked_into": ["daqcoretypes-64-3.dll", "daqcoreobjects-64-3.dll", "opendaq-64-3.dll"],
+      "linker_input_libraries": [],
+      "established_by": "header-only: #include <tsl/ordered_map.h> in core/corecontainers/include/coretypes/dictobject_impl.h, core/coreobjects/include/coreobjects/property_object_impl.h and core/opendaq/component/include/opendaq/component_impl.h, all compiled into those DLLs",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/tsl-ordered-map/LICENSE"},
+      "licence_file_in_payload": "third-party-licences/tsl-ordered-map-1.2.0-MIT.txt"
+    },
+    {
+      "name": "Howard Hinnant date",
+      "version": "3.0.4",
+      "version_read_from": {"root": "opendaq_source", "path": "external/date/CMakeLists.txt", "line": "REQUIRED_VERSION 3.0.4 / GIT_REF f94b8f3"},
+      "spdx": "MIT",
+      "copyright": "Released under the MIT License; each file is licensed individually with its own author names and dates.",
+      "credit_line": null,
+      "linked_into": ["opendaq-64-3.dll"],
+      "linker_input_libraries": [],
+      "established_by": "header-only: #include <date/date.h> in core/opendaq/reader/include/opendaq/reader_utils.h, core/opendaq/reader/include/opendaq/time_reader.h and core/opendaq/signal/include/opendaq/last_value_cache.h, all compiled into opendaq-64-3.dll",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/date/LICENSE.txt"},
+      "licence_file_in_payload": "third-party-licences/date-3.0.4-MIT.txt"
+    },
+    {
+      "name": "Taskflow",
+      "version": "3.5.0",
+      "version_read_from": {"root": "opendaq_source", "path": "external/taskflow/CMakeLists.txt", "line": "REQUIRED_VERSION 3.5.0 / GIT_REF v3.5.0"},
+      "spdx": "MIT",
+      "copyright": "Copyright (c) 2018-2022 Dr. Tsung-Wei Huang",
+      "credit_line": null,
+      "linked_into": ["opendaq-64-3.dll"],
+      "linker_input_libraries": [],
+      "established_by": "header-only: taskflow included by core/opendaq/scheduler/include/opendaq/task_flow.h and core/opendaq/scheduler/src/awaitable_impl.cpp, compiled into opendaq-64-3.dll",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/Taskflow/LICENSE"},
+      "licence_file_in_payload": "third-party-licences/Taskflow-3.5.0-MIT.txt"
+    },
+    {
+      "name": "mdns",
+      "version": "1.4.3",
+      "version_read_from": {"root": "opendaq_source", "path": "external/mdns/CMakeLists.txt", "line": "REQUIRED_VERSION 1.4.3 / GIT_REF 1.4.3"},
+      "spdx": "Unlicense",
+      "copyright": "This is free and unencumbered software released into the public domain.",
+      "credit_line": null,
+      "linked_into": ["opendaq-64-3.dll"],
+      "linker_input_libraries": ["discovery.lib", "discovery_common.lib", "discovery_server.lib"],
+      "established_by": "opendaq-64-3.dll links discovery.lib, discovery_common.lib and discovery_server.lib, and those three openDAQ libraries include mdns.h (shared/libraries/discovery/include/daq_discovery/mdnsdiscovery_client.h and shared/libraries/discovery_server/include/discovery_server/mdnsdiscovery_server.h)",
+      "licence_text": {"root": "opendaq_build", "path": "__external/src/mdns/LICENSE"},
+      "licence_file_in_payload": "third-party-licences/mdns-1.4.3-Unlicense.txt"
+    },
+    {
+      "name": "libbcrypt",
+      "version": "1.0.0",
+      "version_read_from": {"root": "opendaq_source", "path": "external/bcrypt/CMakeLists.txt", "line": "project(${EXTERNAL_LIB} VERSION 1.0.0)"},
+      "spdx": "MIT",
+      "copyright": "Copyright (c) 2015 trusch",
+      "credit_line": null,
+      "linked_into": ["daqcoreobjects-64-3.dll"],
+      "linker_input_libraries": ["bcrypt.lib"],
+      "established_by": "bcrypt.lib in daqcoreobjects-64-3.dll's link.read.1.tlog, built from openDAQ's vendored external/bcrypt",
+      "licence_text": {"root": "opendaq_source", "path": "external/bcrypt/LICENSE"},
+      "licence_file_in_payload": "third-party-licences/libbcrypt-1.0.0-MIT.txt"
+    },
+    {
+      "name": "crypt_blowfish",
+      "version": "as vendored inside libbcrypt",
+      "spdx": "public-domain",
+      "copyright": "Written by Solar Designer <solar at openwall.com> in 1998-2014. No copyright is claimed, and the software is hereby placed in the public domain.",
+      "credit_line": "This product includes crypt_blowfish by Solar Designer (http://www.openwall.com/crypt/), placed in the public domain; the author asks that credit be given where it is due.",
+      "linked_into": ["daqcoreobjects-64-3.dll"],
+      "linker_input_libraries": ["bcrypt.lib"],
+      "established_by": "external/bcrypt/CMakeLists.txt compiles src/crypt_blowfish.c and src/crypt_gensalt.c into bcrypt.lib, which daqcoreobjects-64-3.dll links",
+      "licence_text": {"root": "opendaq_source", "path": "external/bcrypt/src/crypt_blowfish.c", "extract_lines": [1, 32]},
+      "licence_file_in_payload": "third-party-licences/crypt_blowfish-public-domain.txt"
+    },
+    {
+      "name": "nlohmann/json",
+      "version": "3.10.5",
+      "version_read_from": {"root": "opendaq_build", "path": "_deps/nlohmann_json-src/include/nlohmann/json.hpp", "line": "NLOHMANN_JSON_VERSION_MAJOR 3 / MINOR 10 / PATCH 5"},
+      "spdx": "MIT",
+      "copyright": "Copyright (c) 2013-2022 Niels Lohmann",
+      "credit_line": null,
+      "linked_into": ["quackoscope-host-cpp.exe"],
+      "linker_input_libraries": [],
+      "established_by": "header-only: hosts/cpp/CMakeLists.txt puts ${openDAQ build}/_deps/nlohmann_json-src/include on the host's include path and the host's transport layer includes nlohmann/json.hpp, so it is compiled into quackoscope-host-cpp.exe",
+      "licence_text": {"root": "opendaq_build", "path": "_deps/nlohmann_json-src/LICENSE.MIT"},
+      "licence_file_in_payload": "third-party-licences/nlohmann-json-3.10.5-MIT.txt"
+    }
+  ],
+  "linker_input_libraries_that_need_no_entry": {
+    "why": "Windows SDK and MSVC import libraries. The MSVC C++ runtime DLLs the payload ships are covered by the Visual Studio redistributable licence, not by an open-source notice.",
+    "prefixes": [
+      "C:\\PROGRAM FILES (X86)\\WINDOWS KITS\\",
+      "C:\\PROGRAM FILES\\MICROSOFT VISUAL STUDIO\\"
+    ]
+  }
+}
