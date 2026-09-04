@@ -9,8 +9,8 @@
     "binding": "the SDK binding for this host language lacks the feature",
     "host": "the handler has not been written yet"
   },
-  "capability_count": 12,
-  "wire_method_count": 19,
+  "capability_count": 20,
+  "wire_method_count": 30,
   "capabilities": [
     {
       "id": "device.scan",
@@ -129,6 +129,84 @@
       "id": "module.load",
       "wire_methods": [
         "load_module_from_host_path"
+      ],
+      "kinds": [
+        "action"
+      ]
+    },
+    {
+      "id": "attribute.read",
+      "wire_methods": [
+        "get_component_attributes"
+      ],
+      "kinds": [
+        "getter"
+      ]
+    },
+    {
+      "id": "attribute.write",
+      "wire_methods": [
+        "set_component_attribute"
+      ],
+      "kinds": [
+        "setter"
+      ]
+    },
+    {
+      "id": "server.add",
+      "wire_methods": [
+        "list_server_types",
+        "add_server"
+      ],
+      "kinds": [
+        "getter",
+        "action"
+      ]
+    },
+    {
+      "id": "server.discovery",
+      "wire_methods": [
+        "set_server_discovery_enabled"
+      ],
+      "kinds": [
+        "setter"
+      ]
+    },
+    {
+      "id": "recorder.control",
+      "wire_methods": [
+        "start_recording",
+        "stop_recording"
+      ],
+      "kinds": [
+        "action",
+        "action"
+      ]
+    },
+    {
+      "id": "property.batched_update",
+      "wire_methods": [
+        "begin_batched_property_update",
+        "end_batched_property_update"
+      ],
+      "kinds": [
+        "action",
+        "action"
+      ]
+    },
+    {
+      "id": "configuration.save",
+      "wire_methods": [
+        "save_instance_configuration_to_string"
+      ],
+      "kinds": [
+        "getter"
+      ]
+    },
+    {
+      "id": "configuration.load",
+      "wire_methods": [
+        "load_instance_configuration_from_string"
       ],
       "kinds": [
         "action"

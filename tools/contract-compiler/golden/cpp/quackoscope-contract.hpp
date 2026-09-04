@@ -83,6 +83,7 @@ enum class NodeKind
     functionBlock,  // wire: "function_block"
     signal,  // wire: "signal"
     folder,  // wire: "folder"
+    server,  // wire: "server"
 };
 
 inline constexpr std::string_view wireName(NodeKind value)
@@ -94,6 +95,7 @@ inline constexpr std::string_view wireName(NodeKind value)
         case NodeKind::functionBlock: return "function_block";
         case NodeKind::signal: return "signal";
         case NodeKind::folder: return "folder";
+        case NodeKind::server: return "server";
     }
     return "";
 }
@@ -184,6 +186,29 @@ inline constexpr std::string_view wireName(PropertyDescriptorValueType value)
     return "";
 }
 
+/// contract 1.3 types.ComponentAttribute.value_type
+enum class ComponentAttributeValueType
+{
+    bool_,  // wire: "bool"
+    int_,  // wire: "int"
+    float_,  // wire: "float"
+    string,  // wire: "string"
+    stringList,  // wire: "string_list"
+};
+
+inline constexpr std::string_view wireName(ComponentAttributeValueType value)
+{
+    switch (value)
+    {
+        case ComponentAttributeValueType::bool_: return "bool";
+        case ComponentAttributeValueType::int_: return "int";
+        case ComponentAttributeValueType::float_: return "float";
+        case ComponentAttributeValueType::string: return "string";
+        case ComponentAttributeValueType::stringList: return "string_list";
+    }
+    return "";
+}
+
 /// contract 1.3 types.SignalDescriptor.sample_type
 enum class SignalDescriptorSampleType
 {
@@ -266,6 +291,8 @@ struct Node
     std::optional<std::string> componentStatusMessage;  // wire key "component_status_message", presence nullable
     std::optional<NodeConnectionStatus> connectionStatus;  // wire key "connection_status", presence nullable
     std::optional<NodeOperationMode> operationMode;  // wire key "operation_mode", presence nullable
+    std::optional<bool> updating;  // wire key "updating", presence nullable
+    std::optional<bool> recording;  // wire key "recording", presence nullable
 };
 
 /// contract 1.3 types.PropertyDescriptor
@@ -285,6 +312,16 @@ struct PropertyDescriptor
     std::optional<double> max;  // wire key "max", presence nullable
     std::optional<std::string> validator;  // wire key "validator", presence nullable; openDAQ EvalValue source, display only, never interpreted
     std::optional<std::string> coercer;  // wire key "coercer", presence nullable; openDAQ EvalValue source, display only, never interpreted
+};
+
+/// contract 1.3 types.ComponentAttribute
+struct ComponentAttribute
+{
+    std::string id_;  // wire key "id", presence required
+    std::string name;  // wire key "name", presence required
+    std::optional<AnyValue> value;  // wire key "value", presence nullable
+    ComponentAttributeValueType valueType;  // wire key "value_type", presence required
+    bool readOnly;  // wire key "read_only", presence required
 };
 
 /// contract 1.3 types.SignalDescriptor
@@ -326,7 +363,7 @@ struct ModuleInfo
 
 /// Baseline capability ids of contract 4. A host declares the subset it
 /// implements; the gap list is this baseline minus that subset.
-inline constexpr std::string_view BASELINE_CAPABILITY_IDS[12] =
+inline constexpr std::string_view BASELINE_CAPABILITY_IDS[20] =
 {
     "device.scan",
     "device.connect",
@@ -340,12 +377,20 @@ inline constexpr std::string_view BASELINE_CAPABILITY_IDS[12] =
     "device.lock",
     "module.read",
     "module.load",
+    "attribute.read",
+    "attribute.write",
+    "server.add",
+    "server.discovery",
+    "recorder.control",
+    "property.batched_update",
+    "configuration.save",
+    "configuration.load",
 };
 
 /// The closed operation table of contract 1.4. lints.host_covers_every_operation
 /// and lints.no_undeclared_public_method are both checked against this
 /// array.
-inline constexpr std::string_view WIRE_METHOD_NAMES[19] =
+inline constexpr std::string_view WIRE_METHOD_NAMES[30] =
 {
     "scan_available_devices",
     "connect_device",
@@ -366,6 +411,17 @@ inline constexpr std::string_view WIRE_METHOD_NAMES[19] =
     "unlock_device",
     "list_loaded_modules",
     "load_module_from_host_path",
+    "get_component_attributes",
+    "set_component_attribute",
+    "list_server_types",
+    "add_server",
+    "set_server_discovery_enabled",
+    "start_recording",
+    "stop_recording",
+    "begin_batched_property_update",
+    "end_batched_property_update",
+    "save_instance_configuration_to_string",
+    "load_instance_configuration_from_string",
 };
 
 /// Server-push events of contract 1.5. Events carry no id field.
@@ -514,6 +570,50 @@ public:
     /// wire method "load_module_from_host_path", capability module.load, kind action.
     /// Declared errors: not_found, not_connected, invalid_value, internal. Signal one by throwing WireCallFailed.
     virtual ModuleInfo loadModuleFromHostPath(const std::string& hostPath) = 0;
+
+    /// wire method "get_component_attributes", capability attribute.read, kind getter.
+    /// Declared errors: not_found, not_connected. Signal one by throwing WireCallFailed.
+    virtual std::vector<ComponentAttribute> getComponentAttributes(const std::string& nodeId) = 0;
+
+    /// wire method "set_component_attribute", capability attribute.write, kind setter.
+    /// Declared errors: not_found, read_only, invalid_value. Signal one by throwing WireCallFailed.
+    virtual void setComponentAttribute(const std::string& nodeId, const std::string& attributeId, const AnyValue& value) = 0;
+
+    /// wire method "list_server_types", capability server.add, kind getter.
+    /// Declared errors: not_connected. Signal one by throwing WireCallFailed.
+    virtual std::vector<ComponentTypeInfo> listServerTypes() = 0;
+
+    /// wire method "add_server", capability server.add, kind action.
+    /// Declared errors: not_connected, unsupported, invalid_value, internal. Signal one by throwing WireCallFailed.
+    virtual Node addServer(const std::string& typeId) = 0;
+
+    /// wire method "set_server_discovery_enabled", capability server.discovery, kind setter.
+    /// Declared errors: not_found, unsupported, internal. Signal one by throwing WireCallFailed.
+    virtual void setServerDiscoveryEnabled(const std::string& nodeId, bool enabled) = 0;
+
+    /// wire method "start_recording", capability recorder.control, kind action.
+    /// Declared errors: not_found, unsupported, internal. Signal one by throwing WireCallFailed.
+    virtual void startRecording(const std::string& nodeId) = 0;
+
+    /// wire method "stop_recording", capability recorder.control, kind action.
+    /// Declared errors: not_found, unsupported, internal. Signal one by throwing WireCallFailed.
+    virtual void stopRecording(const std::string& nodeId) = 0;
+
+    /// wire method "begin_batched_property_update", capability property.batched_update, kind action.
+    /// Declared errors: not_found, not_connected. Signal one by throwing WireCallFailed.
+    virtual void beginBatchedPropertyUpdate(const std::string& nodeId) = 0;
+
+    /// wire method "end_batched_property_update", capability property.batched_update, kind action.
+    /// Declared errors: not_found, not_connected, invalid_value. Signal one by throwing WireCallFailed.
+    virtual void endBatchedPropertyUpdate(const std::string& nodeId) = 0;
+
+    /// wire method "save_instance_configuration_to_string", capability configuration.save, kind getter.
+    /// Declared errors: not_connected, internal. Signal one by throwing WireCallFailed.
+    virtual std::string saveInstanceConfigurationToString() = 0;
+
+    /// wire method "load_instance_configuration_from_string", capability configuration.load, kind action.
+    /// Declared errors: not_connected, invalid_value, internal. Signal one by throwing WireCallFailed.
+    virtual void loadInstanceConfigurationFromString(const std::string& configuration) = 0;
 };
 
 /// Server push. A host calls these to emit the events of contract 1.5.

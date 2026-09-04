@@ -45,7 +45,8 @@ export type NodeKind =
   | "channel"
   | "function_block"
   | "signal"
-  | "folder";
+  | "folder"
+  | "server";
 
 export type NodeComponentStatus =
   | "ok"
@@ -71,6 +72,13 @@ export type PropertyDescriptorValueType =
   | "string"
   | "selection"
   | "struct";
+
+export type ComponentAttributeValueType =
+  | "bool"
+  | "int"
+  | "float"
+  | "string"
+  | "string_list";
 
 export type SignalDescriptorSampleType =
   | "float32"
@@ -107,6 +115,8 @@ export interface Node {
   component_status_message: string | null;
   connection_status: NodeConnectionStatus | null;
   operation_mode: NodeOperationMode | null;
+  updating: boolean | null;
+  recording: boolean | null;
 }
 
 export interface PropertyDescriptor {
@@ -128,6 +138,14 @@ export interface PropertyDescriptor {
   /** openDAQ EvalValue source string. Display only; never
    *  interpreted client-side. */
   coercer: string | null;
+}
+
+export interface ComponentAttribute {
+  id: string;
+  name: string;
+  value: unknown | null;
+  value_type: ComponentAttributeValueType;
+  read_only: boolean;
 }
 
 export interface SignalDescriptor {
@@ -173,7 +191,15 @@ export type CapabilityId =
   | "device.mode"
   | "device.lock"
   | "module.read"
-  | "module.load";
+  | "module.load"
+  | "attribute.read"
+  | "attribute.write"
+  | "server.add"
+  | "server.discovery"
+  | "recorder.control"
+  | "property.batched_update"
+  | "configuration.save"
+  | "configuration.load";
 
 export const BASELINE_CAPABILITY_IDS: readonly CapabilityId[] = [
   "device.scan",
@@ -188,6 +214,14 @@ export const BASELINE_CAPABILITY_IDS: readonly CapabilityId[] = [
   "device.lock",
   "module.read",
   "module.load",
+  "attribute.read",
+  "attribute.write",
+  "server.add",
+  "server.discovery",
+  "recorder.control",
+  "property.batched_update",
+  "configuration.save",
+  "configuration.load",
 ];
 
 /** The closed operation table of contract 1.4. A method name outside
@@ -211,7 +245,18 @@ export type WireMethodName =
   | "lock_device"
   | "unlock_device"
   | "list_loaded_modules"
-  | "load_module_from_host_path";
+  | "load_module_from_host_path"
+  | "get_component_attributes"
+  | "set_component_attribute"
+  | "list_server_types"
+  | "add_server"
+  | "set_server_discovery_enabled"
+  | "start_recording"
+  | "stop_recording"
+  | "begin_batched_property_update"
+  | "end_batched_property_update"
+  | "save_instance_configuration_to_string"
+  | "load_instance_configuration_from_string";
 
 export const WIRE_METHOD_NAMES: readonly WireMethodName[] = [
   "scan_available_devices",
@@ -233,6 +278,17 @@ export const WIRE_METHOD_NAMES: readonly WireMethodName[] = [
   "unlock_device",
   "list_loaded_modules",
   "load_module_from_host_path",
+  "get_component_attributes",
+  "set_component_attribute",
+  "list_server_types",
+  "add_server",
+  "set_server_discovery_enabled",
+  "start_recording",
+  "stop_recording",
+  "begin_batched_property_update",
+  "end_batched_property_update",
+  "save_instance_configuration_to_string",
+  "load_instance_configuration_from_string",
 ];
 
 /** Server-push events of contract 1.5. Events carry no id field and

@@ -81,6 +81,40 @@ operations:
   # of them in the closed acronym list, and load_module_from_host_path collides
   # with no reserved word in any of the five targets.
   load_module_from_host_path:  [load_module_from_host_path,  loadModuleFromHostPath,    LoadModuleFromHostPathAsync,    load_module_from_host_path,  load_module_from_host_path]
+  # Rows twenty to thirty, added by the work on the last reference panels:
+  # component attributes, servers and their discovery, the recorder, the
+  # begin/end update pair, and saving and loading the instance configuration.
+  #
+  # get_component_attributes is the THIRD getter whose leading "get" rust drops,
+  # after get_component_tree and get_device_operation_modes; every other row here
+  # begins with set, list, add, start, stop, begin, end, save or load, none of
+  # which rust touches. list_server_types begins with "list", so rust leaves it
+  # exactly as it leaves list_function_block_types and list_loaded_modules.
+  #
+  # Reserved-word check, done per target against casing.targets[].reserved_words
+  # and against the WHOLE wire name, which is what reserved_word_escaped matches:
+  #   - load_instance_configuration_from_string contains the token "from", which
+  #     is a python reserved word on its own, and save_instance_configuration_to_string
+  #     ends in the token "string", which is a C# reserved word on its own.
+  #     Neither escapes, because neither whole wire name is a reserved word - the
+  #     same reason load_module_from_host_path did not escape in python either.
+  #   - set_server_discovery_enabled, begin_batched_property_update and
+  #     end_batched_property_update collide with nothing in any of the five lists.
+  #   - add_server and start_recording and stop_recording likewise; "server" and
+  #     "recording" appear in no reserved_words list.
+  # No token in any of these eleven rows is in the closed acronym list, so no
+  # acronym_rendering applies and C# Pascal-cases every token the ordinary way.
+  get_component_attributes:            [get_component_attributes,            getComponentAttributes,            GetComponentAttributesAsync,            get_component_attributes,            component_attributes]
+  set_component_attribute:             [set_component_attribute,             setComponentAttribute,             SetComponentAttributeAsync,             set_component_attribute,             set_component_attribute]
+  list_server_types:                   [list_server_types,                   listServerTypes,                   ListServerTypesAsync,                   list_server_types,                   list_server_types]
+  add_server:                          [add_server,                          addServer,                         AddServerAsync,                         add_server,                          add_server]
+  set_server_discovery_enabled:        [set_server_discovery_enabled,        setServerDiscoveryEnabled,         SetServerDiscoveryEnabledAsync,         set_server_discovery_enabled,        set_server_discovery_enabled]
+  start_recording:                     [start_recording,                     startRecording,                    StartRecordingAsync,                    start_recording,                     start_recording]
+  stop_recording:                      [stop_recording,                      stopRecording,                     StopRecordingAsync,                     stop_recording,                      stop_recording]
+  begin_batched_property_update:       [begin_batched_property_update,       beginBatchedPropertyUpdate,        BeginBatchedPropertyUpdateAsync,        begin_batched_property_update,       begin_batched_property_update]
+  end_batched_property_update:         [end_batched_property_update,         endBatchedPropertyUpdate,          EndBatchedPropertyUpdateAsync,          end_batched_property_update,         end_batched_property_update]
+  save_instance_configuration_to_string:   [save_instance_configuration_to_string,   saveInstanceConfigurationToString,   SaveInstanceConfigurationToStringAsync,   save_instance_configuration_to_string,   save_instance_configuration_to_string]
+  load_instance_configuration_from_string: [load_instance_configuration_from_string, loadInstanceConfigurationFromString, LoadInstanceConfigurationFromStringAsync, load_instance_configuration_from_string, load_instance_configuration_from_string]
 
 # --- events, transcribed from section 1.5's event table ---------------------
 #

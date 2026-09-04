@@ -53,6 +53,7 @@ class NodeKind(str, Enum):
     function_block = "function_block"
     signal = "signal"
     folder = "folder"
+    server = "server"
 
 
 class NodeComponentStatus(str, Enum):
@@ -90,6 +91,16 @@ class PropertyDescriptorValueType(str, Enum):
     string = "string"
     selection = "selection"
     struct = "struct"
+
+
+class ComponentAttributeValueType(str, Enum):
+    """contract 1.3 types.ComponentAttribute.value_type"""
+
+    bool = "bool"
+    int = "int"
+    float = "float"
+    string = "string"
+    string_list = "string_list"
 
 
 class SignalDescriptorSampleType(str, Enum):
@@ -163,6 +174,8 @@ class Node:
     component_status_message: str | None
     connection_status: NodeConnectionStatus | None
     operation_mode: NodeOperationMode | None
+    updating: bool | None
+    recording: bool | None
 
     WIRE_KEYS = {
         "id_": "id",
@@ -177,6 +190,8 @@ class Node:
         "component_status_message": "component_status_message",
         "connection_status": "connection_status",
         "operation_mode": "operation_mode",
+        "updating": "updating",
+        "recording": "recording",
     }
 
     @classmethod
@@ -194,6 +209,8 @@ class Node:
             component_status_message=payload["component_status_message"],
             connection_status=None if payload["connection_status"] is None else NodeConnectionStatus(payload["connection_status"]),
             operation_mode=None if payload["operation_mode"] is None else NodeOperationMode(payload["operation_mode"]),
+            updating=payload["updating"],
+            recording=payload["recording"],
         )
 
     def to_wire(self) -> dict[str, Any]:
@@ -210,6 +227,8 @@ class Node:
             "component_status_message": self.component_status_message,
             "connection_status": None if self.connection_status is None else self.connection_status.value,
             "operation_mode": None if self.operation_mode is None else self.operation_mode.value,
+            "updating": self.updating,
+            "recording": self.recording,
         }
 
 
@@ -284,6 +303,44 @@ class PropertyDescriptor:
             "max": self.max,
             "validator": self.validator,
             "coercer": self.coercer,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ComponentAttribute:
+    """contract 1.3 types.ComponentAttribute"""
+
+    id_: str
+    name: str
+    value: Any | None
+    value_type: ComponentAttributeValueType
+    read_only: bool
+
+    WIRE_KEYS = {
+        "id_": "id",
+        "name": "name",
+        "value": "value",
+        "value_type": "value_type",
+        "read_only": "read_only",
+    }
+
+    @classmethod
+    def from_wire(cls, payload: dict[str, Any]) -> "ComponentAttribute":
+        return cls(
+            id_=payload["id"],
+            name=payload["name"],
+            value=payload["value"],
+            value_type=ComponentAttributeValueType(payload["value_type"]),
+            read_only=payload["read_only"],
+        )
+
+    def to_wire(self) -> dict[str, Any]:
+        return {
+            "id": self.id_,
+            "name": self.name,
+            "value": self.value,
+            "value_type": self.value_type.value,
+            "read_only": self.read_only,
         }
 
 
@@ -442,6 +499,14 @@ BASELINE_CAPABILITY_IDS: tuple[str, ...] = (
     "device.lock",
     "module.read",
     "module.load",
+    "attribute.read",
+    "attribute.write",
+    "server.add",
+    "server.discovery",
+    "recorder.control",
+    "property.batched_update",
+    "configuration.save",
+    "configuration.load",
 )
 
 #: The closed operation table of contract 1.4. A public host method
@@ -467,6 +532,17 @@ WIRE_METHOD_NAMES: tuple[str, ...] = (
     "unlock_device",
     "list_loaded_modules",
     "load_module_from_host_path",
+    "get_component_attributes",
+    "set_component_attribute",
+    "list_server_types",
+    "add_server",
+    "set_server_discovery_enabled",
+    "start_recording",
+    "stop_recording",
+    "begin_batched_property_update",
+    "end_batched_property_update",
+    "save_instance_configuration_to_string",
+    "load_instance_configuration_from_string",
 )
 
 #: Server-push events of contract 1.5. Events carry no id field.

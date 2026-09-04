@@ -14,6 +14,8 @@
 import type {
   BinaryFrameEncodingName,
   BinarySampleFrame,
+  ComponentAttribute,
+  ComponentTypeInfo,
   DeviceInfo,
   ModuleInfo,
   Node,
@@ -289,6 +291,84 @@ export class QuackoscopeWireClient {
     const params: Record<string, unknown> = {};
     params["host_path"] = host_path;
     return (await this.callAndAwaitResult("load_module_from_host_path", params)) as ModuleInfo;
+  }
+
+  /** capability attribute.read, kind getter. Errors: not_found, not_connected. */
+  async get_component_attributes(node_id: string): Promise<ComponentAttribute[]> {
+    const params: Record<string, unknown> = {};
+    params["node_id"] = node_id;
+    return (await this.callAndAwaitResult("get_component_attributes", params)) as ComponentAttribute[];
+  }
+
+  /** capability attribute.write, kind setter. Errors: not_found, read_only, invalid_value. */
+  async set_component_attribute(node_id: string, attribute_id: string, value: unknown): Promise<void> {
+    const params: Record<string, unknown> = {};
+    params["node_id"] = node_id;
+    params["attribute_id"] = attribute_id;
+    params["value"] = value;
+    await this.callAndAwaitResult("set_component_attribute", params);
+  }
+
+  /** capability server.add, kind getter. Errors: not_connected. */
+  async list_server_types(): Promise<ComponentTypeInfo[]> {
+    const params: Record<string, unknown> = {};
+    return (await this.callAndAwaitResult("list_server_types", params)) as ComponentTypeInfo[];
+  }
+
+  /** capability server.add, kind action. Errors: not_connected, unsupported, invalid_value, internal. */
+  async add_server(type_id: string): Promise<Node> {
+    const params: Record<string, unknown> = {};
+    params["type_id"] = type_id;
+    return (await this.callAndAwaitResult("add_server", params)) as Node;
+  }
+
+  /** capability server.discovery, kind setter. Errors: not_found, unsupported, internal. */
+  async set_server_discovery_enabled(node_id: string, enabled: boolean): Promise<void> {
+    const params: Record<string, unknown> = {};
+    params["node_id"] = node_id;
+    params["enabled"] = enabled;
+    await this.callAndAwaitResult("set_server_discovery_enabled", params);
+  }
+
+  /** capability recorder.control, kind action. Errors: not_found, unsupported, internal. */
+  async start_recording(node_id: string): Promise<void> {
+    const params: Record<string, unknown> = {};
+    params["node_id"] = node_id;
+    await this.callAndAwaitResult("start_recording", params);
+  }
+
+  /** capability recorder.control, kind action. Errors: not_found, unsupported, internal. */
+  async stop_recording(node_id: string): Promise<void> {
+    const params: Record<string, unknown> = {};
+    params["node_id"] = node_id;
+    await this.callAndAwaitResult("stop_recording", params);
+  }
+
+  /** capability property.batched_update, kind action. Errors: not_found, not_connected. */
+  async begin_batched_property_update(node_id: string): Promise<void> {
+    const params: Record<string, unknown> = {};
+    params["node_id"] = node_id;
+    await this.callAndAwaitResult("begin_batched_property_update", params);
+  }
+
+  /** capability property.batched_update, kind action. Errors: not_found, not_connected, invalid_value. */
+  async end_batched_property_update(node_id: string): Promise<void> {
+    const params: Record<string, unknown> = {};
+    params["node_id"] = node_id;
+    await this.callAndAwaitResult("end_batched_property_update", params);
+  }
+
+  /** capability configuration.save, kind getter. Errors: not_connected, internal. */
+  async save_instance_configuration_to_string(): Promise<string> {
+    const params: Record<string, unknown> = {};
+    return (await this.callAndAwaitResult("save_instance_configuration_to_string", params)) as string;
+  }
+
+  /** capability configuration.load, kind action. Errors: not_connected, invalid_value, internal. */
+  async load_instance_configuration_from_string(configuration: string): Promise<void> {
+    const params: Record<string, unknown> = {};
+    params["configuration"] = configuration;
+    await this.callAndAwaitResult("load_instance_configuration_from_string", params);
   }
 
   private callAndAwaitResult(

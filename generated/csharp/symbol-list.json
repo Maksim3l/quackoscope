@@ -7,7 +7,7 @@
   "async_style": "suffix_async",
   "collapse_getter_setter_pairs": true,
   "reserved_word_strategy": "prefix_at",
-  "symbol_count": 31,
+  "symbol_count": 43,
   "symbols": [
     {
       "symbol": "ScanAvailableDevicesAsync",
@@ -143,6 +143,83 @@
       ]
     },
     {
+      "symbol": "GetComponentAttributesAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_component_attributes"
+      ]
+    },
+    {
+      "symbol": "SetComponentAttributeAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "set_component_attribute"
+      ]
+    },
+    {
+      "symbol": "ListServerTypesAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "list_server_types"
+      ]
+    },
+    {
+      "symbol": "AddServerAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "add_server"
+      ]
+    },
+    {
+      "symbol": "SetServerDiscoveryEnabledAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "set_server_discovery_enabled"
+      ]
+    },
+    {
+      "symbol": "StartRecordingAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "start_recording"
+      ]
+    },
+    {
+      "symbol": "StopRecordingAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "stop_recording"
+      ]
+    },
+    {
+      "symbol": "BeginBatchedPropertyUpdateAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "begin_batched_property_update"
+      ]
+    },
+    {
+      "symbol": "EndBatchedPropertyUpdateAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "end_batched_property_update"
+      ]
+    },
+    {
+      "symbol": "SaveInstanceConfigurationToStringAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "save_instance_configuration_to_string"
+      ]
+    },
+    {
+      "symbol": "LoadInstanceConfigurationFromStringAsync",
+      "kind": "call",
+      "covers_wire_methods": [
+        "load_instance_configuration_from_string"
+      ]
+    },
+    {
       "symbol": "ComponentAdded",
       "kind": "event",
       "covers_wire_methods": [
@@ -196,6 +273,13 @@
       "kind": "type",
       "covers_wire_methods": [
         "PropertyDescriptor"
+      ]
+    },
+    {
+      "symbol": "ComponentAttribute",
+      "kind": "type",
+      "covers_wire_methods": [
+        "ComponentAttribute"
       ]
     },
     {

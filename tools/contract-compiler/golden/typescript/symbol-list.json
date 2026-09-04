@@ -7,7 +7,7 @@
   "async_style": "none",
   "collapse_getter_setter_pairs": false,
   "reserved_word_strategy": "none",
-  "symbol_count": 31,
+  "symbol_count": 43,
   "symbols": [
     {
       "symbol": "scan_available_devices",
@@ -143,6 +143,83 @@
       ]
     },
     {
+      "symbol": "get_component_attributes",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_component_attributes"
+      ]
+    },
+    {
+      "symbol": "set_component_attribute",
+      "kind": "call",
+      "covers_wire_methods": [
+        "set_component_attribute"
+      ]
+    },
+    {
+      "symbol": "list_server_types",
+      "kind": "call",
+      "covers_wire_methods": [
+        "list_server_types"
+      ]
+    },
+    {
+      "symbol": "add_server",
+      "kind": "call",
+      "covers_wire_methods": [
+        "add_server"
+      ]
+    },
+    {
+      "symbol": "set_server_discovery_enabled",
+      "kind": "call",
+      "covers_wire_methods": [
+        "set_server_discovery_enabled"
+      ]
+    },
+    {
+      "symbol": "start_recording",
+      "kind": "call",
+      "covers_wire_methods": [
+        "start_recording"
+      ]
+    },
+    {
+      "symbol": "stop_recording",
+      "kind": "call",
+      "covers_wire_methods": [
+        "stop_recording"
+      ]
+    },
+    {
+      "symbol": "begin_batched_property_update",
+      "kind": "call",
+      "covers_wire_methods": [
+        "begin_batched_property_update"
+      ]
+    },
+    {
+      "symbol": "end_batched_property_update",
+      "kind": "call",
+      "covers_wire_methods": [
+        "end_batched_property_update"
+      ]
+    },
+    {
+      "symbol": "save_instance_configuration_to_string",
+      "kind": "call",
+      "covers_wire_methods": [
+        "save_instance_configuration_to_string"
+      ]
+    },
+    {
+      "symbol": "load_instance_configuration_from_string",
+      "kind": "call",
+      "covers_wire_methods": [
+        "load_instance_configuration_from_string"
+      ]
+    },
+    {
       "symbol": "component_added",
       "kind": "event",
       "covers_wire_methods": [
@@ -196,6 +273,13 @@
       "kind": "type",
       "covers_wire_methods": [
         "PropertyDescriptor"
+      ]
+    },
+    {
+      "symbol": "ComponentAttribute",
+      "kind": "type",
+      "covers_wire_methods": [
+        "ComponentAttribute"
       ]
     },
     {

@@ -186,6 +186,19 @@ const HOST_SOURCE_ROOT = join(REPOSITORY_ROOT, "hosts");
 const FRONTEND_SOURCE_ROOT = join(REPOSITORY_ROOT, "src");
 const BUNDLE_PATH = join(REPOSITORY_ROOT, "generated", "snippets.json");
 
+// Which host language a file under hosts/ is written in, keyed by its extension.
+//
+// THIS TABLE IS THE WHOLE REACH OF THE EXTRACTOR. listSourceFiles is handed
+// exactly its keys, so an extension that is missing here is not "a language with
+// no snippets" - it is a directory the extractor never opens, and every marker
+// inside it vanishes with no message. That is what happened to hosts/mock-ts:
+// ".ts" was absent, so nine TypeScript source files under hosts/ were never read
+// and the mock could never appear in the teaching panel however it was marked up.
+// The mock lane had not omitted anything; this table had.
+//
+// A language added here and matched by no file is now a BUILD FAILURE - see
+// "every configured language matched at least one file" below - because the
+// silent version of that is the bug this comment is about.
 const LANGUAGE_BY_FILE_EXTENSION = {
   ".cpp": "cpp",
   ".hpp": "cpp",
@@ -193,6 +206,7 @@ const LANGUAGE_BY_FILE_EXTENSION = {
   ".cs": "csharp",
   ".py": "python",
   ".rs": "rust",
+  ".ts": "typescript",
 };
 
 // Build trees carry compiler-probe sources that look exactly like host sources.
@@ -457,6 +471,53 @@ for (const file of hostSourceFiles) {
   );
 }
 console.log(`  -> ${allRegions.length} quack-snippet regions parsed`);
+
+// Every configured language matched at least one file.
+//
+// A language in LANGUAGE_BY_FILE_EXTENSION that no file under hosts/ answers to
+// used to be indistinguishable from a language that is simply not marked up, and
+// both looked like nothing at all: the extractor printed the files it did find
+// and said not one word about the ones it never went looking for. That is how
+// ".ts" stayed missing from the table while hosts/mock-ts sat in the same tree as
+// the four hosts that do appear. So the absence is now stated in the output on
+// every run, and it FAILS the extractor rather than vanishing - the table is a
+// promise about which languages this repository extracts from, and a promise
+// nothing keeps is worse than no promise.
+const extensionsByConfiguredLanguage = new Map();
+for (const [extension, language] of Object.entries(LANGUAGE_BY_FILE_EXTENSION)) {
+  if (!extensionsByConfiguredLanguage.has(language)) extensionsByConfiguredLanguage.set(language, []);
+  extensionsByConfiguredLanguage.get(language).push(extension);
+}
+const filesFoundByLanguage = new Map([...extensionsByConfiguredLanguage.keys()].map((language) => [language, 0]));
+for (const file of hostSourceFiles) {
+  const language = LANGUAGE_BY_FILE_EXTENSION[extname(file)];
+  filesFoundByLanguage.set(language, filesFoundByLanguage.get(language) + 1);
+}
+const regionsFoundByLanguage = new Map([...extensionsByConfiguredLanguage.keys()].map((language) => [language, 0]));
+for (const region of allRegions) {
+  regionsFoundByLanguage.set(region.language, (regionsFoundByLanguage.get(region.language) ?? 0) + 1);
+}
+console.log(
+  `  the ${extensionsByConfiguredLanguage.size} languages LANGUAGE_BY_FILE_EXTENSION configures, and what each matched under ${repoRelative(HOST_SOURCE_ROOT)}:`,
+);
+for (const [language, extensions] of [...extensionsByConfiguredLanguage].sort()) {
+  console.log(
+    `    ${language.padEnd(11)} ${extensions.join(" ").padEnd(14)} ${String(filesFoundByLanguage.get(language)).padStart(3)} file(s), ` +
+      `${String(regionsFoundByLanguage.get(language) ?? 0).padStart(3)} quack-snippet region(s)`,
+  );
+}
+for (const [language, extensions] of [...extensionsByConfiguredLanguage].sort()) {
+  if (filesFoundByLanguage.get(language) === 0) {
+    fail(
+      `LANGUAGE_BY_FILE_EXTENSION configures the language "${language}" for ${extensions.join(", ")}, and NOT ONE FILE under ` +
+        `${repoRelative(HOST_SOURCE_ROOT)} carries any of those extensions, so this run extracted nothing for it and nothing said so. ` +
+        `Either a host written in ${language} is missing from ${repoRelative(HOST_SOURCE_ROOT)}, or its sources are under a directory ` +
+        `isNeverScanned() skips (${[...DIRECTORIES_NEVER_SCANNED].join(", ")}, and anything beginning "build"), or the language should ` +
+        `come out of the table. A configured language that matches nothing is exactly how ".ts" stayed absent while hosts/mock-ts sat ` +
+        `unread beside the four hosts that do appear.`,
+    );
+  }
+}
 console.log("");
 
 const regionsByCapability = new Map();

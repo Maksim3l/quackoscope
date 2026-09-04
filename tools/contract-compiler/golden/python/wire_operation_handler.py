@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any, Protocol, runtime_checkable
 
 from contract_types import (
+    ComponentAttribute,
     ComponentTypeInfo,
     DeviceInfo,
     Gap,
@@ -188,6 +189,94 @@ class WireOperationHandler(Protocol):
         """wire method "load_module_from_host_path", capability module.load, kind action.
 
         Declared errors: not_found, not_connected, invalid_value, internal. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def get_component_attributes(self, node_id: str) -> list[ComponentAttribute]:
+        """wire method "get_component_attributes", capability attribute.read, kind getter.
+
+        Declared errors: not_found, not_connected. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def set_component_attribute(self, node_id: str, attribute_id: str, value: Any) -> None:
+        """wire method "set_component_attribute", capability attribute.write, kind setter.
+
+        Declared errors: not_found, read_only, invalid_value. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def list_server_types(self) -> list[ComponentTypeInfo]:
+        """wire method "list_server_types", capability server.add, kind getter.
+
+        Declared errors: not_connected. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def add_server(self, type_id: str) -> Node:
+        """wire method "add_server", capability server.add, kind action.
+
+        Declared errors: not_connected, unsupported, invalid_value, internal. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def set_server_discovery_enabled(self, node_id: str, enabled: bool) -> None:
+        """wire method "set_server_discovery_enabled", capability server.discovery, kind setter.
+
+        Declared errors: not_found, unsupported, internal. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def start_recording(self, node_id: str) -> None:
+        """wire method "start_recording", capability recorder.control, kind action.
+
+        Declared errors: not_found, unsupported, internal. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def stop_recording(self, node_id: str) -> None:
+        """wire method "stop_recording", capability recorder.control, kind action.
+
+        Declared errors: not_found, unsupported, internal. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def begin_batched_property_update(self, node_id: str) -> None:
+        """wire method "begin_batched_property_update", capability property.batched_update, kind action.
+
+        Declared errors: not_found, not_connected. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def end_batched_property_update(self, node_id: str) -> None:
+        """wire method "end_batched_property_update", capability property.batched_update, kind action.
+
+        Declared errors: not_found, not_connected, invalid_value. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def save_instance_configuration_to_string(self) -> str:
+        """wire method "save_instance_configuration_to_string", capability configuration.save, kind getter.
+
+        Declared errors: not_connected, internal. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
+    def load_instance_configuration_from_string(self, configuration: str) -> None:
+        """wire method "load_instance_configuration_from_string", capability configuration.load, kind action.
+
+        Declared errors: not_connected, invalid_value, internal. Signal one by
         raising WireCallFailed.
         """
         ...
