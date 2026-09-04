@@ -1,0 +1,952 @@
+# Quackoscope wire contract. The single source of truth for the
+# frontend/backend boundary: one WebSocket, a JSON control plane and a binary
+# sample plane.
+#
+# This file is DATA. It is read by tools/contract-compiler, which emits the
+# generated/<target>/ trees. Nothing here is prose that a generator has to
+# interpret: every casing join, every acronym rendering, every optionality and
+# nullability decision, every per-operation error subset and every lint is a
+# machine-readable field.
+#
+# Operation names are stored as ordered token lists. Casing is a join, applied
+# by the generator per target. The wire join is snake_case and is frozen
+# forever.
+
+contract:
+  name: quackoscope-wire-contract
+  protocol_version: "1.0"
+  wire_transport: websocket
+  wire_control_plane: json_text
+  wire_sample_plane: binary_frame
+  wire_join: snake_case
+  wire_join_frozen: true
+
+# ---------------------------------------------------------------------------
+# 1. Naming and casing
+# ---------------------------------------------------------------------------
+#
+# join values, all defined over an ordered token list of lowercase ASCII words:
+#   snake_case  every token lowercased, joined with "_"
+#   camelCase   first token lowercased, every later token capitalised, no
+#               separator
+#   PascalCase  every token capitalised, no separator
+#
+# "capitalised" for a non-acronym token means first letter upper, rest lower.
+# For an acronym token the rendering comes from acronym_rendering below, which
+# is exhaustive, so a generator never has to infer acronym casing.
+
+casing:
+
+  # Acronym tokens are never split into letters and never split across word
+  # boundaries. This list is closed; a token outside it is an ordinary word.
+  acronym_tokens: [id, ids, io, lt, ns, rpc, ui, csv]
+
+  targets:
+
+    wire:
+      join: snake_case
+      getter_prefix: keep_get
+      setter_prefix: keep_set
+      collapse_getter_setter_pairs: false
+      async_style: none
+      # Rendering of each acronym token, by position in the token list.
+      acronym_rendering:
+        leading:     {id: id,  ids: ids, io: io, lt: lt, ns: ns, rpc: rpc, ui: ui, csv: csv}
+        non_leading: {id: id,  ids: ids, io: io, lt: lt, ns: ns, rpc: rpc, ui: ui, csv: csv}
+      reserved_words: []
+      reserved_word_strategy: none
+
+    cpp:
+      join: camelCase
+      getter_prefix: keep_get
+      setter_prefix: keep_set
+      collapse_getter_setter_pairs: false
+      async_style: callback_or_future
+      acronym_rendering:
+        leading:     {id: id,  ids: ids, io: io, lt: lt, ns: ns, rpc: rpc, ui: ui, csv: csv}
+        non_leading: {id: Id,  ids: Ids, io: Io, lt: Lt, ns: Ns, rpc: Rpc, ui: Ui, csv: Csv}
+      # bool, int, float and struct are here because they are the values of the
+      # PropertyDescriptor.value_type enum AND C++ keywords: without them the
+      # generated enum members do not compile. Found by compiling the generated
+      # header with MSVC.
+      reserved_words: [type, id, object, input, next, match, ref, async, default, class, template, operator, namespace, bool, int, float, struct]
+      reserved_word_strategy: suffix_underscore   # default -> default_
+
+    csharp:
+      join: PascalCase
+      getter_prefix: keep_get
+      setter_prefix: keep_set
+      collapse_getter_setter_pairs: true
+      async_style: suffix_async
+      # C# keeps two-letter acronyms upper and Pascal-cases longer ones.
+      acronym_rendering:
+        leading:     {id: ID,  ids: Ids, io: IO, lt: LT, ns: NS, rpc: Rpc, ui: UI, csv: Csv}
+        non_leading: {id: ID,  ids: Ids, io: IO, lt: LT, ns: NS, rpc: Rpc, ui: UI, csv: Csv}
+      reserved_words: [type, id, object, input, next, match, ref, async, default, event, params, base, lock, string, int, bool, float]
+      reserved_word_strategy: prefix_at           # default -> @Default
+
+    python:
+      join: snake_case
+      getter_prefix: keep_get
+      setter_prefix: keep_set
+      collapse_getter_setter_pairs: true
+      async_style: async_def
+      acronym_rendering:
+        leading:     {id: id,  ids: ids, io: io, lt: lt, ns: ns, rpc: rpc, ui: ui, csv: csv}
+        non_leading: {id: id,  ids: ids, io: io, lt: lt, ns: ns, rpc: rpc, ui: ui, csv: csv}
+      reserved_words: [type, id, object, input, next, match, async, class, def, lambda, from, import, None, True, False]
+      reserved_word_strategy: suffix_underscore   # type -> type_
+
+    rust:
+      join: snake_case
+      getter_prefix: strip_leading_get   # [get, property, value] -> property_value
+      setter_prefix: keep_set
+      collapse_getter_setter_pairs: false
+      async_style: async_fn
+      acronym_rendering:
+        leading:     {id: id,  ids: ids, io: io, lt: lt, ns: ns, rpc: rpc, ui: ui, csv: csv}
+        non_leading: {id: id,  ids: ids, io: io, lt: lt, ns: ns, rpc: rpc, ui: ui, csv: csv}
+      reserved_words: [type, ref, async, match, default, fn, mod, impl, trait, crate, self, move, loop]
+      reserved_word_strategy: prefix_raw_identifier   # type -> r#type
+
+  # strip_leading_get is a no-op when the token list does not begin with "get".
+  # [list, function, block, types] is kind=getter and stays list_function_block_types
+  # in rust.
+  getter_prefix_semantics:
+    keep_get: emit the token list unchanged
+    strip_leading_get: drop a leading "get" token when present, otherwise unchanged
+
+  # Every operation on this contract is a network round trip, so async_style
+  # applies to every generated client call symbol, not to a subset.
+  async_style_applies_to: all_operations
+
+  # Getter/setter collapse. A pair may collapse into a C# property or a Python
+  # @property only when the collapsed symbol can carry the same information as
+  # the two wire calls, i.e. the accessor needs no arguments of its own.
+  getter_setter_pairing:
+    # A getter G and a setter S pair when their token lists are identical after
+    # dropping the leading get/set token. Capability is NOT part of the
+    # predicate: the one pair in this contract deliberately spans two
+    # capabilities, property.read and property.write, because reading and
+    # writing are separately grantable.
+    pair_predicate:
+      tokens_equal_after_dropping_leading_verb: true
+      capability_equal: false
+    # A paired getter/setter may only be COLLAPSED into a single property-like
+    # symbol when both hold:
+    collapse_predicate:
+      getter_params_count: 0
+      setter_params: [value]
+    # Pairs that match pair_predicate but fail collapse_predicate stay two
+    # separate call symbols in every target, including C# and Python.
+    on_pair_without_collapse: emit_two_call_symbols
+    pairs:
+      - getter: [get, property, value]
+        setter: [set, property, value]
+        getter_capability: property.read
+        setter_capability: property.write
+        collapses: false
+        collapse_blocked_by: >-
+          the getter takes node_id and property_id, so no zero-argument
+          accessor can express it; a C# property and a Python @property cannot
+          carry those arguments
+
+  # The collapse above breaks the one-to-one wire mapping, so the generator
+  # emits a symbol list per target in which every symbol records the wire
+  # methods it covers. The naming lint runs against covers_wire_methods, never
+  # against a casing transform of a single wire name.
+  symbol_list:
+    emitted_per_target: true
+    path: generated/<target>/symbol-list.json
+    entry_fields:
+      symbol: {type: string, required: true}
+      kind: {type: enum, values: [call, property, event, type], required: true}
+      covers_wire_methods: {type: array_of_string, required: true, min_items: 1}
+      naming_override_reason: {type: string, required: false}
+
+  # Per-language overrides live on the operation, under naming_overrides.
+  # A reason is mandatory; the compiler fails the build on an override without
+  # a non-empty reason.
+  naming_override_schema:
+    location: operations[].naming_overrides.<target>
+    fields:
+      symbol: {type: string, required: true}
+      reason: {type: string, required: true, min_length: 1}
+    reason_required: true
+    on_missing_reason: fail_build
+
+# ---------------------------------------------------------------------------
+# 2. Error codes: a closed set
+# ---------------------------------------------------------------------------
+
+error_codes:
+  closed: true
+  values: [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+
+error_shape:
+  fields:
+    code:
+      type: enum
+      enum_ref: error_codes
+      presence: required
+      client_may_branch_on: true
+    detail:
+      type: string
+      presence: required
+      client_may_branch_on: false
+      purpose: display_and_logs_only
+      origin: native exception text, opaque, never parsed
+
+error_policy:
+  # Native exceptions map into the closed set. Native messages ride along in
+  # detail as opaque text.
+  native_exception_mapping: required
+  unmapped_native_error_becomes: internal
+  frontend_branches_on: code
+
+# ---------------------------------------------------------------------------
+# 3. Types
+# ---------------------------------------------------------------------------
+#
+# presence values, which are the whole optionality/nullability story:
+#   required        the JSON key is always present and never null
+#   nullable        the JSON key is always present and may be null
+#   optional        the JSON key may be absent; when present it is not null
+#   optional_null   the JSON key may be absent and may be null when present
+#
+# Type-record fields never use "optional": a host emits every key of a type
+# record, writing null where a value is absent. Operation params use "optional"
+# for arguments a caller may leave out entirely.
+
+types:
+
+  DeviceInfo:
+    kind: record
+    fields:
+      connection_string: {type: string, presence: required}
+      name:              {type: string, presence: required}
+      serial:            {type: string, presence: nullable}
+
+  # Node carries the per-row state the tree draws as the bracketed suffix
+  # [inactive, disconnected, locked], the row colour, and the device row's
+  # " | <operation mode>" suffix. These are fields rather than an operation of
+  # their own because Node already crosses the wire on every tree read, on
+  # connect_device, on add_function_block and in the component_added event, so a
+  # row's state costs no extra round trip, whereas a per-node state operation
+  # would cost one request per row to draw a tree.
+  #
+  # Every state field is nullable, and null means "this host does not report
+  # it", which the client draws as no suffix and no colour. That is exactly what
+  # the reference does: gui_demo.py _build_component_state_labels wraps every
+  # read in try/except and appends no label when the read raises. A host that
+  # cannot determine a field writes null rather than guessing a value.
+  #
+  # component_status, component_status_message and connection_status are named
+  # after the two keys openDAQ's own status container is read with:
+  # status_container.get_status("ComponentStatus") /
+  # get_status_message("ComponentStatus"), and get_status("ConnectionStatus").
+  # Their enum values are openDAQ's, lowercased into the frozen wire join:
+  # ComponentStatusType is (Ok, Warning, Error), ConnectionStatusType is
+  # (Connected, Reconnecting, Unrecoverable, Removed) and OperationModeType is
+  # (Unknown, Idle, Operation, SafeOperation).
+  Node:
+    kind: record
+    fields:
+      id:           {type: string, presence: required}
+      name:         {type: string, presence: required}
+      kind:         {type: enum, values: [device, channel, function_block, signal, folder], presence: required}
+      parent_id:    {type: string, presence: nullable, references: Node.id}
+      child_ids:    {type: array, items: string, presence: required, references: Node.id}
+      property_ids: {type: array, items: string, presence: required, references: PropertyDescriptor.id}
+      # IComponent.active. false draws the [inactive] label.
+      active:                   {type: bool, presence: nullable}
+      # The EFFECTIVE lock state, inheritance already applied host-side: a
+      # device reports its own IDevice.locked, and any other component reports
+      # the nearest ancestor device's, which is what the reference computes
+      # client-side in _set_node_lock_status_recursive. true draws [locked].
+      # lock_device and unlock_device act on device rows only.
+      locked:                   {type: bool, presence: nullable}
+      component_status:         {type: enum, values: [ok, warning, error], presence: nullable}
+      component_status_message: {type: string, presence: nullable}
+      # Device rows only; null on every other kind. Anything other than
+      # connected draws the [disconnected] label. The reference reduces this to
+      # a bool by comparing the status name to "Connected"; the four states are
+      # carried whole because "reconnecting" is worth showing and costs nothing.
+      connection_status:        {type: enum, values: [connected, reconnecting, unrecoverable, removed], presence: nullable}
+      # Device rows only; null on every other kind. This is the current mode
+      # the reference appends to the row name as " | Idle". The AVAILABLE modes
+      # are get_device_operation_modes, because only an opened menu needs them.
+      operation_mode:           {type: enum, values: [unknown, idle, operation, safe_operation], presence: nullable}
+
+  PropertyDescriptor:
+    kind: record
+    fields:
+      id:               {type: string, presence: required}
+      name:             {type: string, presence: required}
+      value_type:       {type: enum, values: [bool, int, float, string, selection, struct], presence: required}
+      unit:             {type: string, presence: nullable}
+      description:      {type: string, presence: nullable}
+      read_only:        {type: bool, presence: required}
+      visible:          {type: bool, presence: required}
+      default:          {type: any, presence: nullable, wire_key_is_language_keyword_in: [cpp, csharp, rust]}
+      selection_values: {type: array, items: string, presence: nullable}
+      suggested_values: {type: array, items: any, presence: nullable}
+      min:              {type: number, presence: nullable}
+      max:              {type: number, presence: nullable}
+      validator:        {type: string, presence: nullable, content: opendaq_eval_value_source, interpret_client_side: false}
+      coercer:          {type: string, presence: nullable, content: opendaq_eval_value_source, interpret_client_side: false}
+
+  SignalDescriptor:
+    kind: record
+    fields:
+      id:          {type: string, presence: required}
+      name:        {type: string, presence: required}
+      sample_type: {type: enum, values: [float32, float64, int32, int64], presence: required}
+      unit:        {type: string, presence: nullable}
+      domain_id:   {type: string, presence: nullable, references: Node.id}
+
+  Gap:
+    kind: record
+    fields:
+      capability: {type: string, presence: required, references: capabilities.id}
+      kind:       {type: enum, values: [binding, host], presence: required}
+      reason:     {type: string, presence: required, min_length: 1}
+
+  # One component type a module offers. The reference reads these four
+  # dictionaries off a module - available_device_types,
+  # available_function_block_types, available_server_types and
+  # available_streaming_types - and casts each value to IComponentType for id,
+  # name and description; connection_string_prefix exists only on IDeviceType
+  # and IStreamingType, which is why it is nullable.
+  #
+  # Declared before ModuleInfo because ModuleInfo holds an array of these and
+  # the C++ target emits records in this order.
+  ComponentTypeInfo:
+    kind: record
+    fields:
+      id:                       {type: string, presence: required}
+      name:                     {type: string, presence: required}
+      kind:                     {type: enum, values: [device, function_block, server, streaming], presence: required}
+      description:              {type: string, presence: nullable}
+      connection_string_prefix: {type: string, presence: nullable}
+
+  # One loaded module, as IModuleInfo reports it. version is the
+  # major.minor.patch string the module's version info renders, and is null
+  # where a module carries no version info - the reference prints "N/A" there.
+  ModuleInfo:
+    kind: record
+    fields:
+      id:              {type: string, presence: required}
+      name:            {type: string, presence: required}
+      version:         {type: string, presence: nullable}
+      component_types: {type: array, items: ComponentTypeInfo, presence: required}
+
+# EvalValue strings cross the wire as source text for display. No client, in
+# any target, may evaluate them.
+eval_value_strings:
+  fields: [PropertyDescriptor.validator, PropertyDescriptor.coercer]
+  crosses_wire_as: source_string
+  interpret_client_side: false
+
+# ---------------------------------------------------------------------------
+# 4. Capabilities
+# ---------------------------------------------------------------------------
+#
+# This list is the baseline. A host declares the capabilities it implements;
+# the gap list is GENERATED as baseline minus host capabilities. A host never
+# writes a gap list of its own, only the reason per gap.
+
+capabilities:
+  - {id: device.scan,         operations: [[scan, available, devices]]}
+  - {id: device.connect,      operations: [[connect, device], [disconnect, device]]}
+  - {id: tree.read,           operations: [[get, component, tree]]}
+  - {id: property.read,       operations: [[get, property, value], [get, property, descriptors]]}
+  - {id: property.write,      operations: [[set, property, value]]}
+  - {id: function_block.add,  operations: [[list, function, block, types], [add, function, block], [remove, function, block]]}
+  - {id: streaming.decimated, operations: [[subscribe, signal], [unsubscribe, signal]]}
+  - {id: streaming.raw,       operations: [[read, samples, raw]]}
+  # A capability is what one UI control is enabled or disabled on, so these
+  # three are exactly the three controls they gate: the device row's operation
+  # mode menu, the device row's lock/unlock pair, and the Modules view. The
+  # per-row component state that arrived with them - active, locked,
+  # component_status, connection_status, operation_mode - adds NO capability:
+  # it rides on Node, which tree.read already carries, so a host that can read a
+  # tree can draw the state suffix without declaring anything new.
+  - {id: device.mode,         operations: [[get, device, operation, modes], [set, device, operation, mode]]}
+  - {id: device.lock,         operations: [[lock, device], [unlock, device]]}
+  - {id: module.read,         operations: [[list, loaded, modules]]}
+  # module.load is separate from module.read, and deliberately so. Reading the
+  # loaded module list is an enumeration; load_module_from_host_path makes the
+  # host process dlopen a file off its own disk and run that file's
+  # initialisation, which is arbitrary code execution inside the host. Those are
+  # not the same permission in any sense, and a capability is exactly what one
+  # UI control is enabled or disabled on - here the Modules view's grid, versus
+  # the "load a module" action on it.
+  #
+  # Capability semantics are ALL-OF, so folding the two into module.read would
+  # mean a host that wants to show its module list has no way to withhold the
+  # loader: declaring module.read would declare the loader too. The mock host
+  # and any sandboxed deployment need precisely that split. The contract already
+  # takes this position once, in getter_setter_pairing.pairs: get_property_value
+  # and set_property_value span property.read and property.write "because
+  # reading and writing are separately grantable". Enumerating modules and
+  # loading one is the same split, with a much larger blast radius on the write
+  # side.
+  - {id: module.load,         operations: [[load, module, from, host, path]]}
+
+gap_generation:
+  computed_as: baseline_capabilities_minus_host_capabilities
+  declared_by_host: reason_only
+  host_may_declare_gap_list: false
+  kinds:
+    binding: the SDK binding for this host language lacks the feature
+    host: the handler has not been written yet
+
+# ---------------------------------------------------------------------------
+# 5. Operations
+# ---------------------------------------------------------------------------
+#
+# The closed operation table. An operation absent from this table MUST NOT
+# exist as a public host method; lints.no_undeclared_public_method enforces it.
+# Host coverage of this table is 100%, enforced by a build failure on a missing
+# handler.
+
+operations:
+
+  - tokens: [scan, available, devices]
+    kind: action
+    capability: device.scan
+    params: []
+    returns: {type: array, items: DeviceInfo}
+    errors: [internal]
+    naming_overrides: {}
+
+  - tokens: [connect, device]
+    kind: action
+    capability: device.connect
+    params:
+      - {name: connection_string, type: string, presence: required}
+    returns: {type: Node}
+    errors: [not_found, invalid_value, timeout]
+    naming_overrides: {}
+
+  - tokens: [disconnect, device]
+    kind: action
+    capability: device.connect
+    params:
+      - {name: node_id, type: string, presence: required, references: Node.id}
+    returns: {type: void}
+    errors: [not_found]
+    naming_overrides: {}
+
+  - tokens: [get, component, tree]
+    kind: getter
+    capability: tree.read
+    params:
+      - {name: root_id, type: string, presence: optional, references: Node.id}
+    returns: {type: array, items: Node}
+    # not_found covers a root_id naming a node that is not in the tree. It was
+    # added because all four hosts - cpp, python, csharp and rust, written
+    # independently - answered not_found to root_id
+    # "/quackoscope-cross-host-report/no-such-node", and the cross-host
+    # conformance report marked every one of them "+", meaning inside the closed
+    # set but outside this operation's declared subset. Four independent
+    # implementations agreeing is evidence about the contract, not the hosts.
+    errors: [not_connected, not_found]
+    naming_overrides: {}
+
+  - tokens: [get, property, value]
+    kind: getter
+    capability: property.read
+    params:
+      - {name: node_id, type: string, presence: required, references: Node.id}
+      - {name: property_id, type: string, presence: required, references: PropertyDescriptor.id}
+    returns: {type: any}
+    errors: [not_found, not_connected]
+    naming_overrides: {}
+
+  - tokens: [get, property, descriptors]
+    kind: getter
+    capability: property.read
+    params:
+      - {name: node_id, type: string, presence: required, references: Node.id}
+    returns: {type: array, items: PropertyDescriptor}
+    errors: [not_found, not_connected]
+    naming_overrides: {}
+
+  - tokens: [set, property, value]
+    kind: setter
+    capability: property.write
+    params:
+      - {name: node_id, type: string, presence: required, references: Node.id}
+      - {name: property_id, type: string, presence: required, references: PropertyDescriptor.id}
+      - {name: value, type: any, presence: required}
+    returns: {type: void}
+    errors: [not_found, read_only, invalid_value]
+    naming_overrides: {}
+
+  - tokens: [list, function, block, types]
+    kind: getter
+    capability: function_block.add
+    params: []
+    returns: {type: array, items: string}
+    errors: [not_connected]
+    naming_overrides: {}
+
+  - tokens: [add, function, block]
+    kind: action
+    capability: function_block.add
+    params:
+      - {name: parent_id, type: string, presence: required, references: Node.id}
+      - {name: type_id, type: string, presence: required}
+    returns: {type: Node}
+    errors: [not_found, unsupported]
+    naming_overrides: {}
+
+  - tokens: [remove, function, block]
+    kind: action
+    capability: function_block.add
+    params:
+      - {name: node_id, type: string, presence: required, references: Node.id}
+    returns: {type: void}
+    errors: [not_found]
+    naming_overrides: {}
+
+  - tokens: [subscribe, signal]
+    kind: action
+    capability: streaming.decimated
+    params:
+      - {name: signal_id, type: string, presence: required, references: Node.id}
+      - {name: pixel_columns, type: int, presence: required}
+    returns: {type: string, semantic: subscription_id}
+    errors: [not_found, not_connected]
+    naming_overrides: {}
+
+  - tokens: [unsubscribe, signal]
+    kind: action
+    capability: streaming.decimated
+    params:
+      - {name: subscription_id, type: string, presence: required}
+    returns: {type: void}
+    # invalid_value is required of this operation by subscription_id_encoding
+    # below, whose on_unparseable field is invalid_value; unsubscribe_signal is
+    # the only operation taking a subscription_id, so it is the only place that
+    # rule can fire. Leaving invalid_value out of this subset made the contract
+    # contradict itself: all four hosts answered invalid_value to
+    # subscription_id "not-a-subscription-id" - obeying on_unparseable - and the
+    # cross-host report marked all four "+" against this list.
+    errors: [not_found, invalid_value]
+    naming_overrides: {}
+
+  - tokens: [read, samples, raw]
+    kind: action
+    capability: streaming.raw
+    params:
+      - {name: signal_id, type: string, presence: required, references: Node.id}
+      - {name: count, type: int, presence: required}
+    returns: {type: binary_frame}
+    errors: [not_found, not_connected]
+    naming_overrides: {}
+
+  # --- device operation mode -------------------------------------------------
+  #
+  # The CURRENT mode is Node.operation_mode, because the reference draws it into
+  # every device row's name and a per-row fact must not cost a per-row call.
+  # This operation is the AVAILABLE list, which nothing draws until the mode
+  # menu is opened on one device, so it is fetched then.
+
+  - tokens: [get, device, operation, modes]
+    kind: getter
+    capability: device.mode
+    params:
+      - {name: node_id, type: string, presence: required, references: Node.id}
+    # Every element is one of the values of Node.operation_mode, which is the
+    # single place OperationModeType is enumerated. The array is items: string
+    # rather than an enum because contract types render an enum only as a
+    # record field, so an array of enum has no rendering in any target.
+    returns: {type: array, items: string, semantic: operation_mode_names}
+    # unsupported is node_id naming a component that is not a device: the node
+    # exists, so not_found would be a lie, and it has no operation modes.
+    errors: [not_found, not_connected, unsupported]
+    naming_overrides: {}
+
+  - tokens: [set, device, operation, mode]
+    kind: setter
+    capability: device.mode
+    params:
+      - {name: node_id, type: string, presence: required, references: Node.id}
+      # One of the values of Node.operation_mode, and one of the elements
+      # get_device_operation_modes returned for this node.
+      - {name: mode, type: string, presence: required}
+    returns: {type: void}
+    # invalid_value: a mode name outside Node.operation_mode's values, or one
+    # the device did not list as available. read_only: the device is locked -
+    # the closed error set's expression of "openDAQ refused the write because
+    # the component is protected", the same code set_property_value already
+    # uses for a locked target. unsupported: node_id is not a device.
+    errors: [not_found, invalid_value, read_only, unsupported]
+    naming_overrides: {}
+
+  # --- device lock -----------------------------------------------------------
+  #
+  # The lock STATE is Node.locked, effective and inheritance-applied, so the
+  # tree's lock icon and the greying of a locked subtree need no call. These two
+  # rows are the actions behind the lock and unlock icons the tree already ships.
+
+  - tokens: [lock, device]
+    kind: action
+    capability: device.lock
+    params:
+      - {name: node_id, type: string, presence: required, references: Node.id}
+    returns: {type: void}
+    # read_only is "the device is already locked, and not by this session" -
+    # openDAQ permits an unlock only by the user who locked it. unsupported is
+    # node_id naming a component that is not a device.
+    errors: [not_found, read_only, unsupported]
+    naming_overrides: {}
+
+  - tokens: [unlock, device]
+    kind: action
+    capability: device.lock
+    params:
+      - {name: node_id, type: string, presence: required, references: Node.id}
+      # IDevice.unlock() takes no arguments and refuses when another user holds
+      # the lock; the reference then offers a forced unlock, which is
+      # IDevicePrivate.force_unlock() - a different interface, reached by a cast.
+      # It is an optional parameter rather than a row of its own because the
+      # forced path is the same act on the same node with the same capability,
+      # and because adding a parameter to a row that no host has implemented yet
+      # is free, while editing a row later is the heavier change this contract
+      # keeps warning about.
+      - {name: force, type: bool, presence: optional}
+    returns: {type: void}
+    # read_only is the refusal the reference reacts to by offering the forced
+    # unlock, so it is the exact signal that enables that control. unsupported
+    # covers both "not a device" and force: true on a host that cannot reach
+    # IDevicePrivate.
+    errors: [not_found, read_only, unsupported]
+    naming_overrides: {}
+
+  # --- modules ---------------------------------------------------------------
+
+  - tokens: [list, loaded, modules]
+    kind: getter
+    capability: module.read
+    params: []
+    # One call answers the whole Modules view: the reference reads
+    # instance.module_manager.modules in-process and then reads four type
+    # dictionaries off each module, which over a socket would be 1 + 4N calls if
+    # the types were fetched per module. The component types ride inside
+    # ModuleInfo so a module card can show what the module offers without a
+    # second request.
+    returns: {type: array, items: ModuleInfo}
+    errors: [not_connected, internal]
+    naming_overrides: {}
+
+  # --- loading a module ------------------------------------------------------
+  #
+  # THE PATH IS ON THE HOST'S FILESYSTEM. That is the whole design decision of
+  # this row, it is in the row's own name so no caller can miss it, and it is in
+  # the parameter's name so no signature can hide it. The reference cannot
+  # settle this question, because the reference is in-process: gui_demo.py:754-777
+  # opens a file dialog and hands the chosen path straight to
+  # instance.module_manager.load_module(file_path), and the machine that picked
+  # the path is the machine that loads it. Quackoscope splits those two machines
+  # across a socket. A path a browser picks is a path on the CLIENT's disk,
+  # which the host may not have.
+  #
+  # The two honest designs were: (a) the row takes a host-side path; (b) the
+  # module bytes are uploaded over the wire. (a) is chosen, on three grounds
+  # taken from this contract and from openDAQ's own API:
+  #
+  # 1. openDAQ HAS NO BYTES-IN API TO CARRY (b). module_manager.h:58-65 declares
+  #    loadModule(IString* path, IModule** module) as "Loads and adds a single
+  #    module from the given absolute file system path", and the only in-memory
+  #    sibling, addModule(IModule*), takes an already-constructed module object,
+  #    not a buffer. There is no overload anywhere on IModuleManager that
+  #    accepts module bytes. So (b) would not be a heavier binding of the same
+  #    SDK call; it would be an operation openDAQ does not offer, and every host
+  #    would have to write the bytes to a temporary file and call loadModule on
+  #    the path anyway - which is (a) with a hidden upload bolted in front.
+  #
+  # 2. THIS CONTRACT HAS NO CLIENT-TO-SERVER BINARY PLANE for (b) to travel on.
+  #    envelopes.request has exactly three fields - id, method and a JSON params
+  #    object - and section 9's binary_frame is a sample frame, defined
+  #    server-to-client, whose 17-byte header carries subscription_id,
+  #    domain_start, sample_count and encoding and NO correlation id. Uploading
+  #    would need a second binary frame type and a correlation id the header
+  #    does not have. That missing correlation id is the exact unresolved issue
+  #    that has kept read_samples_raw a gap on every host. One open wound of
+  #    that shape is enough; this row does not open a second.
+  #
+  # 3. THE DECLARED FRAME LIMIT FORBIDS (b) AS JSON. The remaining way to move
+  #    bytes without a new plane is base64 inside params, at roughly 1.37x the
+  #    binary. handshake.limits.max_frame_bytes defaults to 262144, and an
+  #    openDAQ module .dll is megabytes. (b) cannot be done without also
+  #    renegotiating that limit by an order of magnitude.
+  #
+  # WHAT THIS OBLIGES THE UI TO DO, and it is not optional: the control is a
+  # path field, never a local file picker. A browser file input yields a client
+  # path, and shipping one here would be a control that looks local and silently
+  # means remote - exactly what the ruling forbids. The field states that the
+  # path is read on the host. The host-side module directory is already a known
+  # value on both sides - it is the manifest's module_path, the directory
+  # loadModules() swept at startup - so it is the sensible thing to show beside
+  # the field as the place the host already looks.
+  #
+  # openDAQ's own doc comment pins two of the four error codes: "The specified
+  # path must exist" is not_found, and "reference a file with the proper
+  # extension" is invalid_value. The extension is platform-dependent -
+  # .module.dll on Windows, .dylib on Darwin, .module.so elsewhere, per
+  # gui_demo.py:755-760 - and it is the HOST's platform that decides which,
+  # because the host is the machine doing the loading. A client must not filter
+  # the field by its own platform's extension.
+  - tokens: [load, module, from, host, path]
+    kind: action
+    capability: module.load
+    params:
+      # Absolute, and resolved on the host's filesystem. Named host_path rather
+      # than path so that a generated signature carries the decision on its own,
+      # without the reader having to come back to this comment.
+      - {name: host_path, type: string, presence: required}
+    # loadModule's out-parameter is the module it loaded, so the newly loaded
+    # module comes back as the record the Modules grid already draws. That saves
+    # the caller a re-list, and it follows the shape connect_device and
+    # add_function_block already set in this table: an action that brings
+    # something into existence returns the record of the thing it created.
+    returns: {type: ModuleInfo}
+    # not_found: nothing at host_path on the HOST's disk. Under design (a) this
+    #   is the most likely answer a user will ever see from this row - it is
+    #   what a path copied off the client's own machine produces - so the UI
+    #   must render it as "the host has no file there", not as a missing node.
+    # not_connected: no instance, so no module manager to load into. Same
+    #   condition list_loaded_modules answers not_connected to.
+    # invalid_value: the file is there but is not a loadable openDAQ module -
+    #   wrong extension for the host's platform, not a shared library, wrong
+    #   ABI, no module entry point. It also covers loading a module that is
+    #   already loaded: loadModule "loads and adds", and addModule answers
+    #   OPENDAQ_ERR_DUPLICATEITEM on an identical module, which is a refusal of
+    #   this host_path rather than an internal fault.
+    # internal: the module loaded and its own initialisation threw.
+    # Not read_only, which is this set's word for a refused write to a protected
+    # component, and there is no component here. Not timeout: loadModule is a
+    # local dlopen on the host, not a network round trip. Not unsupported: a
+    # host that cannot load modules does not declare module.load at all, and
+    # that is a capability gap, not a per-call error.
+    errors: [not_found, not_connected, invalid_value, internal]
+    naming_overrides: {}
+
+# The control-plane subscription_id is a string; the binary frame header
+# carries a uint32. The string is the decimal text of that uint32, whole, with
+# nothing else in it. This is the only bridge between the two planes.
+subscription_id_encoding:
+  control_plane_type: string
+  sample_plane_type: uint32
+  relation: decimal_text_of_uint32
+  strict: true
+  on_unparseable: invalid_value
+
+# ---------------------------------------------------------------------------
+# 6. Events, server push
+# ---------------------------------------------------------------------------
+#
+# Events carry no id field. They are not responses and are never correlated.
+
+events:
+  closed: true
+  carries_id_field: false
+  items:
+
+    - tokens: [component, added]
+      payload:
+        - {name: node, type: Node, presence: required}
+
+    - tokens: [component, removed]
+      payload:
+        - {name: node_id, type: string, presence: required, references: Node.id}
+
+    - tokens: [property, changed]
+      payload:
+        - {name: node_id, type: string, presence: required, references: Node.id}
+        - {name: property_id, type: string, presence: required, references: PropertyDescriptor.id}
+        - {name: value, type: any, presence: required}
+
+    - tokens: [property, descriptor, changed]
+      payload:
+        - {name: node_id, type: string, presence: required, references: Node.id}
+        - {name: descriptor, type: PropertyDescriptor, presence: required}
+
+    - tokens: [device, disconnected]
+      payload:
+        - {name: node_id, type: string, presence: required, references: Node.id}
+        - {name: reason, type: string, presence: required}
+
+# ---------------------------------------------------------------------------
+# 7. Handshake
+# ---------------------------------------------------------------------------
+#
+# The first message the server sends to the client, before any request is
+# answered.
+
+handshake:
+  direction: server_to_client
+  ordinal: 1
+  fields:
+    protocol_version:
+      type: string
+      presence: required
+      const: "1.0"
+    implementation:
+      type: record
+      presence: required
+      fields:
+        name:    {type: string, presence: required}
+        version: {type: string, presence: required}
+    sdk:
+      type: record
+      presence: required
+      fields:
+        version: {type: string, presence: required}
+        commit:  {type: string, presence: required}
+    capabilities:
+      type: array
+      items: string
+      presence: required
+      references: capabilities.id
+    gaps:
+      type: array
+      items: Gap
+      presence: required
+    limits:
+      type: record
+      presence: required
+      fields:
+        max_subscriptions: {type: int, presence: required, default: 64}
+        max_frame_bytes:   {type: int, presence: required, default: 262144}
+
+# Host process names. implementation.name is DISPLAY ONLY.
+implementation_names:
+  pattern: quackoscope-host-<lang>
+  values: [quackoscope-host-cpp, quackoscope-host-python, quackoscope-host-csharp, quackoscope-host-rust, quackoscope-host-mock]
+  display_only: true
+  behavioural_branch_allowed: false
+
+# ---------------------------------------------------------------------------
+# 8. Wire envelopes
+# ---------------------------------------------------------------------------
+
+envelopes:
+
+  request:
+    direction: client_to_server
+    fields:
+      id:     {type: int, presence: required, semantic: correlation_id}
+      method: {type: string, presence: required, from: "operations[].tokens", join: snake_case}
+      params: {type: object, presence: required}
+    example: {id: 17, method: set_property_value, params: {}}
+
+  result:
+    direction: server_to_client
+    fields:
+      id:     {type: int, presence: required, semantic: correlation_id}
+      result: {type: any, presence: nullable}
+    discriminator: has_key_result
+    example: {id: 17, result: null}
+
+  error:
+    direction: server_to_client
+    fields:
+      id:    {type: int, presence: required, semantic: correlation_id}
+      error: {type: record, presence: required, fields_ref: error_shape}
+    discriminator: has_key_error
+    example: {id: 17, error: {code: read_only, detail: locked while acquiring}}
+
+  event:
+    direction: server_to_client
+    fields:
+      event:   {type: string, presence: required, from: "events.items[].tokens", join: snake_case}
+      payload: {type: object, presence: required}
+    discriminator: has_key_event
+    example: {event: property_changed, payload: {}}
+
+# ---------------------------------------------------------------------------
+# 9. Binary sample frames
+# ---------------------------------------------------------------------------
+#
+# Binary frames share the one socket with the JSON envelopes.
+
+binary_frame:
+  byte_order: little_endian
+  header_bytes: 17
+  header:
+    - {name: subscription_id, type: uint32, offset: 0,  size: 4}
+    - {name: domain_start,    type: uint64, offset: 4,  size: 8}
+    - {name: sample_count,    type: uint32, offset: 12, size: 4}
+    - {name: encoding,        type: uint8,  offset: 16, size: 1}
+  encodings:
+    - {value: 0, name: raw,               payload_value_type: float64, payload_value_count: sample_count,     interleave: none}
+    - {value: 1, name: min_max_envelope,  payload_value_type: float64, payload_value_count: sample_count * 2, interleave: [min, max]}
+  payload_offset: 17
+  # 17 is odd, so the payload is not 8-byte aligned inside the received buffer.
+  # A reader must copy the payload out rather than view it in place.
+  payload_alignment_bytes: 1
+  reader_must_copy_payload: true
+  on_unknown_encoding: drop_frame
+  on_truncated_frame: drop_frame
+
+# ---------------------------------------------------------------------------
+# 10. Lints the contract compiler enforces
+# ---------------------------------------------------------------------------
+
+lints:
+
+  host_covers_every_operation:
+    rule: every operation in `operations` has a handler in the host being built
+    on_violation: fail_build
+    message_must_name: the missing operation's wire method name
+
+  no_undeclared_public_method:
+    rule: a host exposes no public method whose wire name is absent from `operations`
+    on_violation: fail_build
+    message_must_name: the offending public method name
+
+  naming_override_needs_reason:
+    rule: every entry under operations[].naming_overrides carries a non-empty reason
+    on_violation: fail_build
+
+  naming_matches_symbol_coverage:
+    rule: >-
+      each generated symbol's name is checked against its covers_wire_methods
+      list, not against a casing transform of a single wire name
+    on_violation: fail_build
+
+  error_code_closed_set:
+    rule: every code in operations[].errors is a member of error_codes.values
+    on_violation: fail_build
+
+  capability_ids_resolve:
+    rule: every operations[].capability is an id in `capabilities`
+    on_violation: fail_build
+
+  capability_operation_lists_agree:
+    rule: >-
+      capabilities[].operations and operations[].capability are two views of one
+      mapping and must agree exactly in both directions
+    on_violation: fail_build
+
+  type_references_resolve:
+    rule: every `type`, `items` and `references` names a primitive, a member of `types`, or an existing field path
+    on_violation: fail_build
+
+  reserved_word_escaped:
+    rule: >-
+      a wire name colliding with a target's reserved_words is emitted through
+      that target's reserved_word_strategy, never verbatim
+    on_violation: fail_build
+
+  golden_files:
+    rule: generator output is compared against checked-in golden files per target
+    on_violation: fail_build
+    path: tools/contract-compiler/golden/<target>/
+
+primitives: [string, int, float, number, bool, any, void, object, array, record, enum, binary_frame, uint8, uint32, uint64, float64]

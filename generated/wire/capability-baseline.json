@@ -1,0 +1,138 @@
+{
+  "contract_name": "quackoscope-wire-contract",
+  "protocol_version": "1.0",
+  "purpose": "the baseline a host's gap list is computed against: gaps = these capability ids minus the ids the host declares in its handshake",
+  "gap_computed_as": "baseline_capabilities_minus_host_capabilities",
+  "gap_declared_by_host": "reason_only",
+  "host_may_declare_gap_list": false,
+  "gap_kinds": {
+    "binding": "the SDK binding for this host language lacks the feature",
+    "host": "the handler has not been written yet"
+  },
+  "capability_count": 12,
+  "wire_method_count": 19,
+  "capabilities": [
+    {
+      "id": "device.scan",
+      "wire_methods": [
+        "scan_available_devices"
+      ],
+      "kinds": [
+        "action"
+      ]
+    },
+    {
+      "id": "device.connect",
+      "wire_methods": [
+        "connect_device",
+        "disconnect_device"
+      ],
+      "kinds": [
+        "action",
+        "action"
+      ]
+    },
+    {
+      "id": "tree.read",
+      "wire_methods": [
+        "get_component_tree"
+      ],
+      "kinds": [
+        "getter"
+      ]
+    },
+    {
+      "id": "property.read",
+      "wire_methods": [
+        "get_property_value",
+        "get_property_descriptors"
+      ],
+      "kinds": [
+        "getter",
+        "getter"
+      ]
+    },
+    {
+      "id": "property.write",
+      "wire_methods": [
+        "set_property_value"
+      ],
+      "kinds": [
+        "setter"
+      ]
+    },
+    {
+      "id": "function_block.add",
+      "wire_methods": [
+        "list_function_block_types",
+        "add_function_block",
+        "remove_function_block"
+      ],
+      "kinds": [
+        "getter",
+        "action",
+        "action"
+      ]
+    },
+    {
+      "id": "streaming.decimated",
+      "wire_methods": [
+        "subscribe_signal",
+        "unsubscribe_signal"
+      ],
+      "kinds": [
+        "action",
+        "action"
+      ]
+    },
+    {
+      "id": "streaming.raw",
+      "wire_methods": [
+        "read_samples_raw"
+      ],
+      "kinds": [
+        "action"
+      ]
+    },
+    {
+      "id": "device.mode",
+      "wire_methods": [
+        "get_device_operation_modes",
+        "set_device_operation_mode"
+      ],
+      "kinds": [
+        "getter",
+        "setter"
+      ]
+    },
+    {
+      "id": "device.lock",
+      "wire_methods": [
+        "lock_device",
+        "unlock_device"
+      ],
+      "kinds": [
+        "action",
+        "action"
+      ]
+    },
+    {
+      "id": "module.read",
+      "wire_methods": [
+        "list_loaded_modules"
+      ],
+      "kinds": [
+        "getter"
+      ]
+    },
+    {
+      "id": "module.load",
+      "wire_methods": [
+        "load_module_from_host_path"
+      ],
+      "kinds": [
+        "action"
+      ]
+    }
+  ]
+}

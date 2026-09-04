@@ -1,0 +1,230 @@
+{
+  "target": "cpp",
+  "naming_basis": "contract.yaml casing.targets.cpp",
+  "join": "camelCase",
+  "getter_prefix": "keep_get",
+  "setter_prefix": "keep_set",
+  "async_style": "callback_or_future",
+  "collapse_getter_setter_pairs": false,
+  "reserved_word_strategy": "suffix_underscore",
+  "symbol_count": 31,
+  "symbols": [
+    {
+      "symbol": "scanAvailableDevices",
+      "kind": "call",
+      "covers_wire_methods": [
+        "scan_available_devices"
+      ]
+    },
+    {
+      "symbol": "connectDevice",
+      "kind": "call",
+      "covers_wire_methods": [
+        "connect_device"
+      ]
+    },
+    {
+      "symbol": "disconnectDevice",
+      "kind": "call",
+      "covers_wire_methods": [
+        "disconnect_device"
+      ]
+    },
+    {
+      "symbol": "getComponentTree",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_component_tree"
+      ]
+    },
+    {
+      "symbol": "getPropertyValue",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_property_value"
+      ]
+    },
+    {
+      "symbol": "getPropertyDescriptors",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_property_descriptors"
+      ]
+    },
+    {
+      "symbol": "setPropertyValue",
+      "kind": "call",
+      "covers_wire_methods": [
+        "set_property_value"
+      ]
+    },
+    {
+      "symbol": "listFunctionBlockTypes",
+      "kind": "call",
+      "covers_wire_methods": [
+        "list_function_block_types"
+      ]
+    },
+    {
+      "symbol": "addFunctionBlock",
+      "kind": "call",
+      "covers_wire_methods": [
+        "add_function_block"
+      ]
+    },
+    {
+      "symbol": "removeFunctionBlock",
+      "kind": "call",
+      "covers_wire_methods": [
+        "remove_function_block"
+      ]
+    },
+    {
+      "symbol": "subscribeSignal",
+      "kind": "call",
+      "covers_wire_methods": [
+        "subscribe_signal"
+      ]
+    },
+    {
+      "symbol": "unsubscribeSignal",
+      "kind": "call",
+      "covers_wire_methods": [
+        "unsubscribe_signal"
+      ]
+    },
+    {
+      "symbol": "readSamplesRaw",
+      "kind": "call",
+      "covers_wire_methods": [
+        "read_samples_raw"
+      ]
+    },
+    {
+      "symbol": "getDeviceOperationModes",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_device_operation_modes"
+      ]
+    },
+    {
+      "symbol": "setDeviceOperationMode",
+      "kind": "call",
+      "covers_wire_methods": [
+        "set_device_operation_mode"
+      ]
+    },
+    {
+      "symbol": "lockDevice",
+      "kind": "call",
+      "covers_wire_methods": [
+        "lock_device"
+      ]
+    },
+    {
+      "symbol": "unlockDevice",
+      "kind": "call",
+      "covers_wire_methods": [
+        "unlock_device"
+      ]
+    },
+    {
+      "symbol": "listLoadedModules",
+      "kind": "call",
+      "covers_wire_methods": [
+        "list_loaded_modules"
+      ]
+    },
+    {
+      "symbol": "loadModuleFromHostPath",
+      "kind": "call",
+      "covers_wire_methods": [
+        "load_module_from_host_path"
+      ]
+    },
+    {
+      "symbol": "componentAdded",
+      "kind": "event",
+      "covers_wire_methods": [
+        "component_added"
+      ]
+    },
+    {
+      "symbol": "componentRemoved",
+      "kind": "event",
+      "covers_wire_methods": [
+        "component_removed"
+      ]
+    },
+    {
+      "symbol": "propertyChanged",
+      "kind": "event",
+      "covers_wire_methods": [
+        "property_changed"
+      ]
+    },
+    {
+      "symbol": "propertyDescriptorChanged",
+      "kind": "event",
+      "covers_wire_methods": [
+        "property_descriptor_changed"
+      ]
+    },
+    {
+      "symbol": "deviceDisconnected",
+      "kind": "event",
+      "covers_wire_methods": [
+        "device_disconnected"
+      ]
+    },
+    {
+      "symbol": "DeviceInfo",
+      "kind": "type",
+      "covers_wire_methods": [
+        "DeviceInfo"
+      ]
+    },
+    {
+      "symbol": "Node",
+      "kind": "type",
+      "covers_wire_methods": [
+        "Node"
+      ]
+    },
+    {
+      "symbol": "PropertyDescriptor",
+      "kind": "type",
+      "covers_wire_methods": [
+        "PropertyDescriptor"
+      ]
+    },
+    {
+      "symbol": "SignalDescriptor",
+      "kind": "type",
+      "covers_wire_methods": [
+        "SignalDescriptor"
+      ]
+    },
+    {
+      "symbol": "Gap",
+      "kind": "type",
+      "covers_wire_methods": [
+        "Gap"
+      ]
+    },
+    {
+      "symbol": "ComponentTypeInfo",
+      "kind": "type",
+      "covers_wire_methods": [
+        "ComponentTypeInfo"
+      ]
+    },
+    {
+      "symbol": "ModuleInfo",
+      "kind": "type",
+      "covers_wire_methods": [
+        "ModuleInfo"
+      ]
+    }
+  ]
+}
