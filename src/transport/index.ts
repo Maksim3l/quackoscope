@@ -2,7 +2,12 @@ export * from "./types";
 export { WireError, isWireErrorCode } from "./errors";
 export { decodeDataFrame } from "./decode";
 export { TransportClient } from "./client";
-export type { LinkState, LinkStatus, CallLogEntry } from "./client";
+export type {
+  LinkState,
+  LinkStatus,
+  CallLogEntry,
+  NonEnvelopeServerMessage,
+} from "./client";
 
 /**
  * In production the host serves the built SPA from "/" on the same origin, so

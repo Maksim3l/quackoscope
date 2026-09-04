@@ -1,0 +1,35 @@
+/* Styling for the gallery page only: the captions and rules that let one
+   screenshot say which card is in which state. Nothing here is part of the card
+   grid system; card-grid.css is. */
+
+.card-grid-gallery-heading {
+  margin: 0 0 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.card-grid-gallery-rule {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 24px 0;
+}
+
+.card-grid-gallery-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.card-grid-gallery-caption {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.screen.pad > section { margin-bottom: 8px; }
+.screen.pad > section > p.muted { margin: 0 0 10px; font-size: 12px; }

@@ -47,6 +47,23 @@ export interface CallLogEntry {
   error: { code: string; detail: string } | null;
 }
 
+/**
+ * A server text message that is neither a result envelope (numeric "id") nor an
+ * event envelope (string "event"). The handshake is exactly that shape, and
+ * this transport used to drop such messages on the floor.
+ *
+ * The transport does not parse it: it knows envelopes, not contract semantics.
+ * It hands the parsed JSON up with the ordinal of the message within the
+ * session, because the contract fixes the handshake at ordinal 1 and a reader
+ * needs to know when a host broke that.
+ */
+export interface NonEnvelopeServerMessage {
+  raw: unknown;
+  text: string;
+  /** 1 for the first text message the server sent on this socket. */
+  ordinalInSession: number;
+}
+
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 export class TransportClient {
@@ -61,6 +78,12 @@ export class TransportClient {
   private pondSeq = 0;
   private pondHandlers = new Set<(pond: readonly CallLogEntry[]) => void>();
   private status: LinkStatus = { state: "idle", reason: null };
+  private nonEnvelopeHandlers = new Set<
+    (message: NonEnvelopeServerMessage) => void
+  >();
+  /** Text messages received on the current socket, so the handshake's ordinal is known. */
+  private textMessagesReceivedInSession = 0;
+  private lastNonEnvelopeServerMessage: NonEnvelopeServerMessage | null = null;
 
   constructor(private readonly url: string, private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
@@ -95,6 +118,30 @@ export class TransportClient {
     };
   }
 
+  /**
+   * Subscribes to server text messages that are neither results nor events —
+   * the handshake among them. A handler registered after the message arrived
+   * still sees it, because the last one is retained for the current session.
+   */
+  onNonEnvelopeServerMessage(
+    handler: (message: NonEnvelopeServerMessage) => void,
+  ): () => void {
+    this.nonEnvelopeHandlers.add(handler);
+    if (this.lastNonEnvelopeServerMessage !== null) {
+      handler(this.lastNonEnvelopeServerMessage);
+    }
+    return () => this.nonEnvelopeHandlers.delete(handler);
+  }
+
+  getLastNonEnvelopeServerMessage(): NonEnvelopeServerMessage | null {
+    return this.lastNonEnvelopeServerMessage;
+  }
+
+  /** The URL this client opens. Fixed for the life of the client. */
+  getUrl(): string {
+    return this.url;
+  }
+
   onData(handler: (frame: DataFrame) => void): () => void {
     this.dataHandlers.add(handler);
     return () => this.dataHandlers.delete(handler);
@@ -106,6 +153,10 @@ export class TransportClient {
       return;
     }
     this.setStatus({ state: "connecting", reason: null });
+    // A new socket is a new session: the previous host's handshake says nothing
+    // about this one.
+    this.textMessagesReceivedInSession = 0;
+    this.lastNonEnvelopeServerMessage = null;
     let sock: WebSocket;
     try {
       sock = new WebSocket(this.url);
@@ -250,13 +301,17 @@ export class TransportClient {
   }
 
   private handleText(text: string): void {
+    const ordinalInSession = ++this.textMessagesReceivedInSession;
     let msg: unknown;
     try {
       msg = JSON.parse(text);
     } catch {
       return; // a host that sends non-JSON text is defective; drop the frame
     }
-    if (typeof msg !== "object" || msg === null) return;
+    if (typeof msg !== "object" || msg === null) {
+      this.emitNonEnvelope({ raw: msg, text, ordinalInSession });
+      return;
+    }
     const m = msg as Record<string, unknown>;
 
     if (typeof m.event === "string") {
@@ -267,7 +322,12 @@ export class TransportClient {
       return;
     }
 
-    if (typeof m.id !== "number") return;
+    // Neither an event nor a result: the handshake has exactly this shape. It
+    // used to be dropped here, which is why a host that sent one was ignored.
+    if (typeof m.id !== "number") {
+      this.emitNonEnvelope({ raw: msg, text, ordinalInSession });
+      return;
+    }
     const p = this.pending.get(m.id);
     if (!p) return;
     this.pending.delete(m.id);
@@ -279,6 +339,11 @@ export class TransportClient {
     } else {
       p.resolve(m.result);
     }
+  }
+
+  private emitNonEnvelope(message: NonEnvelopeServerMessage): void {
+    this.lastNonEnvelopeServerMessage = message;
+    for (const h of this.nonEnvelopeHandlers) h(message);
   }
 
   private handleBinary(buffer: ArrayBuffer): void {

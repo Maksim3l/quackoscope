@@ -9,8 +9,29 @@
   --danger: #ff7b72;
   --warn: #e3b341;
   --ok: #56d364;
+
+  /* §1.6's two gap hues, by name. They were literals at their use sites
+     (.standing-row--binding, .gap-notice--binding) and duplicated in
+     src/card-grid/card-grid.css's own :root; both now read these. */
+  --gap-binding: #b358d6;
+  --gap-host: #e3b341;
+
+  /* §1.6: "a value the device changed under you is not a warning". Amber,
+     desaturated so it is distinguishable from --warn side by side. */
+  --coerced: #d29922;
+
+  /* §2.0. The three card widths and the one gap, so a grid picks a name,
+     not a number. src/card-grid/card-grid-geometry.ts holds the same three
+     numbers for the column formula. */
+  --card-min-narrow: 260px;
+  --card-min: 300px;
+  --card-min-wide: 360px;
+  --card-gap: 10px;
+
   font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-  font-size: 14px;
+  /* §1.7 / decision D10: the whole app reads at 13 px, not only the card
+     grids. The card system's own .card-grid-surface scope is gone with it. */
+  font-size: 13px;
 }
 
 * { box-sizing: border-box; }
@@ -103,62 +124,469 @@ input[type="checkbox"] { width: 16px; height: 16px; }
   grid-template-columns: 320px 1fr;
   min-height: 0;
 }
+/* The Modules view puts a CARD GRID in the left pane where the tree was, and a
+   grid one card wide is a list. 320 px holds one 260 px card; this holds two,
+   and still leaves the detail pane the larger half. */
+.workspace[data-left-pane="modules"] {
+  grid-template-columns: clamp(320px, 38%, 620px) 1fr;
+}
 .pane { overflow: auto; padding: 8px 0; }
 .pane h3 { margin: 4px 12px 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-.pane--tree { border-right: 1px solid var(--line); background: var(--panel); }
+/* The tree pane scrolls INSIDE the tree, not as a whole: the preset bar, the
+   search box and the count line stay put while 300 rows move under them, and
+   the pane's quack strip stays on the floor of the pane. */
+.pane--tree {
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 8px 0 0;
+}
 .pane--detail { padding: 8px 12px 24px; }
 
-.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
-.tree-row {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  border-radius: 0;
-  padding: 4px 8px;
-}
-.tree-row:hover { background: #1b2530; }
-.tree-row--selected { background: #17324d; }
-.tree-glyph { color: var(--accent); width: 1em; }
-.tree-name { flex: 1; }
-.tree-kind { font-size: 11px; color: var(--muted); }
+/* §2.5 and §2.7 put discovery and function-block types in the detail pane, not
+   in a modal. These are the pane's boards, one on screen at a time. */
+.detail-boards { display: flex; gap: 6px; margin: 0 0 10px; flex-wrap: wrap; }
 
-.grid { display: flex; flex-direction: column; gap: 2px; }
-.prop {
-  display: grid;
-  grid-template-columns: 220px 260px 1fr;
-  grid-template-areas: "label widget meta" "desc desc desc" "err err err";
-  gap: 6px 12px;
-  align-items: center;
-  padding: 6px 4px;
-  border-bottom: 1px solid var(--line);
-}
-.prop-label { grid-area: label; display: flex; gap: 6px; align-items: baseline; }
-.prop-widget { grid-area: widget; }
-.prop-widget input[type="text"], .prop-widget input[type="number"], .prop-widget select { width: 100%; }
-.prop-meta { grid-area: meta; display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; color: var(--muted); font-family: ui-monospace, Consolas, monospace; }
-.prop-desc { grid-area: desc; font-size: 12px; color: var(--muted); }
-.prop-notice { grid-area: err; font-size: 12px; font-family: ui-monospace, Consolas, monospace; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-.prop-notice--rejected { color: var(--danger); }
-.prop-notice--unconfirmed { color: var(--warn); }
-.prop-reread { font-size: 11px; padding: 2px 8px; border-color: var(--warn); color: var(--warn); }
+/* The tree's own rules — rows, icons, the search box, the presets, the per-row
+   action menu — moved to src/component-tree/component-tree.css when the tree
+   grew the search box of §1.4, the presets of decision D11 and the icon set of
+   §1.5. The five-unicode-glyph .tree-glyph rule went with them: §1.4 replaces
+   those five glyphs with the sprite. */
 
-/* An uncommitted edit is not device state and must never look like one. */
-.prop-widget input.edited-not-yet-committed {
-  border-color: var(--warn);
-  background: #2a2110;
-  color: var(--warn);
-}
-.prop-uncommitted { margin-top: 4px; font-size: 11px; color: var(--warn); }
-.prop-name { font-weight: 600; }
-.prop-unit { font-size: 11px; color: var(--muted); }
-.tag { font-size: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--muted); }
-.struct { font-size: 12px; word-break: break-all; }
+/* The flat property row grid this app used to show in the detail pane is gone:
+   src/property-cards/ replaced it with one card per property, and its rules
+   (.grid, .prop, .prop-widget, .prop-meta, .tag, .struct) went with
+   src/components/PropertyGrid.tsx and PropertyField.tsx. The card system styles
+   the same states in src/card-grid/card-grid.css and
+   src/property-cards/property-cards.css. */
 
 .plot { margin-top: 18px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--panel); }
 .plot-head { display: flex; gap: 12px; align-items: baseline; margin-bottom: 6px; font-size: 12px; }
 .plot-canvas { width: 100%; }
 .u-legend { display: none; }
+
+/* ---------------------------------------------------------------------------
+   The inspect layer: the quack gesture, the flock of language columns it opens,
+   and the pond beside them. Everything here is chrome — it renders snippets
+   built into the page and never touches the socket.
+   --------------------------------------------------------------------------- */
+
+.chrome-button {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #161d26;
+}
+.chrome-button--on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #14283c;
+}
+
+/* Inspector mode marks every quackable control, so what carries an op id is visible
+   before anything is quacked. */
+body.inspector-mode-on [data-op]:not([data-quack-chrome]) {
+  outline: 1px dashed var(--accent);
+  outline-offset: 1px;
+}
+
+.quack-badge-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+.quack-badge {
+  position: fixed;
+  pointer-events: auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  line-height: 1;
+  font-size: 11px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: #0d1117;
+}
+.quack-badge:hover { background: #14283c; }
+
+/* The drawer is fixed to the bottom, so the app gives up exactly that height
+   while it is open rather than being covered by it. */
+body.quack-drawer-open .app { padding-bottom: min(58vh, 660px); }
+
+.quack-drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: min(58vh, 660px);
+  z-index: 50;
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  background: var(--panel);
+  border-top: 1px solid var(--accent);
+  box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.55);
+}
+.quack-pane { min-width: 0; overflow: auto; padding: 10px 12px 16px; }
+.quack-pane--pond {
+  border-left: 1px solid var(--line);
+  background: #0f151c;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quack-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.quack-head h2 { margin: 0; font-size: 15px; letter-spacing: 0.02em; }
+.quack-head .muted { font-size: 12px; }
+
+.quack-subject { margin: 10px 0 8px; font-size: 12px; }
+.quack-operation-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+
+.quack-help { font-size: 13px; }
+.quack-help ul { margin: 6px 0 10px; padding-left: 20px; }
+.quack-help li { margin: 4px 0; }
+
+/* The flock. One column per language in FLOCK_LANGUAGES, all of them side by
+   side; a fifth language is one more array entry, not a layout change. */
+.flock-columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(280px, 1fr);
+  gap: 8px;
+  overflow-x: auto;
+  align-items: start;
+}
+.flock-column {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0b1017;
+  min-width: 0;
+}
+.flock-column--running-host { border-color: #1f6f34; }
+.flock-column--empty { border-style: dashed; background: transparent; }
+.flock-column-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+.flock-language { font-weight: 700; }
+.tag--running-host { color: var(--ok); border-color: #1f6f34; }
+.flock-copy { font-size: 11px; padding: 1px 7px; border-radius: 999px; }
+.flock-copy-report { margin: 0; padding: 4px 8px; font-size: 11px; color: var(--ok); }
+.flock-snippet {
+  margin: 0;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre;
+  overflow: auto;
+  max-height: calc(58vh - 190px);
+}
+.flock-empty-note { margin: 0; padding: 10px 8px; font-size: 11px; color: var(--muted); }
+.flock-verdict {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  background: #0b1017;
+}
+.flock-verdict--no-opendaq-call { border-color: #6b5415; color: #ffc78a; }
+.flock-verdict--absent { border-color: #6f2b26; color: var(--danger); }
+
+/* The pond. */
+.pond-panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.pond-head { display: flex; flex-direction: column; gap: 4px; }
+.pond-head h3 { margin: 0; font-size: 13px; }
+.pond-head .muted { font-size: 11px; }
+.pond-copy { align-self: flex-start; font-size: 12px; }
+.pond-copy-report { margin: 0; font-size: 11px; color: var(--ok); word-break: break-word; }
+/* §3.4, card → pond: what the list is narrowed to, and the way back out. */
+.pond-filter {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--accent);
+}
+.pond-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+  min-height: 0;
+  flex: 1;
+}
+.pond-entry {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  grid-template-areas: "seq method outcome" "seq operation outcome";
+  gap: 0 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+.pond-entry:hover { background: #1b2530; }
+.pond-seq { grid-area: seq; color: var(--muted); }
+.pond-method { grid-area: method; }
+.pond-operation { grid-area: operation; color: var(--accent); }
+.pond-outcome { grid-area: outcome; align-self: center; }
+.pond-outcome--ok { color: var(--ok); }
+.pond-outcome--failed { color: var(--danger); }
+.pond-outcome--pending { color: var(--warn); }
+
+.quack-gesture-settings {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  font-size: 12px;
+}
+.quack-gesture-settings h3 { margin: 0 0 4px; font-size: 12px; }
+.quack-gesture-settings .muted { font-size: 11px; }
+.quack-chord-choices { display: flex; gap: 12px; margin: 8px 0; font-size: 12px; }
+.quack-chord-choices label { display: flex; align-items: center; gap: 5px; }
+
+/* ---------------------------------------------------------------------------
+   The host: the one top-bar control that says which host is on the other end,
+   and the one panel behind it — what the host is, what it cannot do, and how to
+   talk to a different one. Three surfaces became one because they were all
+   answering "the host".
+
+   The two gap kinds are two different facts and are coloured as two different
+   things: a binding gap is red-violet because no work in the host fixes it, a
+   host gap is amber because it is unwritten work. A capability that is simply
+   absent from the handshake with no reason attached is neither, and is grey.
+   --------------------------------------------------------------------------- */
+
+.host-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 420px;
+  white-space: nowrap;
+}
+.host-button-name { font-weight: 600; }
+.host-button-port { color: var(--muted); font-size: 11px; }
+/* The socket state, where the socket's own subject is. A green dot is the whole
+   message while the host is answering; when it is not, the words come back. */
+.host-link-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--muted);
+  flex: none;
+}
+.host-link-dot--open { background: var(--ok); }
+.host-link-dot--connecting { background: var(--warn); }
+.host-link-dot--closed { background: var(--danger); }
+.host-button-link { color: var(--danger); }
+.host-button--something-unavailable { border-color: var(--warn); }
+.host-button-unavailable {
+  color: var(--warn);
+  border-left: 1px solid var(--line);
+  padding-left: 6px;
+}
+
+.host-panel {
+  position: fixed;
+  top: 40px;
+  left: 12px;
+  width: min(760px, 94vw);
+  z-index: 60;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.6);
+  padding: 12px 14px;
+  font-size: 12px;
+  max-height: calc(100vh - 60px);
+  overflow: auto;
+}
+
+.host-panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+.host-panel-head h2 { margin: 0; font-size: 14px; }
+
+.host-panel-section + .host-panel-section {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.host-panel-section > h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.handshake-fields { display: grid; grid-template-columns: 140px 1fr; gap: 4px 10px; margin: 0; }
+.handshake-fields dt { color: var(--muted); }
+.handshake-fields dd { margin: 0; word-break: break-word; }
+.handshake-facts--refused .handshake-raw {
+  background: #0b1017;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 11px;
+}
+
+.gap-list-rule { font-size: 11px; margin: 0 0 10px; }
+
+.standing-rows { list-style: none; margin: 0; padding: 0; }
+.standing-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+}
+.standing-row--served { border-left-color: #1f6f34; }
+.standing-row--binding { border-left-color: var(--gap-binding); background: #1c1226; }
+.standing-row--host { border-left-color: var(--warn); background: #221a0d; }
+.standing-row--undeclared { border-left-color: var(--muted); background: #171b21; }
+.standing-id { min-width: 170px; }
+.standing-headline { flex: 1; }
+.standing-methods { font-size: 11px; }
+.standing-detail { flex-basis: 100%; }
+
+.standing-mark {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.standing-mark--served { color: var(--ok); border-color: #1f6f34; }
+
+.gap-tag--binding { color: #e0a8ff; border-color: #7a3ea0; background: #2a1638; }
+.gap-tag--host { color: #ffd479; border-color: #7a5b16; background: #2c210c; }
+.gap-tag--undeclared { color: var(--muted); border-color: var(--line); background: #1b212a; }
+
+.handshake-anomaly {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--warn);
+  border-radius: 6px;
+  color: #ffc78a;
+  font-size: 11px;
+}
+.handshake-anomaly ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* The block that stands where a gapped control would be. It carries data-op, so
+   it is quackable: a disabled control cannot be clicked, and "what would this
+   have called" is exactly the question a greyed-out control raises. */
+.gap-notice {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  font-size: 12px;
+}
+.gap-notice--binding { border-color: #7a3ea0; border-left-color: var(--gap-binding); background: #1c1226; }
+.gap-notice--host { border-color: #7a5b16; border-left-color: var(--warn); background: #221a0d; }
+.gap-notice--undeclared { border-color: var(--line); border-left-color: var(--muted); background: #171b21; }
+
+.gap-notice-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.gap-notice-head .gap-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+.gap-notice p { margin: 4px 0; }
+.gap-notice-blocked { color: var(--fg); }
+.gap-notice-reason {
+  margin: 8px 0 4px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gap-notice-reason-text { font-family: ui-monospace, Consolas, monospace; font-size: 11px; }
+.gap-notice-methods, .gap-notice-contract { font-size: 11px; }
+
+/* A control disabled by a gap is dimmed like any disabled control, and marked
+   so it is distinguishable from one disabled because a write is in flight. */
+[data-gapped] { border-style: dashed !important; }
+
+/* ---------------------------------------------------------------------------
+   The backend selector. It chooses among configured host URLs and reconnects;
+   it cannot start or stop a host process, and the panel says so.
+   --------------------------------------------------------------------------- */
+
+.backend-scope { font-size: 11px; margin: 0 0 8px; }
+.backend-switch-warning {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid #6b4415;
+  border-radius: 6px;
+  background: #2b1d12;
+  color: #ffc78a;
+  font-size: 11px;
+}
+.backend-rows { list-style: none; margin: 0 0 12px; padding: 0; }
+.backend-row { display: flex; align-items: stretch; gap: 8px; margin-bottom: 6px; }
+.backend-choose {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 8px 10px;
+}
+.backend-row--current .backend-choose { border-color: var(--accent); opacity: 1; }
+
+/* The user's ruling: the NAME is the primary label, the port sits to its right,
+   dimmed and smaller — there for someone who needs it, not for everyone. */
+.backend-name-and-port { display: flex; align-items: baseline; gap: 10px; }
+.backend-name { font-size: 14px; font-weight: 600; }
+.backend-port {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+.backend-unreachable {
+  font-size: 11px;
+  color: var(--danger);
+  border: 1px solid #6f2b26;
+  border-radius: 999px;
+  padding: 0 6px;
+}
+.backend-url { font-size: 11px; color: var(--muted); }
+.backend-source { font-size: 11px; }
+.backend-current-note { font-size: 11px; color: var(--accent); }
+
+/* The collapsed header button carries the same two halves. */
+.backend-add label { display: block; font-size: 11px; margin-bottom: 4px; }
+.backend-add .row { margin-top: 0; }
+
+.flock-running-host-note { font-size: 11px; margin: 0 0 6px; }

@@ -1,0 +1,546 @@
+/* ---------------------------------------------------------------------------
+   The card grid system.
+
+   §1.6 colour, §1.7 type and density, §1.8 card anatomy and its state borders,
+   §1.9 the grid bar, §1.10 selection/hover/focus/motion, §2.0 shared geometry,
+   §3.2 the quack strip — of
+   quackoscope-gui-design-specification-logger-added-look-with-card-grids-replacing-dialogs-and-tables.md
+
+   This file adds to src/App.css and never restates it: every colour below is
+   one of App.css's tokens. --gap-binding, --gap-host, --coerced, the three
+   --card-min-* widths and --card-gap all live in App.css's :root now; this
+   file only reads them.
+   --------------------------------------------------------------------------- */
+
+/* §1.7 / decision D10: the card system reads at 13 px, and so does the rest of
+   the app — src/App.css's :root sets 13 px globally, so there is nothing to
+   scope here any more. */
+.card-grid-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   §2.0 shared grid geometry
+   --------------------------------------------------------------------------- */
+
+.card-grid {
+  display: grid;
+  gap: var(--card-gap);
+  align-items: start;
+  min-width: 0;
+}
+.card-grid--narrow { grid-template-columns: repeat(auto-fill, minmax(var(--card-min-narrow), 1fr)); }
+.card-grid--standard { grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr)); }
+.card-grid--wide { grid-template-columns: repeat(auto-fill, minmax(var(--card-min-wide), 1fr)); }
+
+/* §2.5, §2.6: a card pinned first spans every column. */
+.card-grid-pinned-first > .card-face { width: 100%; }
+
+/* ---------------------------------------------------------------------------
+   §1.8 card anatomy: five bands and the 3 px left border that carries state
+   --------------------------------------------------------------------------- */
+
+.card-face {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  min-width: 0;
+  padding: 4px 8px 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: 8px;
+  /* §1.10: nothing animates except opacity and background, <= 120 ms.
+     No lift, no shadow, no scale — the reference has no elevation vocabulary. */
+  transition: background-color 90ms linear, border-color 90ms linear;
+}
+
+/* §1.10: hover LIGHTENS. The reference's one hover function darkens, which on a
+   #12181f panel is invisible; this is the single most common porting mistake and
+   §1.6 names it. */
+.card-face:hover { background: #161d26; border-color: #2c343f; }
+.card-face:hover { border-left-color: inherit; }
+
+/* §1.10: the same treatment .tree-row--selected uses, so selection reads
+   identically in the tree and in the grid. */
+.card-face--selected { background: #14283c; border-color: var(--accent); }
+
+/* §1.10: 2 px accent outline, offset 2 px, on every focusable card and control.
+   The reference has no visible focus ring anywhere; that is a defect, not a
+   style. */
+.card-face:focus-visible,
+.card-grid-surface button:focus-visible,
+.card-grid-surface input:focus-visible,
+.card-grid-surface select:focus-visible,
+.card-grid-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- the nine state borders of §1.8's table, one rule each ------------------ */
+
+.card--normal { border-left-color: var(--line); }
+.card--read-only { border-left-color: var(--line); }
+/* invisible: --line, dashed, and the widget at .6 opacity */
+.card--invisible { border-left-color: var(--line); border-left-style: dashed; }
+.card--invisible .card-body { opacity: 0.6; }
+.card--gapped-binding { border-left-color: var(--gap-binding); }
+.card--gapped-host { border-left-color: var(--gap-host); }
+.card--gapped-undeclared { border-left-color: var(--muted); }
+.card--out-of-range { border-left-color: var(--danger); }
+.card--rejected { border-left-color: var(--danger); }
+.card--unconfirmed { border-left-color: var(--warn); }
+.card--uncommitted { border-left-color: var(--warn); }
+.card--coerced { border-left-color: var(--coerced); }
+
+/* --- header --------------------------------------------------------------- */
+
+/* §1.8's header, and the reference's two stretching columns in one row: the
+   name is `#0`, the value cell is `value`, and both give way before the chips
+   and the expander do. */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  row-gap: 3px;
+  min-height: 22px;
+}
+.card-glyph { color: var(--accent); width: 1em; flex: none; align-self: center; }
+
+/* A header carrying a value cell does not wrap: the name and the value shrink
+   against each other, the way the reference's two stretching columns do. Wrapping
+   would spend a whole extra line on a chevron. */
+.card-header--with-value { flex-wrap: nowrap; }
+/* §1.7: component type name 14 px 600. It ellipses rather than wrapping, so a
+   long property name never pushes its own value onto a second line; the whole
+   name stays in the title attribute. */
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Beside a value cell the name is 13 px: it buys about two more characters
+   before the ellipsis, and the name is the thing a reader is scanning for. */
+.card-header--with-value .card-title { font-size: 13px; }
+.card-header-spacer { flex: 1; }
+
+/* The value cell. It is allowed to take about half the card and no less than a
+   slider needs; below that the header wraps and the value takes its own line. */
+.card-header-value {
+  flex: 1 1 44%;
+  min-width: 124px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 22px;
+  justify-content: flex-end;
+}
+
+/* §1.7: chips 11 px. */
+.card-chip {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.card-chip--unit { color: var(--fg); }
+.card-chip--value-type { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+.card-chip--hidden { border-style: dashed; }
+
+/* The expander is a chevron on the header row: the sentence naming what it
+   reveals is its accessible name and its tooltip, so it costs no card height. */
+.card-expander {
+  flex: none;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 4px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+}
+.card-expander:hover:not(:disabled) { color: var(--fg); }
+
+/* --- body ----------------------------------------------------------------- */
+
+.card-body { min-width: 0; font-size: 13px; }
+.card-body input[type="text"],
+.card-body input[type="number"],
+.card-body input[type="search"],
+.card-body select { width: 100%; }
+
+/* §1.8, uncommitted: "input --warn on #2a2110, data-uncommitted='true'". An
+   uncommitted edit is not device state and must never look like one. App.css
+   says the same thing in .prop-widget input.edited-not-yet-committed; that
+   selector is scoped to the row grid, so the card repeats the rule for the card
+   body rather than widening someone else's selector. */
+.card-body input[data-uncommitted="true"],
+.card-body .edited-not-yet-committed {
+  border-color: var(--warn);
+  background: #2a2110;
+  color: var(--warn);
+}
+
+/* §1.8, out of range: "input keeps the typed text, marked aria-invalid". */
+.card-body input[aria-invalid="true"] {
+  border-color: var(--danger);
+  background: #2a1412;
+  color: var(--danger);
+}
+
+/* --- meta line and description -------------------------------------------- */
+
+/* §1.7: card meta line 11 px, muted. */
+.card-meta {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+}
+.card-meta-separator { margin-right: 6px; }
+.card-meta-replacement { font-size: 11px; }
+.card-meta-replacement .gap-notice { margin: 0; }
+
+/* §1.8's gapped meta line: the one-liner, not the four-paragraph block. */
+.card-gap-one-liner { display: block; color: var(--muted); line-height: 1.5; }
+.card-gap-one-liner--binding { border-left: 2px solid var(--gap-binding); padding-left: 6px; }
+.card-gap-one-liner--host { border-left: 2px solid var(--gap-host); padding-left: 6px; }
+.card-gap-one-liner--undeclared { border-left: 2px solid var(--muted); padding-left: 6px; }
+.card-gap-one-liner .gap-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+/* §1.8: description clamped to 2 lines. Clamped in CSS, never truncated in
+   JavaScript, so the full text is still selectable and still in the title. */
+.card-description {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* --- the state sentence --------------------------------------------------- */
+
+.card-notice {
+  margin: 0;
+  font-size: 11px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.card-notice-state {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.card-notice-words { min-width: 0; overflow-wrap: anywhere; }
+.card-notice--out-of-range,
+.card-notice--rejected { color: var(--danger); }
+.card-notice--unconfirmed,
+.card-notice--uncommitted { color: var(--warn); }
+.card-notice--coerced { color: var(--coerced); }
+
+/* --- the back: §2.8's expansion, four dialogs deleted ---------------------- */
+
+.card-face--expanded { border-color: #2c343f; }
+.card-back {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  font-size: 11px;
+  min-width: 0;
+  overflow-x: auto;
+}
+.card-back dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 10px;
+}
+.card-back dt { color: var(--muted); }
+.card-back dd { margin: 0; overflow-wrap: anywhere; }
+.card-back pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* ---------------------------------------------------------------------------
+   §3.2 the quack strip: permanent, on every card face
+   --------------------------------------------------------------------------- */
+
+.card-quack-strip {
+  margin: 1px -8px 0;
+  padding: 1px 8px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+}
+.card-quack-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 15px;
+}
+.card-quack-duck { font-size: 11px; line-height: 1; }
+.card-quack-spacer { flex: 1; }
+
+.card-quack-call {
+  border: none;
+  background: none;
+  padding: 0;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--muted);
+  display: inline-flex;
+  gap: 5px;
+  min-width: 0;
+}
+.card-quack-call:hover:not(:disabled) { color: var(--fg); background: #1b2530; border-color: transparent; }
+.card-quack-method { color: var(--fg); }
+.card-quack-capability { color: var(--accent); }
+.card-quack-unmapped { color: var(--warn); }
+
+.card-quack-count {
+  border: none;
+  background: none;
+  padding: 0 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.card-quack-count--no-pond { color: var(--warn); }
+
+.card-quack-parameters {
+  flex-basis: 100%;
+  list-style: none;
+  margin: 0 0 2px 17px;
+  padding: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------------------
+   §1.9 the grid bar
+   --------------------------------------------------------------------------- */
+
+.card-grid-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.card-grid-bar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.card-grid-filter { position: relative; display: flex; align-items: center; min-width: 220px; flex: 1 1 240px; }
+.card-grid-filter-input { width: 100%; padding-right: 26px; font-size: 12px; }
+.card-grid-filter-clear {
+  position: absolute;
+  right: 4px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  padding: 0 4px;
+  line-height: 1;
+}
+.card-grid-filter-clear:hover { color: var(--fg); }
+
+/* §1.7: grid-bar headings 11 px, 600, uppercase, letter-spacing .06em. */
+.card-grid-bar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.card-grid-sort { font-size: 12px; padding: 3px 6px; }
+.card-grid-sort-direction { font-size: 11px; padding: 2px 6px; }
+
+.card-grid-bar-button {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #161d26;
+}
+.card-grid-bar-button--on { border-color: var(--accent); color: var(--accent); background: #14283c; }
+.card-grid-renderer-toggle { display: inline-flex; gap: 4px; }
+
+/* The user's ruling: a boolean is a switch, not a checkbox. */
+.card-grid-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #161d26;
+  color: var(--muted);
+}
+.card-grid-switch--on { color: var(--accent); border-color: var(--accent); }
+.card-grid-switch-track {
+  width: 24px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #0b1017;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px;
+  transition: background-color 90ms linear;
+}
+.card-grid-switch--on .card-grid-switch-track { background: #14283c; border-color: var(--accent); }
+.card-grid-switch-knob {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--muted);
+  transition: margin-left 90ms linear, background-color 90ms linear;
+}
+.card-grid-switch--on .card-grid-switch-knob { margin-left: 12px; background: var(--accent); }
+
+/* §1.9 item 6: the count line, in mono, printing literal values. */
+.card-grid-count-line {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* §2.9 the field chooser: a --card-min-narrow grid of togglable field chips. */
+.card-grid-fields-chooser {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0f151c;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.card-grid-fields-chooser-note { margin: 0; font-size: 11px; color: var(--muted); }
+.card-grid-field-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 12px;
+  min-width: 0;
+}
+.card-grid-field-chip--on { border-color: var(--accent); background: #14283c; }
+.card-grid-field-chip-name { font-weight: 600; }
+.card-grid-field-chip-example {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   §1.9 item 4 the rows renderer: real column alignment, 26 px rows
+   --------------------------------------------------------------------------- */
+
+.card-grid-rows {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.card-grid-rows th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  padding: 0 8px 4px;
+  white-space: nowrap;
+}
+.card-grid-rows-sort {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+.card-grid-rows-sort:hover { color: var(--fg); border-color: transparent; }
+.card-grid-row { height: 26px; border-bottom: 1px solid var(--line); border-left: 3px solid var(--line); }
+.card-grid-row:hover { background: #1b2530; }
+.card-grid-row--selected { background: #14283c; }
+.card-grid-rows td { padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+.card-grid-rows-title-column { font-weight: 600; }
+.card-grid-rows-state-column { color: var(--muted); font-size: 11px; }
+
+/* ---------------------------------------------------------------------------
+   §3.6 empty states are flock cards
+   --------------------------------------------------------------------------- */
+
+.card-grid-empty {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  background: var(--panel);
+}
+.card-grid-empty p { margin: 0 0 8px; }
+.card-grid-empty-sentence { color: var(--fg); }
+
+/* ---------------------------------------------------------------------------
+   §1.10 motion: everything above is opacity and background at <= 120 ms, and
+   all of it stops here. A card grid reflows on filter and on resize; animating
+   a reflow of 30 cards is nausea, not polish.
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .card-face,
+  .card-grid-switch-track,
+  .card-grid-switch-knob {
+    transition: none;
+  }
+}

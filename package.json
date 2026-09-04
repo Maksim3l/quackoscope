@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "pnpm extract-opendaq-snippets-from-host-sources && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "serve-spa-from-host": "pnpm build && \"hosts/cpp/build/Release/quackoscope-host-cpp\" --manifest manifest.json",
-    "verify-static-file-serving-stays-inside-dist": "python tools/host-verification/verify-static-file-serving-stays-inside-dist.py"
+    "verify-static-file-serving-stays-inside-dist": "python tools/host-verification/verify-static-file-serving-stays-inside-dist.py",
+    "extract-opendaq-snippets-from-host-sources": "node tools/snippet-extractor/extract-opendaq-snippets-from-host-sources.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",

@@ -1,4 +1,9 @@
 import { useState } from "react";
+import { CapabilityGapNotice } from "../session/CapabilityGapNotice";
+import {
+  useCapabilityStanding,
+  useHostProcessName,
+} from "../session/host-capability-context";
 import { OpButton, OpInput } from "../ui/op";
 
 const DEFAULT_CONNECTION_STRING = "daqref://device0";
@@ -15,6 +20,10 @@ export function ConnectionScreen({
   const [connectionString, setConnectionString] = useState(
     DEFAULT_CONNECTION_STRING,
   );
+  const connectStanding = useCapabilityStanding("device.connect");
+  const hostProcessName = useHostProcessName();
+  const connectIsGapped =
+    connectStanding !== null && !connectStanding.served && connectStanding.gap !== null;
 
   return (
     <div className="screen screen--centered">
@@ -24,6 +33,14 @@ export function ConnectionScreen({
           The host resolves the connection string through openDAQ. A reference
           device needs no hardware.
         </p>
+
+        {connectIsGapped && (
+          <CapabilityGapNotice
+            standing={connectStanding}
+            hostProcessName={hostProcessName}
+            whatIsBlocked={`No device can be connected through ${hostProcessName}. The connection string box and the Connect button below are disabled for this session; switching to another backend is the only way past it from here.`}
+          />
+        )}
         <form
           className="row"
           onSubmit={(e) => {

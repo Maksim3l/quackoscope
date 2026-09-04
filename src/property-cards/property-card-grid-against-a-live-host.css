@@ -1,0 +1,37 @@
+/* Chrome belonging to the property-card-grid page itself, not to the grid.
+   The grid's own stylesheet is property-cards.css; nothing here is imported by
+   the app. */
+
+.tree button.tree-row {
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.tree button.tree-row:hover { background: #1b2530; }
+
+.write-call-log {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px 12px;
+  background: var(--panel);
+}
+.write-call-log h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.write-call-log-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 11px;
+  line-height: 1.6;
+  max-height: 220px;
+  overflow: auto;
+}
+.write-call-log-seq { color: var(--accent); }

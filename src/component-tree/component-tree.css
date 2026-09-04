@@ -1,0 +1,564 @@
+/*
+ * The navigation tree, §1.4 (row composition), §1.5 (icons), §1.6 (colour),
+ * §1.7 (type and density) and §1.10 (selection, hover, focus, motion).
+ *
+ * The density numbers are §1.7's, literally: a 26 px row — not the reference's
+ * 30 px, which fits ~15 % fewer rows without being any easier to read — holding
+ * a 20 px icon at an 8 px gutter, which is the reference's one-space gutter
+ * from `_format_tree_item_text` measured in pixels.
+ */
+
+.component-tree-surface {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+/* ---- the icon sprite ------------------------------------------------------ */
+
+.component-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* §1.5: currentColor is the whole point — one stylesheet colours 33 symbols
+     for the dark theme and for state, which 72 PNGs cannot do. */
+  color: inherit;
+}
+.component-icon--tree { color: var(--accent); }
+.component-icon--menu { width: 16px; height: 16px; flex-basis: 16px; color: var(--muted); }
+.component-icon--detail-header { width: 20px; height: 20px; color: var(--accent); }
+
+.tree-row-select:disabled .component-icon--tree { color: var(--muted); }
+
+/* ---- decision D11: the six views of the left pane, as one dropdown --------- */
+
+/*
+ * They were six buttons in a row above the tree. The bar is now a labelled
+ * `<select>` naming the view that is showing, plus the pane-level re-read for
+ * the one call that filled the pane. It sits above WHATEVER the left pane is
+ * holding, tree or module grid, because the sixth view swaps one for the other.
+ */
+.left-pane-view-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 8px;
+  min-width: 0;
+}
+.left-pane-view-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex: none;
+}
+.left-pane-view-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 6px;
+}
+/* §1.8's gap colour on a LIVE control: the Modules view is still choosable when
+   the host gaps module.read, because what it opens is the card that carries the
+   whole of the host's declaration. */
+.left-pane-view-select[data-capability-gapped] {
+  border-color: var(--gap-host);
+  border-style: dashed;
+}
+
+.left-pane-view-reread {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 5px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.left-pane-view-reread:hover:not(:disabled) { background: #1b2530; color: var(--fg); }
+.left-pane-view-reread .component-icon { width: 13px; height: 13px; flex-basis: 13px; }
+
+/* The condition of the view that is on screen, printed where it can be read
+   rather than left in a tooltip only a mouse can reach. */
+.left-pane-view-condition {
+  margin: 0 10px 8px;
+  padding: 6px 8px;
+  border: 1px dashed var(--gap-host);
+  border-radius: 6px;
+  background: #1c1710;
+  color: #e8d3a4;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* ---- §1.4: the search box ------------------------------------------------- */
+
+.tree-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 0 10px 4px;
+}
+.tree-search-icon {
+  position: absolute;
+  left: 7px;
+  width: 14px;
+  height: 14px;
+  flex-basis: 14px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.tree-search-input {
+  width: 100%;
+  padding: 4px 26px 4px 27px;
+  font-size: 12px;
+}
+.tree-search-input::-webkit-search-cancel-button { display: none; }
+.tree-search-clear {
+  position: absolute;
+  right: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.tree-search-clear:hover { background: #1b2530; color: var(--fg); }
+
+.tree-filter-count {
+  margin: 0 10px 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.tree-filter-count[data-filtering] { color: var(--fg); }
+
+/* ---- the tree itself ------------------------------------------------------ */
+
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+.tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 6px;
+}
+
+.tree-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  /* §1.7: 26 px, not the reference's 30 px. */
+  min-height: 26px;
+  padding-right: 4px;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+}
+/* §1.6: the reference's one hover function DARKENS (`darken_color(bg, 0.85)`).
+   On a #12181f panel darkening is invisible, so hover LIGHTENS. This is the
+   single most common porting mistake and §1.6 names it. */
+.tree-row:hover { background: #1b2530; }
+.tree-row--selected,
+.tree-row--selected:hover {
+  background: #14283c;
+  border-left-color: var(--accent);
+}
+
+.tree-twisty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  flex: 0 0 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 4px;
+}
+.tree-twisty:hover { color: var(--fg); background: #22303d; }
+.tree-twisty .component-icon { width: 14px; height: 14px; flex-basis: 14px; }
+.tree-twisty--leaf { pointer-events: none; }
+
+.tree-row-select {
+  display: flex;
+  align-items: center;
+  /* §1.4: 20 px icon + one space + name; the one-space gutter is 8 px here. */
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 2px 4px;
+  min-height: 26px;
+  color: inherit;
+}
+.tree-row-select:hover:not(:disabled) { border-color: transparent; }
+.tree-name {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-kind {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---- §1.4: the component state a row carries ------------------------------
+ *
+ * The reference paints the ROW's foreground, one colour per state, and orders
+ * them in _set_node_active_status_recursive: "warning/error color has higher
+ * priority", so an inactive row that is also warning stays orange. Locked,
+ * inactive and disconnected share tkinter's 'gray'.
+ *
+ * A row with no data-component-state attribute is a row whose state fields all
+ * came back null. It gets no colour at all — never a "healthy" green, because
+ * the host said nothing, not that everything is fine.
+ */
+.tree-row[data-component-state="warning"] .tree-name,
+.tree-row[data-component-state="warning"] .tree-state-suffix,
+.tree-row[data-component-state="warning"] .component-icon--tree {
+  color: var(--warn);
+}
+.tree-row[data-component-state="error"] .tree-name,
+.tree-row[data-component-state="error"] .tree-state-suffix,
+.tree-row[data-component-state="error"] .component-icon--tree {
+  color: var(--danger);
+}
+.tree-row[data-component-state="muted"] .tree-name,
+.tree-row[data-component-state="muted"] .tree-state-suffix,
+.tree-row[data-component-state="muted"] .component-icon--tree {
+  color: var(--muted);
+}
+
+/* `Reference Device | Operation` — part of the NAME in the reference, so it
+   sits tight against it and takes the row's own colour. */
+.tree-operation-mode {
+  flex: 0 0 auto;
+  margin-left: -4px;
+  font-size: 12px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* ` [warn, inactive, locked]` */
+.tree-state-suffix {
+  flex: 0 0 auto;
+  margin-left: -4px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tree-state-glyph { display: flex; flex: 0 0 auto; }
+.component-icon--row-state {
+  width: 14px;
+  height: 14px;
+  flex-basis: 14px;
+  color: var(--muted);
+}
+.tree-row[data-component-state="error"] .component-icon--row-state { color: var(--danger); }
+.tree-row[data-component-state="warning"] .component-icon--row-state { color: var(--warn); }
+
+/* Which rows are on screen because they MATCHED, and which are only riding
+   along inside a matched subtree. §1.4's filter hoists a match and keeps its
+   whole subtree, so without this the count line and the tree disagree. */
+.tree-match-badge {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 10px;
+  line-height: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tree-row[data-tree-match="inside-a-match"] .tree-name { color: var(--muted); }
+
+/* ---- decision D7: an action affordance on EVERY row ----------------------- */
+
+.tree-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 4px;
+  /* Hidden by opacity, NOT by display:none, so it stays focusable and Tab from
+     the row reaches it. Revealed on hover and on focus-within, exactly as §1.4
+     requires, because the reference's context-menu-only rule is invisible to
+     the keyboard and to touch. */
+  opacity: 0;
+  transition: opacity 90ms linear;
+}
+.tree-row:hover .tree-row-actions,
+.tree-row:focus-within .tree-row-actions,
+.tree-row--menu-open .tree-row-actions,
+.tree-row-actions:focus-visible {
+  opacity: 1;
+}
+.tree-row-actions:hover { background: #22303d; color: var(--fg); }
+.tree-row-actions .component-icon { width: 16px; height: 16px; flex-basis: 16px; }
+
+/* Viewport-anchored, not row-anchored: the tree pane is 320 px wide and scrolls,
+   so a menu inside a row is clipped by the pane and drags a horizontal
+   scrollbar under the tree. Left/top come from the anchor's rect in JS. */
+.tree-row-menu {
+  position: fixed;
+  z-index: 30;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid #2c343f;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+.tree-row-menu-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--fg);
+}
+.tree-row-menu-item:hover:not(:disabled) { background: #1b2530; border-color: transparent; }
+.tree-row-menu-item .component-icon--menu { margin-top: 2px; }
+/* Two lines: what it does, then what it sends. One line each, ellipsised — the
+   `title` on the item carries the whole sentence for anything that does not
+   fit, so nothing is lost and nothing spills out of the menu. */
+.tree-row-menu-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.tree-row-menu-label,
+.tree-row-menu-call {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-row-menu-call { font-size: 11px; color: var(--muted); }
+
+/* menu_build's rule, drawn: a separator BETWEEN groups. A group with no items
+   never reaches here, so no separator is ever left dangling. */
+.tree-row-menu-separator {
+  height: 1px;
+  margin: 5px 6px;
+  background: #3a434f;
+}
+
+/* An item whose operation row does not exist in contract/contract.yaml. It is
+   drawn, not hidden, and its second line names the row it waits on. */
+.tree-row-menu-item[data-unavailable] {
+  cursor: default;
+  opacity: 0.65;
+}
+.tree-row-menu-item[data-unavailable] .tree-row-menu-label { color: var(--muted); }
+.tree-row-menu-item[data-unavailable] .tree-row-menu-call {
+  color: var(--gap-host);
+  white-space: normal;
+}
+.tree-row-menu-item[data-unavailable]:hover { background: transparent; }
+
+/* The device's operation modes, listed in place rather than as a second popup,
+   and the panel that prints what the host answered. */
+.tree-row-menu-panel-heading {
+  margin: 2px 8px 6px;
+  font-size: 11px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.tree-row-menu-host-text {
+  margin: 0 8px 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warn);
+  border-radius: 6px;
+  background: #0b1017;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.tree-row-menu-outcome[data-refused] .tree-row-menu-host-text {
+  border-left-color: var(--danger);
+}
+.tree-row-menu-item[data-mode-in-force] { background: #14283c; }
+.tree-row-menu-back {
+  width: 100%;
+  margin-top: 4px;
+  padding: 5px 8px;
+  font-size: 11px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  border-radius: 5px;
+}
+.tree-row-menu-back:hover { background: #1b2530; color: var(--fg); }
+.tree-row-menu-outcome .tree-row-menu-confirm-buttons { margin: 0 8px 4px; }
+
+/* §D16: no message boxes. A destructive item turns the menu into this strip. */
+.tree-row-menu-confirm { padding: 6px 8px; }
+.tree-row-menu-confirm-question { margin: 0 0 6px; font-size: 12px; }
+.tree-row-menu-confirm-call {
+  display: block;
+  padding: 6px 8px;
+  background: #0b1017;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--warn);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.tree-row-menu-confirm-buttons { display: flex; gap: 6px; margin-top: 8px; }
+.tree-row-menu-confirm-send { border-color: var(--danger); color: var(--danger); }
+
+.tree-quack-strip-holder {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+
+/* ---- §1.10: one focus ring for everything in the pane --------------------- */
+
+.component-tree-surface :focus-visible,
+.detail-header :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---- the detail pane's header bar ----------------------------------------- */
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 0 8px;
+  margin: 0 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+.detail-header-name {
+  /* §1.7: a component type name is 14 px / 600. */
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.detail-header-kind {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.detail-header-facts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.detail-header-dot { color: var(--line); }
+
+/* block_view.py's status chip: a coloured square, then the status name and the
+   host's own message. Drawn only when component_status arrived. */
+.detail-header-operation-mode {
+  margin-left: 4px;
+  font-weight: 500;
+  color: var(--accent);
+}
+.detail-header-state-suffix {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.detail-header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 260px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.detail-header-status-square {
+  flex: 0 0 10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--muted);
+}
+.detail-header-status[data-component-status="ok"] .detail-header-status-square { background: var(--ok); }
+.detail-header-status[data-component-status="warning"] .detail-header-status-square { background: var(--warn); }
+.detail-header-status[data-component-status="error"] .detail-header-status-square { background: var(--danger); }
+.detail-header-status[data-component-status="warning"] .detail-header-status-text { color: var(--warn); }
+.detail-header-status[data-component-status="error"] .detail-header-status-text { color: var(--danger); }
+.detail-header-status-text {
+  min-width: 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.detail-header-copy {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.detail-header-copy:hover { color: var(--fg); }
+.detail-header-copy .component-icon { width: 14px; height: 14px; flex-basis: 14px; }
+.detail-header-copy-outcome { flex-basis: 100%; font-size: 11px; }
+
+/* §1.10: nothing animates except opacity and background, and none of it under
+   a reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  .tree-row-actions { transition: none; }
+}
