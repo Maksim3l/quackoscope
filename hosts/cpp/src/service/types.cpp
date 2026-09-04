@@ -13,14 +13,49 @@ Json orNull(const std::optional<T>& v)
 
 }  // namespace
 
+Json toJson(const DeviceInfo& info)
+{
+    return Json{{"connection_string", info.connection_string},
+                {"name", info.name},
+                {"serial", orNull(info.serial)}};
+}
+
 Json toJson(const Node& node)
 {
+    // The six state keys are always written. A key that is absent would say
+    // "this host has never heard of component state"; null says "this host did
+    // not determine this one fact about this one component", which is what the
+    // contract asks a nullable field to mean.
     return Json{{"id", node.id},
                 {"name", node.name},
                 {"kind", node.kind},
                 {"parent_id", orNull(node.parent_id)},
                 {"child_ids", node.child_ids},
-                {"property_ids", node.property_ids}};
+                {"property_ids", node.property_ids},
+                {"active", orNull(node.active)},
+                {"locked", orNull(node.locked)},
+                {"component_status", orNull(node.component_status)},
+                {"component_status_message", orNull(node.component_status_message)},
+                {"connection_status", orNull(node.connection_status)},
+                {"operation_mode", orNull(node.operation_mode)}};
+}
+
+Json toJson(const ComponentTypeInfo& t)
+{
+    return Json{{"id", t.id},
+                {"name", t.name},
+                {"kind", t.kind},
+                {"description", orNull(t.description)},
+                {"connection_string_prefix", orNull(t.connection_string_prefix)}};
+}
+
+Json toJson(const ModuleInfo& m)
+{
+    Json types = Json::array();
+    for (const auto& t : m.component_types)
+        types.push_back(toJson(t));
+
+    return Json{{"id", m.id}, {"name", m.name}, {"version", orNull(m.version)}, {"component_types", types}};
 }
 
 Json toJson(const PropertyDescriptor& d)

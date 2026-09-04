@@ -50,10 +50,20 @@ private:
 // Where the native error came from. openDAQ reuses OPENDAQ_ERR_NOTFOUND both
 // for "no such property" and for "this value is not in the selection set", so
 // the write path needs a different reading of the same code.
+//
+// ModuleLoad exists for the same reason and for one more: contract section 5
+// gives load_module_from_host_path the subset {not_found, not_connected,
+// invalid_value, internal}, and the General table can produce read_only (from
+// OPENDAQ_ERR_ACCESSDENIED, which IModuleManager::loadModule raises when the
+// module authenticator rejects the binary) and unsupported (from
+// OPENDAQ_ERR_NOTIMPLEMENTED / OPENDAQ_ERR_NOT_SUPPORTED). Answering outside an
+// operation's declared subset is the class (b) failure the conformance harness
+// exists to catch, so this context maps into the four codes and no others.
 enum class MapContext
 {
     General,
-    PropertyWrite
+    PropertyWrite,
+    ModuleLoad
 };
 
 // Native openDAQ ErrCode -> closed set. Anything unrecognised becomes Internal.

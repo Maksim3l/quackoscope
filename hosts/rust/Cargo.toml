@@ -1,0 +1,18 @@
+[package]
+name = "quackoscope-host-rust"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+publish = false
+description = "Quackoscope M1 wire-contract host implemented in Rust against the openDAQ crate."
+
+[[bin]]
+name = "quackoscope-host-rust"
+path = "src/main.rs"
+
+[dependencies]
+opendaq = "0.1.1"
+serde_json = "1"
+
+[profile.release]
+debug = false

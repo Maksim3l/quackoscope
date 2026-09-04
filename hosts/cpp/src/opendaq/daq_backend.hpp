@@ -21,15 +21,25 @@ public:
     ~DaqBackend() override;
 
     void setEventSink(service::EventSink sink) override;
-    void releaseDevice(const std::string& nodeId) override;
 
+    std::vector<service::DeviceInfo> scanAvailableDevices() override;
     service::Node connectDevice(const std::string& connectionString) override;
+    void disconnectDevice(const std::string& nodeId) override;
     std::vector<service::Node> getComponentTree(const std::optional<std::string>& rootId) override;
     std::vector<service::PropertyDescriptor> getPropertyDescriptors(const std::string& nodeId) override;
     service::Json getPropertyValue(const std::string& nodeId, const std::string& propertyId) override;
     void setPropertyValue(const std::string& nodeId, const std::string& propertyId, const service::Json& value) override;
+    std::vector<std::string> listFunctionBlockTypes() override;
+    service::Node addFunctionBlock(const std::string& parentId, const std::string& typeId) override;
+    void removeFunctionBlock(const std::string& nodeId) override;
     void subscribeSignal(const std::string& signalId, std::uint32_t subscriptionId, service::SampleSink sink) override;
     void unsubscribeSignal(std::uint32_t subscriptionId) override;
+    std::vector<std::string> getDeviceOperationModes(const std::string& nodeId) override;
+    void setDeviceOperationMode(const std::string& nodeId, const std::string& mode) override;
+    void lockDevice(const std::string& nodeId) override;
+    void unlockDevice(const std::string& nodeId, bool force) override;
+    std::vector<service::ModuleInfo> listLoadedModules() override;
+    service::ModuleInfo loadModuleFromHostPath(const std::string& hostPath) override;
 
     // Reported display-only at startup.
     std::string rootId() const;

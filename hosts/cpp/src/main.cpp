@@ -104,8 +104,10 @@ int main(int argc, char** argv)
         qs::opendaq::DaqBackend backend(manifest.module_path, manifest.log_level);
         std::cout << "[host] modules loaded, root component " << backend.rootId() << "\n" << std::flush;
 
-        qs::service::SessionHub hub(backend);
+        qs::service::SessionHub hub(backend, manifest, kProcessName, QUACKOSCOPE_HOST_CPP_VERSION);
         backend.setEventSink([&hub](const qs::service::Event& event) { hub.publish(event); });
+
+        std::cout << "[host] handshake sent first on every session:\n" << hub.handshake().dump(2) << "\n" << std::flush;
 
         qs::transport::Server server(options.address, options.port, options.dist, hub);
         server.start();

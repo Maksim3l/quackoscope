@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
-project(quackoscope_host_cpp CXX)
+# The host's own version. It is DISPLAY ONLY: it rides in the handshake as
+# implementation.version and no behavioural branch reads it.
+project(quackoscope_host_cpp VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -95,6 +97,8 @@ add_executable(quackoscope-host-cpp
     src/service/decimator.hpp
     src/service/decimator.cpp
     src/service/backend.hpp
+    src/service/handshake.hpp
+    src/service/handshake.cpp
     src/service/session.hpp
     src/service/session.cpp
 
@@ -103,14 +107,28 @@ add_executable(quackoscope-host-cpp
 
 set_target_properties(quackoscope-host-cpp PROPERTIES OUTPUT_NAME "quackoscope-host-cpp")
 
-target_include_directories(quackoscope-host-cpp PRIVATE src)
+# generated/cpp holds quackoscope-contract.hpp, which tools/contract-compiler
+# emits from contract/contract.yaml. The handshake reads the baseline
+# capability ids and the closed wire method table out of that header instead of
+# repeating them, so this host cannot disagree with the contract about what the
+# gap list is computed against.
+get_filename_component(_qs_generated_cpp_dir "${CMAKE_CURRENT_SOURCE_DIR}/../../generated/cpp" ABSOLUTE)
+if(NOT EXISTS "${_qs_generated_cpp_dir}/quackoscope-contract.hpp")
+    message(FATAL_ERROR
+        "quackoscope-contract.hpp not found in ${_qs_generated_cpp_dir}. "
+        "Regenerate it with: python tools/contract-compiler/compile_contract_to_generated_targets.py")
+endif()
+message(STATUS "quackoscope: generated contract header from ${_qs_generated_cpp_dir}")
+
+target_include_directories(quackoscope-host-cpp PRIVATE src "${_qs_generated_cpp_dir}")
 target_link_libraries(quackoscope-host-cpp PRIVATE quackoscope_thirdparty daq::opendaq)
 
 # The default SPA dist directory is derived from this source tree's location,
 # never hardcoded as a literal path.
 get_filename_component(_qs_repo_root "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 target_compile_definitions(quackoscope-host-cpp PRIVATE
-    QUACKOSCOPE_DEFAULT_DIST_DIR="${_qs_repo_root}/dist")
+    QUACKOSCOPE_DEFAULT_DIST_DIR="${_qs_repo_root}/dist"
+    QUACKOSCOPE_HOST_CPP_VERSION="${PROJECT_VERSION}")
 
 if(MSVC)
     target_compile_options(quackoscope-host-cpp PRIVATE /bigobj /W3 /wd4996)
