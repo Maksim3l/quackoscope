@@ -1,0 +1,24 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm extract-opendaq-snippets-from-host-sources && tsc && vite build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "regions": ["iad1"],
+  "functions": {
+    "api/quackoscope-mock-host-websocket-endpoint.ts": {
+      "maxDuration": 300,
+      "memory": 2048
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/ws",
+      "destination": "/api/quackoscope-mock-host-websocket-endpoint"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
