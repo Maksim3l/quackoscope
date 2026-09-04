@@ -1,0 +1,696 @@
+quackoscope wire conformance suite
+  target url          ws://127.0.0.1:8041/ws   (port 8041)
+  contract            C:\Users\opendaq\Projects\quackoscope\contract\contract.yaml
+  manifest            C:\Users\opendaq\Projects\quackoscope\manifest.json
+  connection_string   daqref://device0  (default; a scan result replaces it if the host serves device.scan)
+  request timeout     10000 ms
+  contract read       quackoscope-wire-contract protocol_version 1.0: 12 baseline capabilities, 19 operations, 7 error codes, 5 events, 7 types
+  baseline            device.scan, device.connect, tree.read, property.read, property.write, function_block.add, streaming.decimated, streaming.raw, device.mode, device.lock, module.read, module.load
+  manifest sdk        version 3.41.0_bec37b44, commit bec37b4430ca6d92592547ffc84900438040ab22
+
+opening one WebSocket to ws://127.0.0.1:8041/ws and waiting for message ordinal 1...
+message ordinal 1 arrived, 1070 bytes:
+{"capabilities":["device.scan","device.connect","tree.read","property.read","property.write","function_block.add","streaming.decimated","device.mode","device.lock","module.read","module.load"],"gaps":[{"capability":"streaming.raw","kind":"host","reason":"read_samples_raw has no handler in quackoscope-host-cpp: contract/contract.yaml declares returns: {type: binary_frame} for it, but envelopes.result carries a JSON result and the 17-byte binary_frame header has no correlation id, so a binary answer cannot be matched to its request id. The two generated clients already disagree about the JSON stand-in -- generated/typescript/contract-client.ts casts a flat result object to BinarySampleFrame, generated/python/contract_types.py expects {header, values} -- and this host will not pick one of them on the contract's behalf."}],"implementation":{"name":"quackoscope-host-cpp","version":"0.2.0"},"limits":{"max_frame_bytes":262144,"max_subscriptions":64},"protocol_version":"1.0","sdk":{"commit":"bec37b4430ca6d92592547ffc84900438040ab22","version":"3.41.0_bec37b44"}}
+
+--- sweep 1: the handshake, against contract 1.6 -----------------------------
+declared capabilities (11 of 12): device.scan, device.connect, tree.read, property.read, property.write, function_block.add, streaming.decimated, device.mode, device.lock, module.read, module.load
+computed gaps         (1): streaming.raw
+  HELD                  message ordinal 1 on the session is a parseable JSON object
+                         contract: contract.yaml handshake (contract 1.6): direction server_to_client, ordinal 1
+                         expected: the server speaks first, with one JSON object
+                         actual:   object, 1070 bytes
+  HELD                  message ordinal 1 is the handshake and not a result, error or event envelope
+                         contract: contract.yaml handshake (contract 1.6); contract.yaml envelopes discriminators has_key_result / has_key_error / has_key_event
+                         expected: no id, result, error or event key on the first message
+                         actual:   top-level keys: capabilities, gaps, implementation, limits, protocol_version, sdk
+  HELD                  handshake.protocol_version is present
+                         contract: contract.yaml handshake (contract 1.6): fields.protocol_version.presence = required
+                         expected: the key "protocol_version" is present (presence required)
+                         actual:   present, a string
+  HELD                  handshake.implementation is present
+                         contract: contract.yaml handshake (contract 1.6): fields.implementation.presence = required
+                         expected: the key "implementation" is present (presence required)
+                         actual:   present, a object
+  HELD                  handshake.sdk is present
+                         contract: contract.yaml handshake (contract 1.6): fields.sdk.presence = required
+                         expected: the key "sdk" is present (presence required)
+                         actual:   present, a object
+  HELD                  handshake.capabilities is present
+                         contract: contract.yaml handshake (contract 1.6): fields.capabilities.presence = required
+                         expected: the key "capabilities" is present (presence required)
+                         actual:   present, a array
+  HELD                  handshake.gaps is present
+                         contract: contract.yaml handshake (contract 1.6): fields.gaps.presence = required
+                         expected: the key "gaps" is present (presence required)
+                         actual:   present, a array
+  HELD                  handshake.limits is present
+                         contract: contract.yaml handshake (contract 1.6): fields.limits.presence = required
+                         expected: the key "limits" is present (presence required)
+                         actual:   present, a object
+  HELD                  handshake.protocol_version equals the contract's constant
+                         contract: contract.yaml handshake (contract 1.6): fields.protocol_version.const = "1.0"
+                         expected: "1.0"
+                         actual:   "1.0"
+  HELD                  handshake.implementation carries a string name and a string version
+                         contract: contract.yaml handshake (contract 1.6): fields.implementation.fields name/version, both required strings
+                         expected: {name: string, version: string}
+                         actual:   {"name":"quackoscope-host-cpp","version":"0.2.0"}
+  HELD                  handshake.implementation.name matches the declared host-name pattern
+                         contract: contract.yaml implementation_names.pattern = quackoscope-host-<lang>; values = [quackoscope-host-cpp, quackoscope-host-python, quackoscope-host-csharp, quackoscope-host-rust, quackoscope-host-mock]
+                         expected: a name matching /^quackoscope-host-[a-z0-9][a-z0-9-]*$/
+                         actual:   "quackoscope-host-cpp" (and it is one of implementation_names.values)
+  HELD                  handshake.sdk carries a string version and a string commit
+                         contract: contract.yaml handshake (contract 1.6): fields.sdk.fields version/commit, both required strings
+                         expected: {version: string, commit: string}
+                         actual:   {"commit":"bec37b4430ca6d92592547ffc84900438040ab22","version":"3.41.0_bec37b44"}
+  HELD                  handshake.capabilities is an array of strings
+                         contract: contract.yaml handshake (contract 1.6): fields.capabilities is an array of string, references capabilities.id
+                         expected: an array whose every element is a string
+                         actual:   ["device.scan","device.connect","tree.read","property.read","property.write","function_block.add","streaming.decimated","device.mode","device.lock","module.read","module.load"]
+  HELD                  every entry of handshake.capabilities is one of the contract's baseline capability ids
+                         contract: contract.yaml handshake (contract 1.6): fields.capabilities.references = capabilities.id; the baseline read from contract.yaml is [device.scan, device.connect, tree.read, property.read, property.write, function_block.add, streaming.decimated, streaming.raw, device.mode, device.lock, module.read, module.load]
+                         expected: every entry drawn from the 12 baseline ids
+                         actual:   all 11 entries are baseline capability ids
+  HELD                  handshake.capabilities lists no id twice
+                         contract: contract.yaml handshake (contract 1.6): fields.capabilities references capabilities.id, which is a set
+                         expected: no duplicate ids
+                         actual:   no duplicates
+  HELD                  handshake.gaps is an array of Gap records
+                         contract: contract.yaml handshake (contract 1.6): fields.gaps is an array of Gap; contract.yaml types.Gap fields capability/kind/reason
+                         expected: an array of {capability, kind, reason}
+                         actual:   [{"capability":"streaming.raw","kind":"host","reason":"read_samples_raw has no handler in quackoscope-host-cpp: contract/contract.yaml declares returns: {type: binary_frame} for it, but envelopes.result carries a JSON result and the 17-byte binary_frame header has no correlation id, so a binary answer cannot be matched to its request id. The two generated clients already disagree about the JSON stand-in -- generated/typescript/contract-client.ts casts a flat result object to BinarySampleFrame, generated/python/contract_types.py expects {header, values} -- and this host will not pick one of them on the contract's behalf."}]
+  HELD                  every Gap record conforms to contract.yaml types.Gap
+                         contract: contract.yaml types.Gap: capability required string, kind enum [binding, host], reason required string with min_length 1
+                         expected: 1 conforming Gap records
+                         actual:   all 1 Gap records conform
+  HELD                  handshake.gaps is exactly the baseline minus the declared capabilities
+                         contract: contract.yaml gap_generation.computed_as = baseline_capabilities_minus_host_capabilities; host_may_declare_gap_list = false; declared_by_host = reason_only
+                         expected: gap capabilities exactly [streaming.raw]
+                         actual:   handshake gap capabilities [streaming.raw]
+  HELD                  handshake.limits carries max_subscriptions and max_frame_bytes as positive integers
+                         contract: contract.yaml handshake (contract 1.6): fields.limits.fields max_subscriptions (int, default 64), max_frame_bytes (int, default 262144)
+                         expected: max_subscriptions: int, max_frame_bytes: int
+                         actual:   {"max_frame_bytes":262144,"max_subscriptions":64}
+
+--- sweep 2: every operation in the contract table ---------------------------
+  HELD                  get_component_tree: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  get_component_tree: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_connected","detail":"this session has connected no device; call connect_device first (a device another session connected is not visible here)"}
+  HELD                  get_component_tree: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[get_component_tree].errors = [not_connected, not_found]
+                         expected: one of [not_connected, not_found]
+                         actual:   "not_connected" - "this session has connected no device; call connect_device first (a device another session connected is not visible here)"
+  HELD                  get_component_tree on a session that has connected no device answers not_connected, or an array
+                         contract: contract.yaml operations[get_component_tree].errors = [not_connected]; the contract does not say WHEN the code must be used, so an array result is accepted here too - see the contract-vagueness notes
+                         expected: error code "not_connected", or a result that is an array
+                         actual:   error not_connected: this session has connected no device; call connect_device first (a device another session connected is not visible here)
+  HELD                  scan_available_devices: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  scan_available_devices returns an array of contract-shaped DeviceInfo records
+                         contract: contract.yaml operations[scan_available_devices].returns = array of DeviceInfo; types.DeviceInfo connection_string/name required, serial nullable
+                         expected: array of {connection_string, name, serial}
+                         actual:   4 DeviceInfo records, all conforming
+  HELD                  connect_device: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  connect_device "daqref://device0" returns a contract-shaped Node
+                         contract: contract.yaml operations[connect_device].returns = Node; types.Node id/name/kind/child_ids/property_ids required, parent_id nullable
+                         expected: a Node record
+                         actual:   Node /openDAQDevice/Dev/RefDev0 kind=device, 6 children, 8 properties
+  HELD                  get_component_tree: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_component_tree returns an array of contract-shaped Node records
+                         contract: contract.yaml operations[get_component_tree].returns = array of Node; types.Node.kind enum [device, channel, function_block, signal, folder]
+                         expected: every element a Node record
+                         actual:   19 Node records, all conforming; kinds present: device, folder, channel, signal
+  HELD                  every child_ids entry, and every parent_id of a claimed child, resolves inside the returned tree
+                         contract: contract.yaml types.Node.child_ids.references = Node.id and types.Node.parent_id.references = Node.id
+                         expected: no dangling Node.id reference
+                         actual:   19 nodes, every child_ids and parent_id reference resolves
+  HELD                  get_component_tree: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_component_tree honours its optional root_id parameter
+                         contract: contract.yaml operations[get_component_tree].params root_id, presence optional, references Node.id
+                         expected: an array of Node rooted at /openDAQDevice/Dev/RefDev0
+                         actual:   19 node(s)
+  HELD                  get_property_descriptors /openDAQDevice/Dev/RefDev0: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_descriptors /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_descriptors /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_descriptors /openDAQDevice/Dev/RefDev0/Synchronization: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_descriptors answers for every sampled node (4 of them) with contract-shaped PropertyDescriptor records
+                         contract: contract.yaml types.PropertyDescriptor: id/name/value_type/read_only/visible required, unit/description/default/selection_values/suggested_values/min/max/validator/coercer nullable; section 3 says a host emits every key of a type record, writing null where a value is absent
+                         expected: 4 nodes answered, every descriptor carrying all 14 contract keys
+                         actual:   38 descriptors across 4 nodes; value_types present: int, float, bool, string, selection, struct; read_only=true on 2 of them
+  HELD                  on every sampled node, the descriptor ids match the property_ids that node advertised in the tree
+                         contract: contract.yaml types.Node.property_ids.references = PropertyDescriptor.id
+                         expected: no disagreement on any of the 4 nodes that answered
+                         actual:   4 nodes agree with their own tree entry
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0.NumberOfChannels: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0.GlobalSampleRate: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0.AcquisitionLoopTime: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0.EnableCANChannel: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0.EnableProtectedChannel: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0.EnableLogging: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0.userName: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0.location: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.Waveform: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.Frequency: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.DC: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.Amplitude: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.NoiseAmplitude: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.UseGlobalSampleRate: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.SampleRate: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.ClientSideScaling: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.TestReadOnly: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.CustomRange: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.FixedPacketSize: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.PacketSize: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.ConstantValue: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.Offset: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.Waveform: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.Frequency: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.DC: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.Amplitude: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.NoiseAmplitude: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.UseGlobalSampleRate: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.SampleRate: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.ClientSideScaling: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.TestReadOnly: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.CustomRange: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.FixedPacketSize: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.PacketSize: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.ConstantValue: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/IO/AI/RefCh1.Offset: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/Synchronization.Source: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value /openDAQDevice/Dev/RefDev0/Synchronization.SynchronizationLocked: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  get_property_value reads every property the host's own descriptors advertise (38 attempted across 4 nodes)
+                         contract: contract.yaml operations[get_property_value].returns = any; the property_ids come from the host's own get_property_descriptors answer
+                         expected: all 38 advertised properties readable
+                         actual:   38 read, for example /openDAQDevice/Dev/RefDev0.NumberOfChannels=2, /openDAQDevice/Dev/RefDev0.GlobalSampleRate=1000, /openDAQDevice/Dev/RefDev0.AcquisitionLoopTime=20, /openDAQDevice/Dev/RefDev0.EnableCANChannel=false, ...
+  HELD                  set_property_value: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  set_property_value /openDAQDevice/Dev/RefDev0.EnableCANChannel = true is accepted and returns void
+                         contract: contract.yaml operations[set_property_value].returns = void; envelopes.result.result presence nullable
+                         expected: a result envelope carrying null
+                         actual:   result null
+  HELD                  get_property_value: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  the write to /openDAQDevice/Dev/RefDev0.EnableCANChannel is visible to a read-back
+                         contract: a bool has no coercer range, so the read-back must equal what was written
+                         expected: read-back === true
+                         actual:   read-back true (was false, submitted true)
+  UNCONSTRAINED         property_changed after writing EnableCANChannel
+                         contract: contract.yaml events declares the property_changed shape but ties no event to any capability id, and gap_generation only computes gaps over capabilities - so a host that pushes no events is neither in gap nor in breach
+                         expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
+                         actual:   the contract constrains the event's shape, never its occurrence  observed: 1 property_changed event(s): {"event":"property_changed","payload":{"node_id":"/openDAQDevice/Dev/RefDev0","property_id":"EnableCANChannel","value":true}}
+  HELD                  set_property_value: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  set_property_value: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"read_only","detail":"property \"TestReadOnly\" on \"/openDAQDevice/Dev/RefDev0/IO/AI/RefCh0\" is read-only"}
+  HELD                  set_property_value: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[set_property_value].errors = [not_found, read_only, invalid_value]
+                         expected: one of [not_found, read_only, invalid_value]
+                         actual:   "read_only" - "property \"TestReadOnly\" on \"/openDAQDevice/Dev/RefDev0/IO/AI/RefCh0\" is read-only"
+  HELD                  writing the host's own read_only=true property /openDAQDevice/Dev/RefDev0/IO/AI/RefCh0.TestReadOnly is refused with read_only
+                         contract: contract.yaml operations[set_property_value].errors = [not_found, read_only, invalid_value]; types.PropertyDescriptor.read_only
+                         expected: error code "read_only"
+                         actual:   error read_only: property "TestReadOnly" on "/openDAQDevice/Dev/RefDev0/IO/AI/RefCh0" is read-only
+  HELD                  set_property_value: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  set_property_value: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"invalid_value","detail":"value \"this is not a number, it was sent by the quackoscope conformance sweep\" does not fit property \"NumberOfChannels\""}
+  HELD                  set_property_value: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[set_property_value].errors = [not_found, read_only, invalid_value]
+                         expected: one of [not_found, read_only, invalid_value]
+                         actual:   "invalid_value" - "value \"this is not a number, it was sent by the quackoscope conformance sweep\" does not fit property \"NumberOfChannels\""
+  HELD                  writing a string into the int property /openDAQDevice/Dev/RefDev0.NumberOfChannels is refused with invalid_value
+                         contract: contract.yaml operations[set_property_value].errors = [not_found, read_only, invalid_value]
+                         expected: error code "invalid_value"
+                         actual:   error invalid_value: value "this is not a number, it was sent by the quackoscope conformance sweep" does not fit property "NumberOfChannels"
+  HELD                  set_property_value: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  set_property_value: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_found","detail":"property \"QuackoscopeConformanceSweepNoSuchProperty\" not found on \"/openDAQDevice/Dev/RefDev0\": Property with name QuackoscopeConformanceSweepNoSuchProperty does not exist."}
+  HELD                  set_property_value: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[set_property_value].errors = [not_found, read_only, invalid_value]
+                         expected: one of [not_found, read_only, invalid_value]
+                         actual:   "not_found" - "property \"QuackoscopeConformanceSweepNoSuchProperty\" not found on \"/openDAQDevice/Dev/RefDev0\": Property with name QuackoscopeConformanceSweepNoSuchProperty does not exist."
+  HELD                  set_property_value on the unknown property "QuackoscopeConformanceSweepNoSuchProperty" is refused with not_found
+                         contract: contract.yaml operations[set_property_value].errors includes not_found
+                         expected: error code "not_found"
+                         actual:   error not_found: property "QuackoscopeConformanceSweepNoSuchProperty" not found on "/openDAQDevice/Dev/RefDev0": Property with name QuackoscopeConformanceSweepNoSuchProperty does not exist.
+  HELD                  get_property_value: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  get_property_value: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_found","detail":"property \"QuackoscopeConformanceSweepNoSuchProperty\" not found on \"/openDAQDevice/Dev/RefDev0\": Property with name QuackoscopeConformanceSweepNoSuchProperty does not exist."}
+  HELD                  get_property_value: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[get_property_value].errors = [not_found, not_connected]
+                         expected: one of [not_found, not_connected]
+                         actual:   "not_found" - "property \"QuackoscopeConformanceSweepNoSuchProperty\" not found on \"/openDAQDevice/Dev/RefDev0\": Property with name QuackoscopeConformanceSweepNoSuchProperty does not exist."
+  HELD                  get_property_value for the unknown property "QuackoscopeConformanceSweepNoSuchProperty" is refused with not_found
+                         contract: contract.yaml operations[get_property_value].errors = [not_found, not_connected]
+                         expected: one of [not_found]
+                         actual:   error not_found: property "QuackoscopeConformanceSweepNoSuchProperty" not found on "/openDAQDevice/Dev/RefDev0": Property with name QuackoscopeConformanceSweepNoSuchProperty does not exist.
+  HELD                  get_property_descriptors: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  get_property_descriptors: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /openDAQDevice/Dev/RefDev0"}
+  HELD                  get_property_descriptors: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[get_property_descriptors].errors = [not_found, not_connected]
+                         expected: one of [not_found, not_connected]
+                         actual:   "not_found" - "no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /openDAQDevice/Dev/RefDev0"
+  HELD                  get_property_descriptors for the unknown node "/quackoscope-conformance-sweep/no-such-node" is refused with not_found or not_connected
+                         contract: contract.yaml operations[get_property_descriptors].errors = [not_found, not_connected]
+                         expected: one of [not_found, not_connected]
+                         actual:   error not_found: no component with id "/quackoscope-conformance-sweep/no-such-node" in this session; it holds /openDAQDevice/Dev/RefDev0
+  HELD                  list_function_block_types: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  list_function_block_types returns an array of strings
+                         contract: contract.yaml operations[list_function_block_types].returns = array of string
+                         expected: an array whose every element is a string
+                         actual:   ["AudioDeviceModuleWavReader","AudioDeviceModuleWavWriter","BasicCsvRecorder","LicensingModulePassthrough","MultiCsvRecorder","ParquetRecorder","RefFBModuleClassifier","RefFBModuleFFT","RefFBModulePower","RefFBModulePowerReader","RefFBModul
+  HELD                  add_function_block: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  add_function_block "AudioDeviceModuleWavReader" under /openDAQDevice/Dev/RefDev0 returns a contract-shaped Node
+                         contract: contract.yaml operations[add_function_block].returns = Node, errors [not_found, unsupported]
+                         expected: a Node record for the created function block
+                         actual:   Node /openDAQDevice/Dev/RefDev0/FB/AudioDeviceModuleWavReader_1 kind=function_block
+  HELD                  add_function_block: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  add_function_block: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_found","detail":"Function block with given uid and config is not available [quackoscope-conformance-sweep-no-such-function-block-type]"}
+  HELD                  add_function_block: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[add_function_block].errors = [not_found, unsupported]
+                         expected: one of [not_found, unsupported]
+                         actual:   "not_found" - "Function block with given uid and config is not available [quackoscope-conformance-sweep-no-such-function-block-type]"
+  HELD                  add_function_block with the unknown type id "quackoscope-conformance-sweep-no-such-function-block-type" is refused
+                         contract: contract.yaml operations[add_function_block].errors = [not_found, unsupported]
+                         expected: one of [not_found, unsupported]
+                         actual:   error not_found: Function block with given uid and config is not available [quackoscope-conformance-sweep-no-such-function-block-type]
+  HELD                  remove_function_block: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  remove_function_block removes the block this sweep added (/openDAQDevice/Dev/RefDev0/FB/AudioDeviceModuleWavReader_1) and returns void
+                         contract: contract.yaml operations[remove_function_block].returns = void
+                         expected: a result envelope carrying null
+                         actual:   result null
+  HELD                  remove_function_block: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  remove_function_block: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /openDAQDevice/Dev/RefDev0"}
+  HELD                  remove_function_block: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[remove_function_block].errors = [not_found]
+                         expected: one of [not_found]
+                         actual:   "not_found" - "no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /openDAQDevice/Dev/RefDev0"
+  HELD                  remove_function_block on the unknown node "/quackoscope-conformance-sweep/no-such-node" is refused with not_found
+                         contract: contract.yaml operations[remove_function_block].errors = [not_found]
+                         expected: error code "not_found"
+                         actual:   error not_found: no component with id "/quackoscope-conformance-sweep/no-such-node" in this session; it holds /openDAQDevice/Dev/RefDev0
+  HELD                  read_samples_raw: the declared-gap refusal uses a code from the closed set
+                         contract: contract.yaml error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         actual:   {"code":"unsupported","detail":"quackoscope-host-cpp does not serve \"read_samples_raw\"; capability \"streaming.raw\" is a declared gap in this session's handshake, which lists the capabilities this host does serve"}
+  GAP (a) CONSISTENT    read_samples_raw belongs to declared gap "streaming.raw"
+                         contract: contract.yaml gap_generation (gaps = baseline minus declared capabilities)
+                         expected: a refusal, because "streaming.raw" is absent from this host's handshake capabilities
+                         actual:   refused with error code "unsupported": quackoscope-host-cpp does not serve "read_samples_raw"; capability "streaming.raw" is a declared gap in this session's handshake, which lists the capabilities this host does serve
+                         host's declared reason for the gap: read_samples_raw has no handler in quackoscope-host-cpp: contract/contract.yaml declares returns: {type: binary_frame} for it, but envelopes.result carries a JSON result and the 17-byte binary_frame header has no correlation id, so a binary answer cannot be matched to its request id. The two generated clients already disagree about the JSON stand-in -- generated/typescript/contract-client.ts casts a flat result object to BinarySampleFrame, generated/python/contract_types.py expects {header, values} -- and this host will not pick one of them on the contract's behalf.
+  FAIL WIRE PROTOCOL    the sweep visited every operation in contract.yaml
+                         contract: contract.yaml operations: 19 entries
+                         expected: all 19 wire methods driven or accounted for
+                         actual:   never driven: get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, load_module_from_host_path
+
+--- sweep 3: the subscription lifecycle and the binary sample plane ----------
+  HELD                  subscribe_signal: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  the subscription id is a string that is the decimal text of a uint32, whole, with nothing else in it
+                         contract: contract.yaml subscription_id_encoding: control_plane_type string, sample_plane_type uint32, relation decimal_text_of_uint32, strict true
+                         expected: a string matching ^[0-9]+$ whose value fits a uint32
+                         actual:   "1"
+  HELD                  binary sample frames arrive after subscribing (waited up to 4000 ms for 3)
+                         contract: contract.yaml binary_frame: binary frames share the one socket with the JSON envelopes
+                         expected: at least one binary frame within 4000 ms
+                         actual:   3 frame(s) arrived
+  HELD                  every binary frame carries the 17-byte little-endian header and a payload of the length its encoding implies
+                         contract: contract.yaml binary_frame: header_bytes 17, byte_order little_endian, fields subscription_id@0:uint32 domain_start@4:uint64 sample_count@12:uint32 encoding@16:uint8; encodings 0=raw (sample_count float64), 1=min_max_envelope (sample_count * 2 float64)
+                         expected: all 3 frames well formed
+                         actual:   3 frames, all well formed; encodings seen: 1 (min_max_envelope), 0 (raw); sample_count 31..64; bytes 265..1041
+  HELD                  the uint32 subscription_id in every frame header equals the decimal text the control plane returned
+                         contract: contract.yaml subscription_id_encoding.relation = decimal_text_of_uint32; "This is the only bridge between the two planes."
+                         expected: every frame header carries subscription_id 1
+                         actual:   all 3 frames carry subscription_id 1
+  HELD                  no frame exceeds the max_frame_bytes this host advertised in its own handshake
+                         contract: contract.yaml handshake.fields.limits.fields.max_frame_bytes; this host advertised 262144
+                         expected: every frame <= 262144 bytes
+                         actual:   largest frame 1041 bytes
+  UNCONSTRAINED         domain_start ordering across the frames of one subscription
+                         contract: contract.yaml binary_frame.header declares domain_start a uint64 and says nothing about ordering between frames
+                         expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
+                         actual:   the contract fixes the field's width and offset but never says successive frames must not go backwards, so this is observed, not asserted  observed: 3 frames, domain_start 1788503356251705 .. 1788503356381705, non-decreasing: true
+  UNCONSTRAINED         sample_count against the pixel_columns 64 that was asked for
+                         contract: contract.yaml operations[subscribe_signal].params pixel_columns is declared, but binary_frame states no relation between pixel_columns and sample_count
+                         expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
+                         actual:   nothing in the contract bounds sample_count by pixel_columns, so exceeding it cannot be a failure  observed: 0 of 3 frames carry sample_count > 64; sample_count range 31..64
+  HELD                  unsubscribe_signal: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  unsubscribe_signal: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"invalid_value","detail":"params.subscription_id must be the decimal text of a uint32, whole and with nothing else in it; got \"not-the-decimal-text-of-a-uint32\""}
+  HELD                  unsubscribe_signal: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[unsubscribe_signal].errors = [not_found, invalid_value]; also allowed here by invalid_value
+                         expected: one of [not_found, invalid_value, invalid_value]
+                         actual:   "invalid_value" - "params.subscription_id must be the decimal text of a uint32, whole and with nothing else in it; got \"not-the-decimal-text-of-a-uint32\""
+  HELD                  an unparseable subscription_id is refused with the code subscription_id_encoding.on_unparseable names
+                         contract: contract.yaml subscription_id_encoding.on_unparseable = invalid_value (note: operations[unsubscribe_signal].errors lists only [not_found, invalid_value])
+                         expected: error code "invalid_value"
+                         actual:   error invalid_value: params.subscription_id must be the decimal text of a uint32, whole and with nothing else in it; got "not-the-decimal-text-of-a-uint32"
+  HELD                  unsubscribe_signal: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  unsubscribe_signal "1" is accepted and returns void
+                         contract: contract.yaml operations[unsubscribe_signal].returns = void
+                         expected: a result envelope carrying null
+                         actual:   result null
+  HELD                  frames for subscription 1 stop after unsubscribe_signal
+                         contract: contract.yaml capabilities[streaming.decimated].operations pairs subscribe_signal with unsubscribe_signal; an unsubscribe that does not stop delivery makes the pair meaningless
+                         expected: no frame carrying subscription_id 1 during a 1000 ms window, after 500 ms of grace
+                         actual:   silence: 0 frames for that subscription in the 1000 ms window
+  HELD                  unsubscribe_signal: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  unsubscribe_signal: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_found","detail":"no subscription \"1\" on this session"}
+  HELD                  unsubscribe_signal: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[unsubscribe_signal].errors = [not_found, invalid_value]
+                         expected: one of [not_found, invalid_value]
+                         actual:   "not_found" - "no subscription \"1\" on this session"
+  HELD                  unsubscribing "1" a second time is refused with not_found
+                         contract: contract.yaml operations[unsubscribe_signal].errors = [not_found, invalid_value]
+                         expected: error code "not_found"
+                         actual:   error not_found: no subscription "1" on this session
+  HELD                  subscribe_signal: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  subscribe_signal: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-conformance-sweep/no-such-signal\" in this session; it holds /openDAQDevice/Dev/RefDev0"}
+  HELD                  subscribe_signal: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[subscribe_signal].errors = [not_found, not_connected]
+                         expected: one of [not_found, not_connected]
+                         actual:   "not_found" - "no component with id \"/quackoscope-conformance-sweep/no-such-signal\" in this session; it holds /openDAQDevice/Dev/RefDev0"
+  HELD                  subscribe_signal on an unknown signal id is refused
+                         contract: contract.yaml operations[subscribe_signal].errors = [not_found, not_connected]
+                         expected: one of [not_found, not_connected]
+                         actual:   error not_found: no component with id "/quackoscope-conformance-sweep/no-such-signal" in this session; it holds /openDAQDevice/Dev/RefDev0
+  NOT PROVOKABLE        the advertised max_subscriptions limit (64) was not driven to exhaustion
+                         contract: contract.yaml handshake.fields.limits.fields.max_subscriptions
+                         expected: no assertion: a well-formed wire client cannot force this without breaking the host from the outside
+                         actual:   opening 64 simultaneous subscriptions against a real acquisition device would change how that device behaves for anyone else using it; the sweep declines to do it and says so rather than skipping silently
+
+--- sweep 4: wire-protocol rules, event delivery, disconnect behaviour -------
+  HELD                  a method name that is not in the contract's operation table is refused with a closed-set error code
+                         contract: contract.yaml lints.no_undeclared_public_method and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]. The contract does not name WHICH code an unknown method must get - see the contract-vagueness notes
+                         expected: an error envelope whose code is one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         actual:   error unsupported: "quackoscope_conformance_sweep_method_that_is_not_in_the_contract" is not a wire method of the M1 contract; this host serves add_function_block, connect_device, disconnect_device, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_function_block_types, list_loaded_modules, load_module_from_host_path, lock_device, remove_function_block, scan_available_devices, set_device_operation_mode, set_property_value, subscribe_signal, unlock_device, unsubscribe_signal
+  NOT PROVOKABLE        the "internal" error code was not provoked
+                         contract: contract.yaml error_policy.unmapped_native_error_becomes = internal; operations[scan_available_devices].errors = [internal]
+                         expected: no assertion: a well-formed wire client cannot force this without breaking the host from the outside
+                         actual:   internal is what an unmapped native exception becomes; a well-formed wire client cannot force one out of a healthy host without breaking the host or its device from outside the wire
+  NOT PROVOKABLE        the "timeout" error code was not provoked
+                         contract: contract.yaml operations[connect_device].errors includes timeout
+                         expected: no assertion: a well-formed wire client cannot force this without breaking the host from the outside
+                         actual:   timeout requires a device or network that does not answer; nothing on the wire can produce one on demand, and inventing an unreachable connection string would test the string, not the host
+  HELD                  disconnect_device: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  disconnect_device: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_found","detail":"this session did not connect a device with id \"/quackoscope-conformance-sweep/no-such-node\"; it holds /openDAQDevice/Dev/RefDev0"}
+  HELD                  disconnect_device: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[disconnect_device].errors = [not_found]
+                         expected: one of [not_found]
+                         actual:   "not_found" - "this session did not connect a device with id \"/quackoscope-conformance-sweep/no-such-node\"; it holds /openDAQDevice/Dev/RefDev0"
+  HELD                  disconnect_device on the unknown node "/quackoscope-conformance-sweep/no-such-node" is refused with not_found
+                         contract: contract.yaml operations[disconnect_device].errors = [not_found]
+                         expected: error code "not_found"
+                         actual:   error not_found: this session did not connect a device with id "/quackoscope-conformance-sweep/no-such-node"; it holds /openDAQDevice/Dev/RefDev0
+  HELD                  disconnect_device: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  disconnect_device /openDAQDevice/Dev/RefDev0 is accepted and returns void
+                         contract: contract.yaml operations[disconnect_device].returns = void
+                         expected: a result envelope carrying null
+                         actual:   result null
+  HELD                  get_property_value: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: error, id
+  HELD                  get_property_value: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_connected","detail":"this session has connected no device; call connect_device first (a device another session connected is not visible here)"}
+  HELD                  get_property_value: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[get_property_value].errors = [not_found, not_connected]
+                         expected: one of [not_found, not_connected]
+                         actual:   "not_connected" - "this session has connected no device; call connect_device first (a device another session connected is not visible here)"
+  HELD                  after disconnect_device, reading /openDAQDevice/Dev/RefDev0.NumberOfChannels no longer succeeds
+                         contract: contract.yaml operations[get_property_value].errors = [not_found, not_connected]; a node reachable after its device was disconnected would mean disconnect_device did nothing
+                         expected: one of [not_found, not_connected]
+                         actual:   error not_connected: this session has connected no device; call connect_device first (a device another session connected is not visible here)
+  UNCONSTRAINED         device_disconnected after a client-initiated disconnect_device
+                         contract: contract.yaml events.items[device_disconnected] fixes the payload {node_id, reason}, but nothing in the contract says a client-initiated disconnect must push it
+                         expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
+                         actual:   the contract constrains the event's shape, never when it must be emitted  observed: no device_disconnected event followed the client's own disconnect_device
+  HELD                  every event pushed by the host is one of the contract's closed event set
+                         contract: contract.yaml events.closed = true, items [component_added, component_removed, property_changed, property_descriptor_changed, device_disconnected]
+                         expected: no event name outside the closed set
+                         actual:   8 event(s) received, names seen: component_added, property_changed, component_removed
+  HELD                  no event carries an id field
+                         contract: contract.yaml events.carries_id_field = false; "They are not responses and are never correlated."
+                         expected: no event envelope has an id key
+                         actual:   8 event(s), none carrying an id
+  HELD                  every event that did arrive carries the payload shape the contract declares for it
+                         contract: contract.yaml events.items[].payload
+                         expected: 8 conforming event payloads
+                         actual:   8 event(s), every declared payload key present and correctly typed
+  UNCONSTRAINED         which of the contract's five events this host pushed during the sweep
+                         contract: contract.yaml events fixes the closed set and each payload shape, but attaches no event to a capability id; gap_generation computes gaps over capabilities only, so a host that pushes no events can neither declare that as a gap nor be failed for it
+                         expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
+                         actual:   event occurrence is unconstrained by the contract, so silence is not a verdict  observed: pushed during this sweep: [component_added, property_changed, component_removed]; not pushed: [property_descriptor_changed, device_disconnected]
+
+=== verdict ==================================================================
+target                       ws://127.0.0.1:8041/ws
+implementation (display only) quackoscope-host-cpp 0.2.0
+sdk reported by the host     version 3.41.0_bec37b44, commit bec37b4430ca6d92592547ffc84900438040ab22
+assertions recorded          161
+  held                               151
+  unconstrained_by_the_contract      5
+  gap_declared_and_consistent        1
+  wire_protocol_broken               1
+  not_provokable_by_a_wire_client    3
+
+class (a) declared gap, consistent  1   NOT failures: the host said it cannot, and it did not
+class (b) claimed then broke        0   REAL failures: the host advertised the capability and then broke it
+          handshake nonconformant   0
+          wire protocol broken      1
+          gap declared but served   0   warnings: under-claimed, not a broken promise
+
+failures, in full:
+
+  [1/1] FAIL WIRE PROTOCOL  the sweep visited every operation in contract.yaml
+        contract: contract.yaml operations: 19 entries
+        expected: all 19 wire methods driven or accounted for
+        actual:   never driven: get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, load_module_from_host_path
+
+wrote the machine-readable report to C:\Users\opendaq\Projects\quackoscope\conformance\cross-host-report\generated\cpp-conformance-report.json (161 entries)
+
+ws://127.0.0.1:8041/ws: 1 failure(s); 1 declared gap(s) behaved consistently. exit 1
