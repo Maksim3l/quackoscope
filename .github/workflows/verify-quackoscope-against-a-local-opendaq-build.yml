@@ -1,0 +1,113 @@
+# TIER 2 of 2. Every Quackoscope verification, including the four that cannot
+# reach a verdict without the openDAQ SDK build tree recorded in manifest.json.
+#
+# THIS WORKFLOW CANNOT RUN ON A HOSTED GITHUB RUNNER, AND SAYS SO RATHER THAN
+# PRETENDING. What it needs is not a package it could install:
+#
+#   the openDAQ build tree      multi-gigabyte, built by a specific MSVC toolset,
+#                               recorded by ABSOLUTE path in manifest.json, which
+#                               is gitignored precisely because those paths are
+#                               particular to one machine
+#   the same MSVC that built it the generated C++ header is compiled at /W4 /WX
+#                               and links against that tree's nlohmann_json
+#   four built host binaries    hosts/cpp, hosts/python, hosts/csharp, hosts/rust,
+#                               every one of which loads that same openDAQ build
+#
+# So it runs on a SELF-HOSTED Windows runner registered on the machine that holds
+# that tree. If no such runner is registered, this workflow's jobs queue and never
+# start; that is why verify-quackoscope-without-the-opendaq-sdk.yml, and not this
+# one, is what should gate merges.
+#
+# REGISTERING THE RUNNER
+# `self-hosted`, `windows` and `X64` are labels GitHub applies automatically to a
+# self-hosted Windows x64 runner. `quackoscope-opendaq-build` is NOT automatic:
+# add it by hand when registering, on the machine that has
+#   - the openDAQ build tree named in manifest.json
+#   - the MSVC toolset its CMakeCache.txt names (read, never defaulted)
+#   - node, pnpm, python and cmake on the runner service's PATH
+#   - the four host binaries already built
+# The label is what stops this workflow from being handed to a self-hosted runner
+# that happens to be Windows but has no openDAQ on it.
+#
+# WHY `clean: false` ON THE CHECKOUT — THIS IS LOAD-BEARING
+# actions/checkout removes untracked and ignored files by default. On this
+# machine that would delete manifest.json (gitignored), dist/, hosts/cpp/build/,
+# hosts/csharp/bin/, hosts/rust/target/ — that is, every input this tier exists to
+# verify against, taking a multi-gigabyte rebuild with it. `clean: false` keeps
+# them. The price is that a stale artifact can survive a checkout, which is
+# exactly why step 9 of the runner re-resolves the openDAQ build tree and fails if
+# manifest.json no longer matches it.
+#
+# WHY NOTHING IS INSTALLED HERE
+# The hosted workflow installs pinned node, pnpm and python because a fresh runner
+# has none. This one deliberately installs nothing: the openDAQ Python bindings in
+# that build tree are `opendaq.cp314-win_amd64.pyd`, an ABI-tagged CPython 3.14
+# extension, and hosts/python loads it. A tool-cache python installed over the top
+# is one more thing that can silently stop matching the SDK. The machine's own
+# toolchain is the point of a self-hosted runner, so this workflow prints the
+# literal versions it found and lets a mismatch be visible rather than papering
+# over it. Set QUACKOSCOPE_PYTHON if the interpreter that matches the .pyd is not
+# the one named `python` on the runner's PATH.
+#
+# WHY IT IS NOT ON `push`
+# A self-hosted runner is one machine that a developer is also using. Starting
+# four host processes and an MSVC compile on it on every push is rude, and a queued
+# job on an offline runner is worse than no job. Run it deliberately, or nightly.
+
+name: verify quackoscope against a local openDAQ build
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 05:00 UTC daily. A nightly full-tier run is what catches a host that
+    # stopped agreeing with the others without anyone touching that host.
+    - cron: "0 5 * * *"
+
+jobs:
+  verify-against-the-local-opendaq-build:
+    name: everything above, plus MSVC, the manifest and all five hosts
+    runs-on: [self-hosted, windows, X64, quackoscope-opendaq-build]
+    timeout-minutes: 60
+
+    env:
+      QUACKOSCOPE_VERIFICATION_SCRATCH_ROOT: ${{ runner.temp }}/quackoscope-verification-scratch
+
+    steps:
+      - name: check out the repository without deleting the openDAQ build inputs
+        uses: actions/checkout@v4
+        with:
+          # See "WHY `clean: false`" above. Removing this line deletes
+          # manifest.json and every built host on this machine.
+          clean: false
+
+      - name: print the literal toolchain and openDAQ build this run will use
+        shell: pwsh
+        run: |
+          node --version
+          pnpm --version
+          python --version
+          cmake --version
+          Write-Output "manifest.json as this runner found it:"
+          Get-Content manifest.json
+
+      - name: install node dependencies from the lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: verify quackoscope against the local openDAQ build
+        run: pnpm verify-quackoscope-against-the-local-opendaq-build
+
+      - name: upload the five-host conformance report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: five-host-conformance-report
+          path: ${{ runner.temp }}/quackoscope-verification-scratch/cross-host-report-every-host
+          if-no-files-found: warn
+
+      - name: upload the manifest this run resolved from the openDAQ build tree
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest-resolved-fresh-from-the-opendaq-build-tree
+          path: ${{ runner.temp }}/quackoscope-verification-scratch/manifest-resolved-fresh-from-the-opendaq-build-tree.json
+          if-no-files-found: warn

@@ -1,0 +1,14 @@
+# The only third-party Python package anything under tools/ imports.
+#
+# Everything else those scripts use - argparse, difflib, http.client, json,
+# pathlib, re, shutil, socket, subprocess, tempfile - is in the standard library,
+# which is why this file has one line in it.
+#
+# PyYAML is what parses contract/contract.yaml in tools/contract-compiler/.
+# conformance/ parses the same file in JavaScript without a package: see the
+# hand-written parser in conformance/contract/read-wire-contract-yaml.mjs, which
+# is deliberate, so a generator that drifts from the contract cannot make a
+# nonconformant host look conformant.
+#
+# Pinned to the version the developer machine this was verified on has installed.
+PyYAML==6.0.3

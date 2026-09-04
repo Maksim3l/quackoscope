@@ -1,0 +1,121 @@
+# TIER 1 of 2. Every Quackoscope verification that can reach a verdict on a
+# machine with NO openDAQ SDK on it. This is the workflow a hosted GitHub runner
+# can actually execute, so it is the one that should gate merges.
+#
+# WHAT A GREEN RUN OF THIS WORKFLOW PROVES
+#   contract/contract.yaml parses and its six fail_build lints hold
+#   a fresh compile, tools/contract-compiler/golden/ and the committed generated/
+#     tree are byte-identical, so no generator and no committed output has drifted
+#   every wire method resolves to one symbol per language target, with reserved
+#     words escaped as casing.targets declares
+#   generated/python imports, its records round-trip their wire form, and both
+#     Protocols are satisfiable
+#   every operation id the frontend puts in an `op` prop resolves to real
+#     quack-snippet regions in the host sources, and generated/snippets.json is
+#     not stale
+#   the TypeScript type-checks and the SPA builds
+#   hosts/mock-ts answers the wire contract and refuses 19 wrong inputs correctly
+#
+# WHAT A GREEN RUN OF THIS WORKFLOW DOES NOT PROVE — read this before treating it
+# as sufficient. None of the following is exercised anywhere in this file:
+#   hosts/cpp, hosts/python, hosts/csharp and hosts/rust are never compiled,
+#     never started, and never asked a single question
+#   generated/cpp/quackoscope-contract.hpp is never compiled, so the mechanism
+#     that turns a missing C++ handler into a build failure is NOT enforced here
+#   the C++ host's static file serving is never verified, because that check
+#     starts the real host binary
+#   manifest.json is never resolved against a real openDAQ build tree
+#   no openDAQ SDK call in any extracted snippet is compiled or run
+# All of that lives in verify-quackoscope-against-a-local-opendaq-build.yml,
+# which needs a self-hosted Windows runner holding the openDAQ build tree.
+#
+# WHY THERE IS NO ubuntu-latest ENTRY
+# Every step here is written in portable Node and Python and there is nothing in
+# it that obviously requires Windows. But it has only ever been observed to run
+# on Windows, and shipping a matrix entry nobody has watched go green is how a
+# pipeline starts lying. Adding `ubuntu-latest` to the matrix below is a one-line
+# change; make it after someone has watched it pass.
+#
+# WHY THE JOB IS ONE STEP AND NOT NINE
+# It calls the same script a developer calls. If the step list were spelled out
+# again here as nine `run:` steps, this file and that script would be two copies
+# of the same list, and the moment they drifted the promise that a developer gets
+# the answer CI gives would quietly stop being true. The script prints each step,
+# its exact command line, its exit code and its duration, and it executes every
+# step even after one fails, so one run reports everything that is broken.
+
+name: verify quackoscope without the openDAQ SDK
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify-without-the-opendaq-sdk:
+    name: contract, generated output, snippets, frontend and the mock host
+    strategy:
+      fail-fast: false
+      matrix:
+        # See "WHY THERE IS NO ubuntu-latest ENTRY" above.
+        os: [windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    env:
+      # Both tier runners write every scratch file under this directory, and
+      # nothing under it is in the repository. Pointing it at the runner's temp
+      # directory is what lets the conformance report be uploaded below.
+      QUACKOSCOPE_VERIFICATION_SCRATCH_ROOT: ${{ runner.temp }}/quackoscope-verification-scratch
+
+    steps:
+      - name: check out the repository
+        uses: actions/checkout@v4
+
+      - name: install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # package.json declares no packageManager field, so the version has to
+          # be named here. This is the version the developer machine this
+          # workflow was written against has installed.
+          version: 11.25.0
+
+      - name: install node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: install python
+        uses: actions/setup-python@v5
+        with:
+          # 3.14 is what the developer machine runs. The contract compiler would
+          # work on older versions; matching removes one reason for CI and a
+          # developer to disagree.
+          python-version: "3.14"
+
+      - name: install the one python package tools/ imports
+        run: python -m pip install --requirement .github/verification/python-packages-the-contract-compiler-imports.txt
+
+      - name: install node dependencies from the lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: print the literal versions this run used
+        run: |
+          node --version
+          python --version
+          pnpm --version
+          node --eval "console.log('typescript', require('typescript/package.json').version)"
+          node --eval "console.log('vite', require('vite/package.json').version)"
+
+      - name: verify quackoscope without the openDAQ SDK
+        run: pnpm verify-quackoscope-without-the-opendaq-sdk
+
+      - name: upload the mock host conformance report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mock-host-conformance-report-${{ matrix.os }}
+          path: ${{ runner.temp }}/quackoscope-verification-scratch/cross-host-report-mock-only
+          if-no-files-found: warn
