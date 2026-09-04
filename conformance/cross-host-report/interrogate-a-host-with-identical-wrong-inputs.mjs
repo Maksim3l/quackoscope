@@ -253,6 +253,67 @@ export function identicalWrongInputCases() {
       params: { host_path: "" },
       wrongInputInWords: "a load of the empty path, which is both nothing-is-there and not-a-loadable-module",
     },
+    // --- a parameter of the WRONG TYPE, on the four rows whose declared error
+    // subset contains no code for one -----------------------------------------
+    //
+    // This group asks one question the rest of the table cannot, and it is the
+    // question three separate lanes of this repository each ran into on their
+    // own without reconciling it: what does a host answer when a request
+    // VIOLATES A DECLARED PARAMETER TYPE, on a row whose errors list has no code
+    // for that? contract.yaml section 2 closes the error set at seven codes and
+    // section 5 narrows each row to a subset; invalid_value is the code for "the
+    // request is well-formed and the value is wrong", and these four rows do not
+    // declare it:
+    //
+    //   get_component_attributes         [not_found, not_connected]
+    //   begin_batched_property_update    [not_found, not_connected]
+    //   start_recording                  [not_found, unsupported, internal]
+    //   set_server_discovery_enabled     [not_found, unsupported, internal]
+    //
+    // Every answer a host can give is therefore either a lie or outside the
+    // subset, and which one each host picks is exactly what this table is for.
+    // The cells are marked `+` when the code is inside the contract's closed set
+    // but outside the row's own subset, so a divergence between "answered
+    // honestly and outside the subset" and "stayed inside the subset and said
+    // something untrue about the node" is visible rather than argued.
+    {
+      id: "get_component_attributes_with_a_node_id_that_is_not_a_string",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "get_component_attributes",
+      params: { node_id: 17 },
+      wrongInputInWords: "the attributes of node_id 17, a number where types.Node.id is a string",
+      contractIsSilentHere:
+        "contract.yaml operations[get_component_attributes].params node_id is type string presence required, and operations[get_component_attributes].errors = [not_found, not_connected] contains no code for a parameter of the wrong type; not_found says the node is absent, which is a claim about a tree, and not_connected says there is no instance, which is a claim about a session",
+    },
+    {
+      id: "begin_batched_property_update_with_a_node_id_that_is_not_a_string",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "begin_batched_property_update",
+      params: { node_id: [] },
+      wrongInputInWords: "a batched update begun on node_id [], an array where types.Node.id is a string",
+      contractIsSilentHere:
+        "contract.yaml operations[begin_batched_property_update].params node_id is type string presence required, and its errors = [not_found, not_connected] contains no code for a parameter of the wrong type",
+    },
+    {
+      id: "start_recording_with_a_node_id_that_is_not_a_string",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "start_recording",
+      params: { node_id: null },
+      wrongInputInWords: "a recording started on node_id null, where types.Node.id is a string",
+      contractIsSilentHere:
+        "contract.yaml operations[start_recording].params node_id is type string presence required, and its errors = [not_found, unsupported, internal] contains no code for a parameter of the wrong type; stop_recording declares the identical subset, so its answer to the same input is the same question",
+    },
+    {
+      id: "set_server_discovery_enabled_with_an_enabled_that_is_not_a_bool",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "set_server_discovery_enabled",
+      params: { node_id: unknownNodeId, enabled: "yes" },
+      wrongInputInWords:
+        'discovery set to the string "yes" on a node that does not exist: enabled violates its declared type AND the node is absent, so not_found is true of one half of the request and the contract has no code at all for the other',
+      contractIsSilentHere:
+        "contract.yaml operations[set_server_discovery_enabled].params enabled is type bool presence required, and its errors = [not_found, unsupported, internal] contains no code for a parameter of the wrong type. hosts/mock-ts answers invalid_value and states in its own source that the code is outside the declared subset; hosts/python answers not_found and states in its own source that none of the three can say \"bad parameter\". Both wrote the same finding down, in different files, about the same row",
+    },
+
     {
       id: "disconnect_device_naming_a_node_that_does_not_exist",
       phase: "after_this_session_connected_a_device",

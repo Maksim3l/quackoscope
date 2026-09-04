@@ -46,6 +46,24 @@ export const CONFORMANCE_ABSENT_MODULE_HOST_PATHS = {
   windowsAbsolute: "C:/quackoscope-conformance-sweep/no-such-directory/no-such-module.module.dll",
 };
 
+// An attribute id no component reports. contract.yaml types.ComponentAttribute.id
+// is an open string - "a host reports the attributes it can reach" - so the only
+// way to be sure of an id nothing answers to is to name this sweep in it.
+export const CONFORMANCE_UNKNOWN_ATTRIBUTE_ID = "quackoscope-conformance-sweep-no-such-attribute";
+
+// A server type id list_server_types cannot have returned, which is what
+// contract.yaml operations[add_server].errors calls unsupported: "type_id is not
+// among list_server_types". Sending it is the ONLY way this suite drives
+// add_server, because the success path binds a real listening socket that no row
+// of this contract can take down - see sweep 5.
+export const CONFORMANCE_UNKNOWN_SERVER_TYPE_ID = "quackoscope-conformance-sweep-no-such-server-type";
+
+// A string openDAQ will not load. contract.yaml operations[load_instance_configuration_from_string].errors
+// calls invalid_value "the string is not a configuration openDAQ will load - not
+// parseable", and this is that string.
+export const CONFORMANCE_TEXT_THAT_IS_NOT_AN_INSTANCE_CONFIGURATION =
+  "this text is not an openDAQ instance configuration; the quackoscope conformance sweep sent it to provoke invalid_value";
+
 // Which node carries a read_only property, and which carries a writable numeric
 // one, differs between devices. Sampling only the first node with properties
 // leaves whole error codes unprovoked - it did on the openDAQ reference device,
@@ -98,6 +116,29 @@ export function paramsFromContract(operation, discovered, contract) {
       case "host_path":
         params.host_path = CONFORMANCE_ABSENT_MODULE_HOST_PATHS.windowsAbsolute;
         break;
+      case "attribute_id":
+        params.attribute_id = discovered.aWritableAttributeId ?? CONFORMANCE_UNKNOWN_ATTRIBUTE_ID;
+        break;
+      case "enabled":
+        // set_server_discovery_enabled's only value. true is sent rather than
+        // false because a host that declared server.discovery a gap and serves
+        // it anyway then ENABLES advertising on a server row rather than
+        // silencing one that was advertising, which is the less damaging of the
+        // two things this sweep can leave behind on a row whose state the
+        // contract says cannot be read back.
+        params.enabled = true;
+        break;
+      case "configuration":
+        // NEVER a configuration this run saved. load_instance_configuration_from_string
+        // "REPLACES the configuration of every device under the instance in one
+        // call", and this path is taken against a host that declared
+        // configuration.load a GAP - so if that host serves it anyway, what it
+        // is handed must be a string openDAQ will refuse, not a live
+        // configuration it would apply. The identity load, which is the only
+        // load this suite makes that leaves nothing behind, is driven
+        // explicitly by sweep 5 and never from here.
+        params.configuration = CONFORMANCE_TEXT_THAT_IS_NOT_AN_INSTANCE_CONFIGURATION;
+        break;
       default:
         throw new Error(
           `conformance/ does not know how to supply the contract parameter "${parameter.name}" of ${operation.wireMethod}; contract.yaml grew a parameter this sweep has never seen`,
@@ -107,9 +148,17 @@ export function paramsFromContract(operation, discovered, contract) {
   return params;
 }
 
-/** Drives a gapped operation and records class (a) or the under-claim warning. */
-export async function driveGappedOperation(ledger, contract, session, operation, discovered, gapsByCapability) {
-  const params = paramsFromContract(operation, discovered, contract);
+/**
+ * Drives a gapped operation and records class (a) or the under-claim warning.
+ *
+ * `paramsOverride` exists for the one case paramsFromContract cannot answer on
+ * the parameter name alone: `type_id` is a parameter of both add_function_block
+ * and add_server, and a gapped host that serves add_server anyway must be handed
+ * a SERVER type id it cannot honour rather than a function block type id, so the
+ * refusal is about the gap and not about a parameter that was never plausible.
+ */
+export async function driveGappedOperation(ledger, contract, session, operation, discovered, gapsByCapability, paramsOverride = null) {
+  const params = paramsOverride ?? paramsFromContract(operation, discovered, contract);
   let response;
   try {
     response = await session.request(operation.wireMethod, params);

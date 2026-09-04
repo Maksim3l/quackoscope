@@ -1,9 +1,9 @@
 {
   "suite": "quackoscope wire conformance",
-  "target_url": "ws://127.0.0.1:8105/ws",
-  "started_at": "2026-09-04T09:43:57.521Z",
-  "finished_at": "2026-09-04T09:43:59.754Z",
-  "duration_ms": 2233,
+  "target_url": "ws://127.0.0.1:8145/ws",
+  "started_at": "2026-09-04T13:36:45.379Z",
+  "finished_at": "2026-09-04T13:36:47.951Z",
+  "duration_ms": 2572,
   "contract_path": "C:\\Users\\opendaq\\Projects\\quackoscope\\contract\\contract.yaml",
   "contract_name": "quackoscope-wire-contract",
   "contract_protocol_version": "1.0",
@@ -26,14 +26,25 @@
     "lock_device",
     "unlock_device",
     "list_loaded_modules",
-    "load_module_from_host_path"
+    "load_module_from_host_path",
+    "get_component_attributes",
+    "set_component_attribute",
+    "list_server_types",
+    "add_server",
+    "set_server_discovery_enabled",
+    "start_recording",
+    "stop_recording",
+    "begin_batched_property_update",
+    "end_batched_property_update",
+    "save_instance_configuration_to_string",
+    "load_instance_configuration_from_string"
   ],
   "manifest_path": "C:\\Users\\opendaq\\Projects\\quackoscope\\manifest.json",
   "manifest_sdk": {
     "version": "3.41.0_bec37b44",
     "commit": "bec37b4430ca6d92592547ffc84900438040ab22"
   },
-  "handshake_verbatim": "{\"protocol_version\":\"1.0\",\"implementation\":{\"name\":\"quackoscope-host-mock\",\"version\":\"0.1.0\"},\"sdk\":{\"version\":\"none (synthetic device, no openDAQ SDK is loaded)\",\"commit\":\"none\"},\"capabilities\":[\"device.scan\",\"device.connect\",\"tree.read\",\"property.read\",\"property.write\",\"function_block.add\",\"streaming.decimated\",\"device.mode\",\"device.lock\",\"module.read\"],\"gaps\":[{\"capability\":\"streaming.raw\",\"kind\":\"host\",\"reason\":\"read_samples_raw has no case in dispatch() of hosts/mock-ts/src/service/session-hub.ts. The samples themselves are not the obstacle -- subscribe_signal already delivers them, decimated to pixel_columns by hosts/mock-ts/src/service/decimate-to-pixel-columns.ts -- the answer envelope is: contract/contract.yaml declares returns: {type: binary_frame} for read_samples_raw, envelopes.result carries a JSON result, and the 17-byte binary frame header carries no correlation id, so a binary answer cannot be matched to the request that asked for it. The two generated clients already disagree about the JSON stand-in: generated/typescript/contract-client.ts casts the JSON result to the flat BinarySampleFrame {subscription_id, domain_start, sample_count, encoding, encoding_name, values}, while generated/python/contract_types.py declares BinarySampleFrame as {header, values}. This host will not invent a third shape; currently not available\"},{\"capability\":\"module.load\",\"kind\":\"host\",\"reason\":\"load_module_from_host_path has no case in dispatch() of hosts/mock-ts/src/service/session-hub.ts. contract/contract.yaml defines the row as a dlopen of a file on this host's own disk followed by that file's initialisation, and there is no openDAQ module manager in this process to load it into: the one module list_loaded_modules answers with is mock_synthetic_component_module, built in TypeScript by hosts/mock-ts/src/synthetic-device/synthetic-reference-device.ts and loaded from no file at all. contract/contract.yaml splits module.load from module.read for this case by name -- \\\"The mock host and any sandboxed deployment need precisely that split\\\" -- so this host declares module.read and withholds module.load; currently not available\"}],\"limits\":{\"max_subscriptions\":64,\"max_frame_bytes\":262144}}",
+  "handshake_verbatim": "{\"protocol_version\":\"1.0\",\"implementation\":{\"name\":\"quackoscope-host-mock\",\"version\":\"0.1.0\"},\"sdk\":{\"version\":\"none (synthetic device, no openDAQ SDK is loaded)\",\"commit\":\"none\"},\"capabilities\":[\"device.scan\",\"device.connect\",\"tree.read\",\"property.read\",\"property.write\",\"function_block.add\",\"streaming.decimated\",\"device.mode\",\"device.lock\",\"module.read\",\"attribute.read\",\"attribute.write\",\"server.add\",\"server.discovery\",\"recorder.control\",\"property.batched_update\",\"configuration.save\",\"configuration.load\"],\"gaps\":[{\"capability\":\"streaming.raw\",\"kind\":\"host\",\"reason\":\"read_samples_raw has no case in dispatch() of hosts/mock-ts/src/service/session-hub.ts. The samples themselves are not the obstacle -- subscribe_signal already delivers them, decimated to pixel_columns by hosts/mock-ts/src/service/decimate-to-pixel-columns.ts -- the answer envelope is: contract/contract.yaml declares returns: {type: binary_frame} for read_samples_raw, envelopes.result carries a JSON result, and the 17-byte binary frame header carries no correlation id, so a binary answer cannot be matched to the request that asked for it. The two generated clients already disagree about the JSON stand-in: generated/typescript/contract-client.ts casts the JSON result to the flat BinarySampleFrame {subscription_id, domain_start, sample_count, encoding, encoding_name, values}, while generated/python/contract_types.py declares BinarySampleFrame as {header, values}. This host will not invent a third shape; currently not available\"},{\"capability\":\"module.load\",\"kind\":\"host\",\"reason\":\"load_module_from_host_path has no case in dispatch() of hosts/mock-ts/src/service/session-hub.ts. contract/contract.yaml defines the row as a dlopen of a file on this host's own disk followed by that file's initialisation, and there is no openDAQ module manager in this process to load it into: the one module list_loaded_modules answers with is mock_synthetic_component_module, built in TypeScript by hosts/mock-ts/src/synthetic-device/synthetic-reference-device.ts and loaded from no file at all. contract/contract.yaml splits module.load from module.read for this case by name -- \\\"The mock host and any sandboxed deployment need precisely that split\\\" -- so this host declares module.read and withholds module.load; currently not available\"}],\"limits\":{\"max_subscriptions\":64,\"max_frame_bytes\":262144}}",
   "implementation": {
     "name": "quackoscope-host-mock",
     "version": "0.1.0"
@@ -58,7 +69,15 @@
     "device.mode",
     "device.lock",
     "module.read",
-    "module.load"
+    "module.load",
+    "attribute.read",
+    "attribute.write",
+    "server.add",
+    "server.discovery",
+    "recorder.control",
+    "property.batched_update",
+    "configuration.save",
+    "configuration.load"
   ],
   "declared_capabilities": [
     "device.scan",
@@ -70,7 +89,15 @@
     "streaming.decimated",
     "device.mode",
     "device.lock",
-    "module.read"
+    "module.read",
+    "attribute.read",
+    "attribute.write",
+    "server.add",
+    "server.discovery",
+    "recorder.control",
+    "property.batched_update",
+    "configuration.save",
+    "configuration.load"
   ],
   "computed_gap_capabilities": [
     "streaming.raw",
@@ -78,7 +105,7 @@
   ],
   "connection_string_used": "mock://synthetic-reference-device0",
   "operation_coverage": {
-    "operations_in_the_contract": 19,
+    "operations_in_the_contract": 30,
     "driven": [
       "scan_available_devices",
       "connect_device",
@@ -98,7 +125,18 @@
       "lock_device",
       "unlock_device",
       "list_loaded_modules",
-      "load_module_from_host_path"
+      "load_module_from_host_path",
+      "get_component_attributes",
+      "set_component_attribute",
+      "list_server_types",
+      "add_server",
+      "set_server_discovery_enabled",
+      "start_recording",
+      "stop_recording",
+      "begin_batched_property_update",
+      "end_batched_property_update",
+      "save_instance_configuration_to_string",
+      "load_instance_configuration_from_string"
     ],
     "never_driven": [],
     "per_operation": [
@@ -113,7 +151,7 @@
       {
         "wire_method": "connect_device",
         "capability": "device.connect",
-        "requests_sent": 2,
+        "requests_sent": 3,
         "ledger_entries": 2,
         "declared_undrivable_with_a_reason": false,
         "driven": true
@@ -129,7 +167,7 @@
       {
         "wire_method": "get_component_tree",
         "capability": "tree.read",
-        "requests_sent": 7,
+        "requests_sent": 13,
         "ledger_entries": 9,
         "declared_undrivable_with_a_reason": false,
         "driven": true
@@ -137,8 +175,8 @@
       {
         "wire_method": "get_property_value",
         "capability": "property.read",
-        "requests_sent": 42,
-        "ledger_entries": 48,
+        "requests_sent": 45,
+        "ledger_entries": 49,
         "declared_undrivable_with_a_reason": false,
         "driven": true
       },
@@ -153,8 +191,8 @@
       {
         "wire_method": "set_property_value",
         "capability": "property.write",
-        "requests_sent": 6,
-        "ledger_entries": 19,
+        "requests_sent": 8,
+        "ledger_entries": 20,
         "declared_undrivable_with_a_reason": false,
         "driven": true
       },
@@ -253,14 +291,102 @@
         "ledger_entries": 2,
         "declared_undrivable_with_a_reason": false,
         "driven": true
+      },
+      {
+        "wire_method": "get_component_attributes",
+        "capability": "attribute.read",
+        "requests_sent": 4,
+        "ledger_entries": 12,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "set_component_attribute",
+        "capability": "attribute.write",
+        "requests_sent": 10,
+        "ledger_entries": 21,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "list_server_types",
+        "capability": "server.add",
+        "requests_sent": 2,
+        "ledger_entries": 7,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "add_server",
+        "capability": "server.add",
+        "requests_sent": 2,
+        "ledger_entries": 9,
+        "declared_undrivable_with_a_reason": true,
+        "driven": true
+      },
+      {
+        "wire_method": "set_server_discovery_enabled",
+        "capability": "server.discovery",
+        "requests_sent": 4,
+        "ledger_entries": 13,
+        "declared_undrivable_with_a_reason": true,
+        "driven": true
+      },
+      {
+        "wire_method": "start_recording",
+        "capability": "recorder.control",
+        "requests_sent": 3,
+        "ledger_entries": 12,
+        "declared_undrivable_with_a_reason": true,
+        "driven": true
+      },
+      {
+        "wire_method": "stop_recording",
+        "capability": "recorder.control",
+        "requests_sent": 3,
+        "ledger_entries": 12,
+        "declared_undrivable_with_a_reason": true,
+        "driven": true
+      },
+      {
+        "wire_method": "begin_batched_property_update",
+        "capability": "property.batched_update",
+        "requests_sent": 3,
+        "ledger_entries": 8,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "end_batched_property_update",
+        "capability": "property.batched_update",
+        "requests_sent": 4,
+        "ledger_entries": 12,
+        "declared_undrivable_with_a_reason": false,
+        "driven": true
+      },
+      {
+        "wire_method": "save_instance_configuration_to_string",
+        "capability": "configuration.save",
+        "requests_sent": 2,
+        "ledger_entries": 7,
+        "declared_undrivable_with_a_reason": true,
+        "driven": true
+      },
+      {
+        "wire_method": "load_instance_configuration_from_string",
+        "capability": "configuration.load",
+        "requests_sent": 3,
+        "ledger_entries": 11,
+        "declared_undrivable_with_a_reason": true,
+        "driven": true
       }
     ]
   },
   "tallies": {
-    "held": 232,
-    "unconstrained_by_the_contract": 6,
+    "held": 352,
+    "unconstrained_by_the_contract": 10,
     "gap_declared_and_consistent": 2,
-    "not_provokable_by_a_wire_client": 4
+    "not_provokable_by_a_wire_client": 10
   },
   "failure_count": 0,
   "warning_count": 0,
@@ -272,7 +398,7 @@
       "wire_method": null,
       "contract_citation": "contract.yaml handshake (contract 1.6): direction server_to_client, ordinal 1",
       "expected": "the server speaks first, with one JSON object",
-      "actual": "object, 2219 bytes",
+      "actual": "object, 2373 bytes",
       "verdict": "held"
     },
     {
@@ -392,7 +518,7 @@
       "wire_method": null,
       "contract_citation": "contract.yaml handshake (contract 1.6): fields.capabilities is an array of string, references capabilities.id",
       "expected": "an array whose every element is a string",
-      "actual": "[\"device.scan\",\"device.connect\",\"tree.read\",\"property.read\",\"property.write\",\"function_block.add\",\"streaming.decimated\",\"device.mode\",\"device.lock\",\"module.read\"]",
+      "actual": "[\"device.scan\",\"device.connect\",\"tree.read\",\"property.read\",\"property.write\",\"function_block.add\",\"streaming.decimated\",\"device.mode\",\"device.lock\",\"module.read\",\"attribute.read\",\"attribute.write\",\"server.add\",\"server.discovery\",\"recorder.control\",\"property.batched_update\",\"configuration.save\",\"configuration.load\"]",
       "verdict": "held"
     },
     {
@@ -400,9 +526,9 @@
       "scope": "handshake",
       "capability": null,
       "wire_method": null,
-      "contract_citation": "contract.yaml handshake (contract 1.6): fields.capabilities.references = capabilities.id; the baseline read from contract.yaml is [device.scan, device.connect, tree.read, property.read, property.write, function_block.add, streaming.decimated, streaming.raw, device.mode, device.lock, module.read, module.load]",
-      "expected": "every entry drawn from the 12 baseline ids",
-      "actual": "all 10 entries are baseline capability ids",
+      "contract_citation": "contract.yaml handshake (contract 1.6): fields.capabilities.references = capabilities.id; the baseline read from contract.yaml is [device.scan, device.connect, tree.read, property.read, property.write, function_block.add, streaming.decimated, streaming.raw, device.mode, device.lock, module.read, module.load, attribute.read, attribute.write, server.add, server.discovery, recorder.control, property.batched_update, configuration.save, configuration.load]",
+      "expected": "every entry drawn from the 20 baseline ids",
+      "actual": "all 18 entries are baseline capability ids",
       "verdict": "held"
     },
     {
@@ -532,7 +658,7 @@
       "wire_method": "connect_device",
       "contract_citation": "contract.yaml operations[connect_device].returns = Node; types.Node id/name/kind/child_ids/property_ids required, parent_id nullable",
       "expected": "a Node record",
-      "actual": "Node mock_device0 kind=device, 2 children, 13 properties",
+      "actual": "Node mock_device0 kind=device, 3 children, 14 properties",
       "verdict": "held"
     },
     {
@@ -552,7 +678,7 @@
       "wire_method": "get_component_tree",
       "contract_citation": "contract.yaml operations[get_component_tree].returns = array of Node; types.Node.kind enum [device, channel, function_block, signal, folder]",
       "expected": "every element a Node record",
-      "actual": "12 Node records, all conforming; kinds present: device, folder, channel, signal, function_block",
+      "actual": "15 Node records, all conforming; kinds present: device, folder, channel, signal, function_block, server",
       "verdict": "held"
     },
     {
@@ -562,7 +688,7 @@
       "wire_method": "get_component_tree",
       "contract_citation": "contract.yaml types.Node.child_ids.references = Node.id and types.Node.parent_id.references = Node.id",
       "expected": "no dangling Node.id reference",
-      "actual": "12 nodes, every child_ids and parent_id reference resolves",
+      "actual": "15 nodes, every child_ids and parent_id reference resolves",
       "verdict": "held"
     },
     {
@@ -582,7 +708,7 @@
       "wire_method": "get_component_tree",
       "contract_citation": "contract.yaml operations[get_component_tree].params root_id, presence optional, references Node.id",
       "expected": "an array of Node rooted at mock_device0",
-      "actual": "12 node(s)",
+      "actual": "15 node(s)",
       "verdict": "held"
     },
     {
@@ -672,7 +798,7 @@
       "wire_method": "get_property_descriptors",
       "contract_citation": "contract.yaml types.PropertyDescriptor: id/name/value_type/read_only/visible required, unit/description/default/selection_values/suggested_values/min/max/validator/coercer nullable; section 3 says a host emits every key of a type record, writing null where a value is absent",
       "expected": "8 nodes answered, every descriptor carrying all 14 contract keys",
-      "actual": "39 descriptors across 8 nodes; value_types present: string, int, selection, float, bool, struct; read_only=true on 12 of them",
+      "actual": "40 descriptors across 8 nodes; value_types present: string, int, selection, float, bool, struct; read_only=true on 12 of them",
       "verdict": "held"
     },
     {
@@ -797,6 +923,16 @@
     },
     {
       "title": "get_property_value mock_device0.unsupported_operation_example_struct: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_property_value",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "get_property_value mock_device0.saved_configuration_padding_bytes: the response carries exactly one of result or error",
       "scope": "wire_protocol",
       "capability": null,
       "wire_method": "get_property_value",
@@ -1076,13 +1212,13 @@
       "verdict": "held"
     },
     {
-      "title": "get_property_value reads every property the host's own descriptors advertise (39 attempted across 8 nodes)",
+      "title": "get_property_value reads every property the host's own descriptors advertise (40 attempted across 8 nodes)",
       "scope": "capability_claimed",
       "capability": "property.read",
       "wire_method": "get_property_value",
       "contract_citation": "contract.yaml operations[get_property_value].returns = any; the property_ids come from the host's own get_property_descriptors answer",
-      "expected": "all 39 advertised properties readable",
-      "actual": "39 read, for example mock_device0.device_label=\"Mock Reference Device\", mock_device0.serial_number=\"MOCK-0000-SYNTHETIC\", mock_device0.acquisition_block_size_samples=100, mock_device0.waveform_shape=0, ...",
+      "expected": "all 40 advertised properties readable",
+      "actual": "40 read, for example mock_device0.device_label=\"Mock Reference Device\", mock_device0.serial_number=\"MOCK-0000-SYNTHETIC\", mock_device0.acquisition_block_size_samples=100, mock_device0.waveform_shape=0, ...",
       "verdict": "held"
     },
     {
@@ -1232,7 +1368,7 @@
       "wire_method": "set_property_value",
       "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
       "expected": "{code: one of the closed set, detail: string}",
-      "actual": "{\"code\":\"not_found\",\"detail\":\"component \\\"mock_device0\\\" has no property \\\"QuackoscopeConformanceSweepNoSuchProperty\\\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, factory_calibration_seed\"}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"component \\\"mock_device0\\\" has no property \\\"QuackoscopeConformanceSweepNoSuchProperty\\\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, saved_configuration_padding_bytes, factory_calibration_seed\"}",
       "verdict": "held"
     },
     {
@@ -1242,7 +1378,7 @@
       "wire_method": "set_property_value",
       "contract_citation": "contract.yaml operations[set_property_value].errors = [not_found, read_only, invalid_value]",
       "expected": "one of [not_found, read_only, invalid_value]",
-      "actual": "\"not_found\" - \"component \\\"mock_device0\\\" has no property \\\"QuackoscopeConformanceSweepNoSuchProperty\\\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, factory_calibration_seed\"",
+      "actual": "\"not_found\" - \"component \\\"mock_device0\\\" has no property \\\"QuackoscopeConformanceSweepNoSuchProperty\\\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, saved_configuration_padding_bytes, factory_calibration_seed\"",
       "verdict": "held"
     },
     {
@@ -1252,7 +1388,7 @@
       "wire_method": "set_property_value",
       "contract_citation": "contract.yaml operations[set_property_value].errors includes not_found",
       "expected": "error code \"not_found\"",
-      "actual": "error not_found: component \"mock_device0\" has no property \"QuackoscopeConformanceSweepNoSuchProperty\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, factory_calibration_seed",
+      "actual": "error not_found: component \"mock_device0\" has no property \"QuackoscopeConformanceSweepNoSuchProperty\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, saved_configuration_padding_bytes, factory_calibration_seed",
       "verdict": "held"
     },
     {
@@ -1272,7 +1408,7 @@
       "wire_method": "get_property_value",
       "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
       "expected": "{code: one of the closed set, detail: string}",
-      "actual": "{\"code\":\"not_found\",\"detail\":\"component \\\"mock_device0\\\" has no property \\\"QuackoscopeConformanceSweepNoSuchProperty\\\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, factory_calibration_seed\"}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"component \\\"mock_device0\\\" has no property \\\"QuackoscopeConformanceSweepNoSuchProperty\\\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, saved_configuration_padding_bytes, factory_calibration_seed\"}",
       "verdict": "held"
     },
     {
@@ -1282,7 +1418,7 @@
       "wire_method": "get_property_value",
       "contract_citation": "contract.yaml operations[get_property_value].errors = [not_found, not_connected]",
       "expected": "one of [not_found, not_connected]",
-      "actual": "\"not_found\" - \"component \\\"mock_device0\\\" has no property \\\"QuackoscopeConformanceSweepNoSuchProperty\\\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, factory_calibration_seed\"",
+      "actual": "\"not_found\" - \"component \\\"mock_device0\\\" has no property \\\"QuackoscopeConformanceSweepNoSuchProperty\\\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, saved_configuration_padding_bytes, factory_calibration_seed\"",
       "verdict": "held"
     },
     {
@@ -1292,7 +1428,7 @@
       "wire_method": "get_property_value",
       "contract_citation": "contract.yaml operations[get_property_value].errors = [not_found, not_connected]",
       "expected": "one of [not_found]",
-      "actual": "error not_found: component \"mock_device0\" has no property \"QuackoscopeConformanceSweepNoSuchProperty\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, factory_calibration_seed",
+      "actual": "error not_found: component \"mock_device0\" has no property \"QuackoscopeConformanceSweepNoSuchProperty\"; it has device_label, serial_number, acquisition_block_size_samples, waveform_shape, waveform_amplitude_volts, waveform_duty_cycle_percent, waveform_frequency_hz, frame_emission_enabled, spare_channel_present, device_disconnect_simulation_switch, internal_error_injection_switch, unsupported_operation_example_struct, saved_configuration_padding_bytes, factory_calibration_seed",
       "verdict": "held"
     },
     {
@@ -1352,7 +1488,7 @@
       "wire_method": "list_function_block_types",
       "contract_citation": "contract.yaml operations[list_function_block_types].returns = array of string",
       "expected": "an array whose every element is a string",
-      "actual": "[\"synthetic_statistics\",\"synthetic_scaling\"]",
+      "actual": "[\"synthetic_statistics\",\"synthetic_scaling\",\"synthetic_sample_recorder\"]",
       "verdict": "held"
     },
     {
@@ -1392,7 +1528,7 @@
       "wire_method": "add_function_block",
       "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
       "expected": "{code: one of the closed set, detail: string}",
-      "actual": "{\"code\":\"unsupported\",\"detail\":\"no function block type \\\"quackoscope-conformance-sweep-no-such-function-block-type\\\" on this synthetic device; it can build synthetic_statistics (Statistics: a running mean, RMS or peak-to-peak over a window of the synthetic waveform), synthetic_scaling (Scaling: value * scale_factor + offset, relabelled into another unit)\"}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"no function block type \\\"quackoscope-conformance-sweep-no-such-function-block-type\\\" on this synthetic device; it can build synthetic_statistics (Statistics: it computes a running mean, RMS or peak-to-peak over a window of the synthetic waveform), synthetic_scaling (Scaling: it computes value * scale_factor + offset and relabels the result into another unit), synthetic_sample_recorder (Sample recorder: it answers start_recording and stop_recording and reports Node.recording; it writes no file, because nothing in this process opens one)\"}",
       "verdict": "held"
     },
     {
@@ -1402,7 +1538,7 @@
       "wire_method": "add_function_block",
       "contract_citation": "contract.yaml operations[add_function_block].errors = [not_found, unsupported]",
       "expected": "one of [not_found, unsupported]",
-      "actual": "\"unsupported\" - \"no function block type \\\"quackoscope-conformance-sweep-no-such-function-block-type\\\" on this synthetic device; it can build synthetic_statistics (Statistics: a running mean, RMS or peak-to-peak over a window of the synthetic waveform), synthetic_scaling (Scaling: value * scale_factor + offset, relabelled into another unit)\"",
+      "actual": "\"unsupported\" - \"no function block type \\\"quackoscope-conformance-sweep-no-such-function-block-type\\\" on this synthetic device; it can build synthetic_statistics (Statistics: it computes a running mean, RMS or peak-to-peak over a window of the synthetic waveform), synthetic_scaling (Scaling: it computes value * scale_factor + offset and relabels the result into another unit), synthetic_sample_recorder (Sample recorder: it answers start_recording and stop_recording and reports Node.recording; it writes no file, because nothing in this process opens one)\"",
       "verdict": "held"
     },
     {
@@ -1412,7 +1548,7 @@
       "wire_method": "add_function_block",
       "contract_citation": "contract.yaml operations[add_function_block].errors = [not_found, unsupported]",
       "expected": "one of [not_found, unsupported]",
-      "actual": "error unsupported: no function block type \"quackoscope-conformance-sweep-no-such-function-block-type\" on this synthetic device; it can build synthetic_statistics (Statistics: a running mean, RMS or peak-to-peak over a window of the synthetic waveform), synthetic_scaling (Scaling: value * scale_factor + offset, relabelled into another unit)",
+      "actual": "error unsupported: no function block type \"quackoscope-conformance-sweep-no-such-function-block-type\" on this synthetic device; it can build synthetic_statistics (Statistics: it computes a running mean, RMS or peak-to-peak over a window of the synthetic waveform), synthetic_scaling (Scaling: it computes value * scale_factor + offset and relabels the result into another unit), synthetic_sample_recorder (Sample recorder: it answers start_recording and stop_recording and reports Node.recording; it writes no file, because nothing in this process opens one)",
       "verdict": "held"
     },
     {
@@ -1482,7 +1618,7 @@
       "wire_method": "read_samples_raw",
       "contract_citation": "contract.yaml error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
       "expected": "one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
-      "actual": "{\"code\":\"unsupported\",\"detail\":\"unknown method \\\"read_samples_raw\\\"; quackoscope-host-mock serves scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_descriptors, get_property_value, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules\"}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"unknown method \\\"read_samples_raw\\\"; quackoscope-host-mock serves scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_descriptors, get_property_value, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, get_component_attributes, set_component_attribute, list_server_types, add_server, set_server_discovery_enabled, start_recording, stop_recording, begin_batched_property_update, end_batched_property_update, save_instance_configuration_to_string, load_instance_configuration_from_string\"}",
       "verdict": "held"
     },
     {
@@ -1814,7 +1950,7 @@
       "wire_method": "list_loaded_modules",
       "contract_citation": "contract.yaml operations[list_loaded_modules].returns = array of ModuleInfo; types.ModuleInfo id/name/component_types required and version nullable; types.ComponentTypeInfo id/name/kind required, kind an enum over [device, function_block, server, streaming]",
       "expected": "every element a ModuleInfo whose component_types are all ComponentTypeInfo",
-      "actual": "1 module(s) carrying 3 component type(s) between them; ids: \"mock_synthetic_component_module\"",
+      "actual": "1 module(s) carrying 6 component type(s) between them; ids: \"mock_synthetic_component_module\"",
       "verdict": "held"
     },
     {
@@ -1854,7 +1990,7 @@
       "wire_method": "load_module_from_host_path",
       "contract_citation": "contract.yaml error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
       "expected": "one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
-      "actual": "{\"code\":\"unsupported\",\"detail\":\"unknown method \\\"load_module_from_host_path\\\"; quackoscope-host-mock serves scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_descriptors, get_property_value, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules\"}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"unknown method \\\"load_module_from_host_path\\\"; quackoscope-host-mock serves scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_descriptors, get_property_value, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, get_component_attributes, set_component_attribute, list_server_types, add_server, set_server_discovery_enabled, start_recording, stop_recording, begin_batched_property_update, end_batched_property_update, save_instance_configuration_to_string, load_instance_configuration_from_string\"}",
       "verdict": "held"
     },
     {
@@ -2086,7 +2222,7 @@
       "wire_method": "set_property_value",
       "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
       "expected": "{code: one of the closed set, detail: string}",
-      "actual": "{\"code\":\"read_only\",\"detail\":\"the device \\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:58630, which is not this session, so the write of 101 to mock_device0.acquisition_block_size_samples was refused and nothing was stored. unlock_device on the device row first, with force true if the lock is not this session's.\"}",
+      "actual": "{\"code\":\"read_only\",\"detail\":\"the device \\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:60109, which is not this session, so the write of 101 to mock_device0.acquisition_block_size_samples was refused and nothing was stored. unlock_device on the device row first, with force true if the lock is not this session's.\"}",
       "verdict": "held"
     },
     {
@@ -2096,7 +2232,7 @@
       "wire_method": "set_property_value",
       "contract_citation": "contract.yaml operations[set_property_value].errors = [not_found, read_only, invalid_value]",
       "expected": "one of [not_found, read_only, invalid_value]",
-      "actual": "\"read_only\" - \"the device \\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:58630, which is not this session, so the write of 101 to mock_device0.acquisition_block_size_samples was refused and nothing was stored. unlock_device on the device row first, with force true if the lock is not this session's.\"",
+      "actual": "\"read_only\" - \"the device \\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:60109, which is not this session, so the write of 101 to mock_device0.acquisition_block_size_samples was refused and nothing was stored. unlock_device on the device row first, with force true if the lock is not this session's.\"",
       "verdict": "held"
     },
     {
@@ -2106,7 +2242,7 @@
       "wire_method": "set_property_value",
       "contract_citation": "contract.yaml operations[set_device_operation_mode].errors names read_only \"the closed error set's expression of openDAQ refused the write because the component is protected, the same code set_property_value already uses for a locked target\"; types.Node.locked is the EFFECTIVE state, \"any other component reports the nearest ancestor device's\", so a property under a locked device is a locked target",
       "expected": "error code \"read_only\"",
-      "actual": "error read_only: the device \"mock_device0\" is locked by session-1 at 127.0.0.1:58630, which is not this session, so the write of 101 to mock_device0.acquisition_block_size_samples was refused and nothing was stored. unlock_device on the device row first, with force true if the lock is not this session's.",
+      "actual": "error read_only: the device \"mock_device0\" is locked by session-1 at 127.0.0.1:60109, which is not this session, so the write of 101 to mock_device0.acquisition_block_size_samples was refused and nothing was stored. unlock_device on the device row first, with force true if the lock is not this session's.",
       "verdict": "held"
     },
     {
@@ -2126,7 +2262,7 @@
       "wire_method": "set_device_operation_mode",
       "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
       "expected": "{code: one of the closed set, detail: string}",
-      "actual": "{\"code\":\"read_only\",\"detail\":\"the device \\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:58630, which is not this session, so its operation mode cannot be moved to \\\"idle\\\"; it stays in \\\"operation\\\". unlock_device first.\"}",
+      "actual": "{\"code\":\"read_only\",\"detail\":\"the device \\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:60109, which is not this session, so its operation mode cannot be moved to \\\"idle\\\"; it stays in \\\"operation\\\". unlock_device first.\"}",
       "verdict": "held"
     },
     {
@@ -2136,7 +2272,7 @@
       "wire_method": "set_device_operation_mode",
       "contract_citation": "contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]",
       "expected": "one of [not_found, invalid_value, read_only, unsupported]",
-      "actual": "\"read_only\" - \"the device \\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:58630, which is not this session, so its operation mode cannot be moved to \\\"idle\\\"; it stays in \\\"operation\\\". unlock_device first.\"",
+      "actual": "\"read_only\" - \"the device \\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:60109, which is not this session, so its operation mode cannot be moved to \\\"idle\\\"; it stays in \\\"operation\\\". unlock_device first.\"",
       "verdict": "held"
     },
     {
@@ -2146,7 +2282,7 @@
       "wire_method": "set_device_operation_mode",
       "contract_citation": "contract.yaml operations[set_device_operation_mode].errors: \"read_only: the device is locked - the closed error set's expression of openDAQ refused the write because the component is protected, the same code set_property_value already uses for a locked target\"",
       "expected": "error code \"read_only\"",
-      "actual": "error read_only: the device \"mock_device0\" is locked by session-1 at 127.0.0.1:58630, which is not this session, so its operation mode cannot be moved to \"idle\"; it stays in \"operation\". unlock_device first.",
+      "actual": "error read_only: the device \"mock_device0\" is locked by session-1 at 127.0.0.1:60109, which is not this session, so its operation mode cannot be moved to \"idle\"; it stays in \"operation\". unlock_device first.",
       "verdict": "held"
     },
     {
@@ -2166,7 +2302,7 @@
       "wire_method": "lock_device",
       "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
       "expected": "{code: one of the closed set, detail: string}",
-      "actual": "{\"code\":\"read_only\",\"detail\":\"\\\"mock_device0\\\" is already locked by session-1 at 127.0.0.1:58630; openDAQ permits an unlock only by the holder, so this session can neither take the lock nor drop it. unlock_device with force true is the way past it.\"}",
+      "actual": "{\"code\":\"read_only\",\"detail\":\"\\\"mock_device0\\\" is already locked by session-1 at 127.0.0.1:60109; openDAQ permits an unlock only by the holder, so this session can neither take the lock nor drop it. unlock_device with force true is the way past it.\"}",
       "verdict": "held"
     },
     {
@@ -2176,7 +2312,7 @@
       "wire_method": "lock_device",
       "contract_citation": "contract.yaml operations[lock_device].errors = [not_found, read_only, unsupported]",
       "expected": "one of [not_found, read_only, unsupported]",
-      "actual": "\"read_only\" - \"\\\"mock_device0\\\" is already locked by session-1 at 127.0.0.1:58630; openDAQ permits an unlock only by the holder, so this session can neither take the lock nor drop it. unlock_device with force true is the way past it.\"",
+      "actual": "\"read_only\" - \"\\\"mock_device0\\\" is already locked by session-1 at 127.0.0.1:60109; openDAQ permits an unlock only by the holder, so this session can neither take the lock nor drop it. unlock_device with force true is the way past it.\"",
       "verdict": "held"
     },
     {
@@ -2186,7 +2322,7 @@
       "wire_method": "lock_device",
       "contract_citation": "contract.yaml operations[lock_device].errors: \"read_only is the device is already locked, and not by this session - openDAQ permits an unlock only by the user who locked it\"",
       "expected": "error code \"read_only\"",
-      "actual": "error read_only: \"mock_device0\" is already locked by session-1 at 127.0.0.1:58630; openDAQ permits an unlock only by the holder, so this session can neither take the lock nor drop it. unlock_device with force true is the way past it.",
+      "actual": "error read_only: \"mock_device0\" is already locked by session-1 at 127.0.0.1:60109; openDAQ permits an unlock only by the holder, so this session can neither take the lock nor drop it. unlock_device with force true is the way past it.",
       "verdict": "held"
     },
     {
@@ -2206,7 +2342,7 @@
       "wire_method": "unlock_device",
       "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
       "expected": "{code: one of the closed set, detail: string}",
-      "actual": "{\"code\":\"read_only\",\"detail\":\"\\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:58630, not by this session, and openDAQ's IDevice.unlock() refuses an unlock by anyone else. Send unlock_device again with force true to take it anyway.\"}",
+      "actual": "{\"code\":\"read_only\",\"detail\":\"\\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:60109, not by this session, and openDAQ's IDevice.unlock() refuses an unlock by anyone else. Send unlock_device again with force true to take it anyway.\"}",
       "verdict": "held"
     },
     {
@@ -2216,7 +2352,7 @@
       "wire_method": "unlock_device",
       "contract_citation": "contract.yaml operations[unlock_device].errors = [not_found, read_only, unsupported]",
       "expected": "one of [not_found, read_only, unsupported]",
-      "actual": "\"read_only\" - \"\\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:58630, not by this session, and openDAQ's IDevice.unlock() refuses an unlock by anyone else. Send unlock_device again with force true to take it anyway.\"",
+      "actual": "\"read_only\" - \"\\\"mock_device0\\\" is locked by session-1 at 127.0.0.1:60109, not by this session, and openDAQ's IDevice.unlock() refuses an unlock by anyone else. Send unlock_device again with force true to take it anyway.\"",
       "verdict": "held"
     },
     {
@@ -2226,7 +2362,7 @@
       "wire_method": "unlock_device",
       "contract_citation": "contract.yaml operations[unlock_device]: \"IDevice.unlock() takes no arguments and refuses when another user holds the lock\"; errors: \"read_only is the refusal the reference reacts to by offering the forced unlock, so it is the exact signal that enables that control\"",
       "expected": "error code \"read_only\"",
-      "actual": "error read_only: \"mock_device0\" is locked by session-1 at 127.0.0.1:58630, not by this session, and openDAQ's IDevice.unlock() refuses an unlock by anyone else. Send unlock_device again with force true to take it anyway.",
+      "actual": "error read_only: \"mock_device0\" is locked by session-1 at 127.0.0.1:60109, not by this session, and openDAQ's IDevice.unlock() refuses an unlock by anyone else. Send unlock_device again with force true to take it anyway.",
       "verdict": "held"
     },
     {
@@ -2520,13 +2656,1303 @@
       "verdict": "not_provokable_by_a_wire_client"
     },
     {
+      "title": "get_component_attributes mock_device0: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_attributes mock_device0 returns an array of contract-shaped ComponentAttribute records",
+      "scope": "capability_claimed",
+      "capability": "attribute.read",
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml operations[get_component_attributes].returns = array of ComponentAttribute; types.ComponentAttribute id/name/value_type/read_only required and value nullable, value_type an enum over [bool, int, float, string, string_list]",
+      "expected": "every element a ComponentAttribute carrying all 5 contract keys",
+      "actual": "7 attribute(s): name=\"Mock Reference Device\" (string), description=\"The synthetic reference device this host builds in memory at process start. No openDAQ SDK is loaded in this process and no hardware is behind any of it.\" (string), active=true (bool), global_id=\"mock_device0\" (string, read_only), local_id=\"mock_device0\" (string, read_only), tags=[\"synthetic\",\"reference-device\",\"no-sdk\"] (string_list), visible=tr",
+      "verdict": "held"
+    },
+    {
+      "title": "no attribute row of mock_device0 carries a null value",
+      "scope": "capability_claimed",
+      "capability": "attribute.read",
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml operations[get_component_attributes].returns: \"A host that cannot perform a cast returns fewer rows; it does not return a row with a null value, which would claim the attribute exists and has no value.\"",
+      "expected": "every row a real value; an attribute a host cannot reach is absent, not null",
+      "actual": "all 7 row(s) carry a value",
+      "verdict": "held"
+    },
+    {
+      "title": "no attribute id of mock_device0 is also one of the property ids that node advertises",
+      "scope": "capability_claimed",
+      "capability": "attribute.read",
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml types.ComponentAttribute: \"ATTRIBUTES ARE NOT PROPERTIES, and this record exists because of that. A property is a PropertyDescriptor the object carries in a property bag and answers get/setPropertyValue for. An attribute is a fixed member of the openDAQ interface itself\"; types.Node.property_ids.references = PropertyDescriptor.id",
+      "expected": "the two id spaces do not overlap on this node",
+      "actual": "7 attribute id(s) and 14 property id(s) on mock_device0, no id in both",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_attributes {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_attributes {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_attributes {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "attribute.read",
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml operations[get_component_attributes].errors = [not_found, not_connected]",
+      "expected": "one of [not_found, not_connected]",
+      "actual": "\"not_found\" - \"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_attributes on the unknown node \"/quackoscope-conformance-sweep/no-such-node\" is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "attribute.read",
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml operations[get_component_attributes].errors = [not_found, not_connected]; \"The same subset get_property_descriptors declares, and for the same two reasons: node_id may name nothing, and there may be no instance to read.\"",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds mock_device0",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_attributes on a second session that has connected no device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_attributes on a second session that has connected no device: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_connected\",\"detail\":\"this session has connected no device, so \\\"mock_device0\\\" is not addressable; call connect_device first\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_attributes on a second session that has connected no device: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "attribute.read",
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml operations[get_component_attributes].errors = [not_found, not_connected]",
+      "expected": "one of [not_found, not_connected]",
+      "actual": "\"not_connected\" - \"this session has connected no device, so \\\"mock_device0\\\" is not addressable; call connect_device first\"",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_attributes for mock_device0, asked from a session that has connected no device, is refused",
+      "scope": "capability_claimed",
+      "capability": "attribute.read",
+      "wire_method": "get_component_attributes",
+      "contract_citation": "contract.yaml operations[get_component_attributes].errors = [not_found, not_connected]. The contract lists both and never says which a node id that is real on another session must get, so both are accepted here - the same reading sweep 3 makes of get_device_operation_modes",
+      "expected": "one of [not_connected, not_found]",
+      "actual": "error not_connected: this session has connected no device, so \"mock_device0\" is not addressable; call connect_device first",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute name written back unchanged: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute description written back unchanged: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute active written back unchanged: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute tags written back unchanged: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute visible written back unchanged: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "every attribute of mock_device0 this host reports read_only false accepts the value this host itself reports for it (5 row(s))",
+      "scope": "capability_claimed",
+      "capability": "attribute.write",
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml types.ComponentAttribute.read_only: \"true means this attribute cannot be written\", and \"It is openDAQ's answer about the component, never the host's answer about itself\"; operations[set_component_attribute].errors: \"read_only: the attribute's ComponentAttribute.read_only is true ... never 'this host has no writer', which is a capability gap. invalid_value: the value is of the wrong type for the attribute, or openDAQ rejected it.\" A row published read_only false, written back with the value in force, can be refused for neither reason.",
+      "expected": "all 5 row(s) accepted",
+      "actual": "5 row(s) accepted: name, description, active, tags, visible",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute name = \"Mock Reference Device (written by the quackoscope conformance sweep)\": the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute mock_device0.name = \"Mock Reference Device (written by the quackoscope conformance sweep)\" is accepted and returns void",
+      "scope": "capability_claimed",
+      "capability": "attribute.write",
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml operations[set_component_attribute].returns = void; envelopes.result.result presence nullable",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "the write to mock_device0.name is visible to a later get_component_attributes",
+      "scope": "capability_claimed",
+      "capability": "attribute.write",
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml operations[set_component_attribute] writes the attribute get_component_attributes reads: \"One of the ComponentAttribute.id values get_component_attributes returned for this node\". A write the read side does not show would make the panel and the setter disagree.",
+      "expected": "get_component_attributes reports \"Mock Reference Device (written by the quackoscope conformance sweep)\" for name",
+      "actual": "\"Mock Reference Device (written by the quackoscope conformance sweep)\" (it was \"Mock Reference Device\" before the write)",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute {\"node_id\":\"mock_device0\",\"attribute_id\":\"global_id\",\"value\":\"mock_device0\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute {\"node_id\":\"mock_device0\",\"attribute_id\":\"global_id\",\"value\":\"mock_device0\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"read_only\",\"detail\":\"attribute \\\"global_id\\\" on \\\"mock_device0\\\" is read only on every component: it is one of the attributes the reference hardcodes as Locked (global_id, local_id, streamed, last_value, the domain and related signal ids). It holds \\\"mock_device0\\\".\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute {\"node_id\":\"mock_device0\",\"attribute_id\":\"global_id\",\"value\":\"mock_device0\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "attribute.write",
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]",
+      "expected": "one of [not_found, read_only, invalid_value]",
+      "actual": "\"read_only\" - \"attribute \\\"global_id\\\" on \\\"mock_device0\\\" is read only on every component: it is one of the attributes the reference hardcodes as Locked (global_id, local_id, streamed, last_value, the domain and related signal ids). It holds \\\"mock_device0\\\".\"",
+      "verdict": "held"
+    },
+    {
+      "title": "writing the host's own read_only=true attribute mock_device0.global_id is refused with read_only",
+      "scope": "capability_claimed",
+      "capability": "attribute.write",
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]; \"read_only: the attribute's ComponentAttribute.read_only is true, i.e. openDAQ's locked_attributes or the reference's own hardcoded Locked flag refused the write\"",
+      "expected": "error code \"read_only\"",
+      "actual": "error read_only: attribute \"global_id\" on \"mock_device0\" is read only on every component: it is one of the attributes the reference hardcodes as Locked (global_id, local_id, streamed, last_value, the domain and related signal ids). It holds \"mock_device0\".",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute {\"node_id\":\"mock_device0\",\"attribute_id\":\"active\",\"value\":\"this is not a value of that attribute's type, it was sent by : the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute {\"node_id\":\"mock_device0\",\"attribute_id\":\"active\",\"value\":\"this is not a value of that attribute's type, it was sent by : the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"invalid_value\",\"detail\":\"attribute \\\"active\\\" on \\\"mock_device0\\\" is a bool; got \\\"this is not a value of that attribute's type, it was sent by the quackoscope conformance sweep\\\"\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute {\"node_id\":\"mock_device0\",\"attribute_id\":\"active\",\"value\":\"this is not a value of that attribute's type, it was sent by : the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "attribute.write",
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]",
+      "expected": "one of [not_found, read_only, invalid_value]",
+      "actual": "\"invalid_value\" - \"attribute \\\"active\\\" on \\\"mock_device0\\\" is a bool; got \\\"this is not a value of that attribute's type, it was sent by the quackoscope conformance sweep\\\"\"",
+      "verdict": "held"
+    },
+    {
+      "title": "writing a string into the bool attribute mock_device0.active is refused with invalid_value",
+      "scope": "capability_claimed",
+      "capability": "attribute.write",
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]; \"invalid_value: the value is of the wrong type for the attribute, or openDAQ rejected it\"; types.ComponentAttribute.value_type is an enum over [bool, int, float, string, string_list]",
+      "expected": "error code \"invalid_value\"",
+      "actual": "error invalid_value: attribute \"active\" on \"mock_device0\" is a bool; got \"this is not a value of that attribute's type, it was sent by the quackoscope conformance sweep\"",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute {\"node_id\":\"mock_device0\",\"attribute_id\":\"quackoscope-conformance-sweep-no-such-attribute\",\"value\":true}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute {\"node_id\":\"mock_device0\",\"attribute_id\":\"quackoscope-conformance-sweep-no-such-attribute\",\"value\":true}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"component \\\"mock_device0\\\" (a device) has no attribute \\\"quackoscope-conformance-sweep-no-such-attribute\\\"; get_component_attributes reports 7 attribute(s) for it: name, description, active, global_id, local_id, tags, visible\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute {\"node_id\":\"mock_device0\",\"attribute_id\":\"quackoscope-conformance-sweep-no-such-attribute\",\"value\":true}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "attribute.write",
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]",
+      "expected": "one of [not_found, read_only, invalid_value]",
+      "actual": "\"not_found\" - \"component \\\"mock_device0\\\" (a device) has no attribute \\\"quackoscope-conformance-sweep-no-such-attribute\\\"; get_component_attributes reports 7 attribute(s) for it: name, description, active, global_id, local_id, tags, visible\"",
+      "verdict": "held"
+    },
+    {
+      "title": "set_component_attribute with the attribute id \"quackoscope-conformance-sweep-no-such-attribute\", which mock_device0 does not report, is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "attribute.write",
+      "wire_method": "set_component_attribute",
+      "contract_citation": "contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]; \"not_found: node_id names no component, or attribute_id is not one this component reports\"",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: component \"mock_device0\" (a device) has no attribute \"quackoscope-conformance-sweep-no-such-attribute\"; get_component_attributes reports 7 attribute(s) for it: name, description, active, global_id, local_id, tags, visible",
+      "verdict": "held"
+    },
+    {
+      "title": "list_server_types: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "list_server_types",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "list_server_types returns an array of contract-shaped ComponentTypeInfo records",
+      "scope": "capability_claimed",
+      "capability": "server.add",
+      "wire_method": "list_server_types",
+      "contract_citation": "contract.yaml operations[list_server_types].returns = array of ComponentTypeInfo; types.ComponentTypeInfo id/name/kind required, description and connection_string_prefix nullable, kind an enum over [device, function_block, server, streaming]",
+      "expected": "every element a ComponentTypeInfo",
+      "actual": "2 server type(s): synthetic_unbound_control_server (server), synthetic_unbound_streaming_server (server)",
+      "verdict": "held"
+    },
+    {
+      "title": "every row list_server_types returns carries kind \"server\"",
+      "scope": "capability_claimed",
+      "capability": "server.add",
+      "wire_method": "list_server_types",
+      "contract_citation": "contract.yaml operations[list_server_types].returns: \"kind is `server` on every element of this response, which is one redundant field per row and the price of not adding a fifth record\"",
+      "expected": "kind \"server\" on all 2 row(s)",
+      "actual": "2 row(s), kind \"server\" on every one",
+      "verdict": "held"
+    },
+    {
+      "title": "list_server_types on a second session that has connected no device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "list_server_types",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "list_server_types on a second session that has connected no device: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "list_server_types",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_connected\",\"detail\":\"this session has connected no device; call connect_device first (a device another session connected is not visible here)\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "list_server_types on a second session that has connected no device: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "server.add",
+      "wire_method": "list_server_types",
+      "contract_citation": "contract.yaml operations[list_server_types].errors = [not_connected]",
+      "expected": "one of [not_connected]",
+      "actual": "\"not_connected\" - \"this session has connected no device; call connect_device first (a device another session connected is not visible here)\"",
+      "verdict": "held"
+    },
+    {
+      "title": "list_server_types, asked from a session that has connected no device, either answers the list or refuses not_connected",
+      "scope": "capability_claimed",
+      "capability": "server.add",
+      "wire_method": "list_server_types",
+      "contract_citation": "contract.yaml operations[list_server_types].errors = [not_connected]; \"Same as list_function_block_types: the only way to have no server types is to have no instance.\" THE CONTRACT'S CONDITION IS AN INSTANCE, NOT A CONNECTED DEVICE, and those are not the same state: a host builds its openDAQ Instance at startup and connect_device adds a device TO it, so a session that has connected nothing still has an instance to ask. The contract's own add_server comment settles the scope - AddServerDialog \"calls self.context.instance.add_server(server_type_id, config) on the INSTANCE, always\" - so server types are an instance-wide fact the way loaded modules are a process-wide one, which is the row list_loaded_modules is read the same way for. The \"Same as list_function_block_types\" is the misleading half: function block types come off the DEVICE (IDevice::getAvailableFunctionBlockTypes) and this run's cpp host demonstrates the split by refusing not_connected to that row and answering the list to this one. All four independently written SDK hosts answer the list here, which is evidence about the contract's wording and not about four bindings, so both answers conform and which one a host gives is recorded rather than judged",
+      "expected": "an array of ComponentTypeInfo, or error not_connected",
+      "actual": "error not_connected: this session has connected no device; call connect_device first (a device another session connected is not visible here)",
+      "verdict": "held"
+    },
+    {
+      "title": "add_server {\"type_id\":\"quackoscope-conformance-sweep-no-such-server-type\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "add_server",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "add_server {\"type_id\":\"quackoscope-conformance-sweep-no-such-server-type\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "add_server",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"no server type \\\"quackoscope-conformance-sweep-no-such-server-type\\\" on this synthetic device; list_server_types answers with synthetic_unbound_control_server (Synthetic control server (binds no socket): it stands in for a control-plane server row: it holds properties, carries NodeKind server and accepts set_server_discovery_enabled, and it listens on no port), synthetic_unbound_streaming_server (Synthetic streaming server (binds no socket): it stands in for a streaming server row; it publishes none of this device's signals to anyone, because it opens no connection)\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "add_server {\"type_id\":\"quackoscope-conformance-sweep-no-such-server-type\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "server.add",
+      "wire_method": "add_server",
+      "contract_citation": "contract.yaml operations[add_server].errors = [not_connected, unsupported, invalid_value, internal]",
+      "expected": "one of [not_connected, unsupported, invalid_value, internal]",
+      "actual": "\"unsupported\" - \"no server type \\\"quackoscope-conformance-sweep-no-such-server-type\\\" on this synthetic device; list_server_types answers with synthetic_unbound_control_server (Synthetic control server (binds no socket): it stands in for a control-plane server row: it holds properties, carries NodeKind server and accepts set_server_discovery_enabled, and it listens on no port), synthetic_unbound_streaming_server (Synthetic streaming server (binds no socket): it stands in for a streaming server row; it publishes none of this device's signals to anyone, because it opens no connection)\"",
+      "verdict": "held"
+    },
+    {
+      "title": "add_server with the type id \"quackoscope-conformance-sweep-no-such-server-type\", which list_server_types did not return, is refused with unsupported",
+      "scope": "capability_claimed",
+      "capability": "server.add",
+      "wire_method": "add_server",
+      "contract_citation": "contract.yaml operations[add_server].errors = [not_connected, unsupported, invalid_value, internal]; \"unsupported: type_id is not among list_server_types, which is exactly what add_function_block answers to an unknown type id\"",
+      "expected": "error code \"unsupported\"",
+      "actual": "error unsupported: no server type \"quackoscope-conformance-sweep-no-such-server-type\" on this synthetic device; list_server_types answers with synthetic_unbound_control_server (Synthetic control server (binds no socket): it stands in for a control-plane server row: it holds properties, carries NodeKind server and accepts set_server_discovery_enabled, and it listens on no port), synthetic_unbound_streaming_server (Synthetic streaming server (binds no socket): it stands in for a streaming server row; it publishes none of this device's signals to anyone, because it opens no connection)",
+      "verdict": "held"
+    },
+    {
+      "title": "add_server on a second session that has connected no device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "add_server",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "add_server on a second session that has connected no device: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "add_server",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_connected\",\"detail\":\"this session has connected no device; call connect_device first (a device another session connected is not visible here)\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "add_server on a second session that has connected no device: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "server.add",
+      "wire_method": "add_server",
+      "contract_citation": "contract.yaml operations[add_server].errors = [not_connected, unsupported, invalid_value, internal]",
+      "expected": "one of [not_connected, unsupported, invalid_value, internal]",
+      "actual": "\"not_connected\" - \"this session has connected no device; call connect_device first (a device another session connected is not visible here)\"",
+      "verdict": "held"
+    },
+    {
+      "title": "add_server \"quackoscope-conformance-sweep-no-such-server-type\", asked from a session that has connected no device, is refused with a code from its own subset",
+      "scope": "capability_claimed",
+      "capability": "server.add",
+      "wire_method": "add_server",
+      "contract_citation": "contract.yaml operations[add_server].errors = [not_connected, unsupported, invalid_value, internal]; \"not_connected: no instance, so nothing to add a server to\" and \"unsupported: type_id is not among list_server_types\". Both are true of this request and the contract does not order them, so either conforms and which one a host picks is recorded rather than judged",
+      "expected": "one of [not_connected, unsupported]",
+      "actual": "error not_connected: this session has connected no device; call connect_device first (a device another session connected is not visible here)",
+      "verdict": "held"
+    },
+    {
+      "title": "the success path of add_server was not driven, and neither was the invalid_value an instance-refused addition produces",
+      "scope": "not_provokable",
+      "capability": "server.add",
+      "wire_method": "add_server",
+      "contract_citation": "contract.yaml operations[add_server].errors: \"internal: adding a server OPENS A LISTENING SOCKET in the host process, and that fails for reasons that are not about type_id at all - a port already bound, a permission refused by the operating system\"; returns = Node, kind `server`. The operation table is closed (section 5) and carries no remove_server row.",
+      "expected": "no assertion: a well-formed wire client cannot force this without breaking the host from the outside",
+      "actual": "a successful add_server binds a real listening socket inside the host, on a port that comes from the server type's own configuration and that this project does not own - observed as 0.0.0.0:7420 (OpenDAQNativeStreaming) on the C++ host and both 7414 and 7420 on the Rust host - AND THERE IS NO ROW IN contract.yaml THAT CAN TAKE IT DOWN AGAIN. remove_function_block is one of the three function_block.add operations and is scoped to a function block; disconnect_device tears down a device this session connected; set_server_discovery_enabled only moves a flag; IServer::stop is bound to no row. So driving it would leak one listening socket per run per host, and the next run would meet `internal` - which this row names for exactly that, \"a port already bound\" - from a socket this run left behind. This is the same shape as load_module_from_host_path in sweep 3, whose success path is permanent for the host process and is recorded here rather than driven; a bound port is the worse of the two, because it is permanent on a number rather than only inside one process. THE FINDING THIS RECORDS IS ABOUT THE CONTRACT: contract.yaml needs a remove_server row, and not only so that this suite can drive add_server - the add-server card grid creates a server that no control in the client can undo.",
+      "verdict": "not_provokable_by_a_wire_client"
+    },
+    {
+      "title": "set_server_discovery_enabled mock_device0/srv/synthetic_unbound_control_server_1 enabled=false: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "set_server_discovery_enabled mock_device0/srv/synthetic_unbound_control_server_1 enabled=false is accepted and returns void",
+      "scope": "capability_claimed",
+      "capability": "server.discovery",
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml operations[set_server_discovery_enabled]: \"ONE ROW WITH A BOOLEAN, NOT TWO ROWS ... the row menu still draws two items, each sending this method with a different `enabled`\"; returns = void",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "set_server_discovery_enabled mock_device0/srv/synthetic_unbound_control_server_1 enabled=true: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "set_server_discovery_enabled mock_device0/srv/synthetic_unbound_control_server_1 enabled=true is accepted and returns void",
+      "scope": "capability_claimed",
+      "capability": "server.discovery",
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml operations[set_server_discovery_enabled]: \"ONE ROW WITH A BOOLEAN, NOT TWO ROWS ... the row menu still draws two items, each sending this method with a different `enabled`\"; returns = void",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "what discovery state mock_device0/srv/synthetic_unbound_control_server_1 was in before this sweep touched it, and what it is left in",
+      "scope": "unconstrained",
+      "capability": null,
+      "wire_method": null,
+      "contract_citation": "contract.yaml operations[set_server_discovery_enabled]: \"THERE IS NO GETTER AND THERE CANNOT BE ONE ... So this state cannot be a Node field the way `active` and `locked` are: no host can fill it.\"",
+      "expected": "no pass/fail is possible: the contract constrains the shape but not the occurrence",
+      "actual": "the contract fixes the setter and states that the state behind it is unreadable, so a sweep cannot restore what it found and cannot assert what it left  observed: this sweep sent enabled=false and then enabled=true to mock_device0/srv/synthetic_unbound_control_server_1; it is left with discovery enabled, and no operation of this contract can confirm that",
+      "verdict": "unconstrained_by_the_contract"
+    },
+    {
+      "title": "set_server_discovery_enabled {\"node_id\":\"mock_device0\",\"enabled\":true}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "set_server_discovery_enabled {\"node_id\":\"mock_device0\",\"enabled\":true}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"\\\"mock_device0\\\" is a device, not a server; set_server_discovery_enabled acts on server rows only. This device has 1 server row(s): mock_device0/srv/synthetic_unbound_control_server_1\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "set_server_discovery_enabled {\"node_id\":\"mock_device0\",\"enabled\":true}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "server.discovery",
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal]",
+      "expected": "one of [not_found, unsupported, internal]",
+      "actual": "\"unsupported\" - \"\\\"mock_device0\\\" is a device, not a server; set_server_discovery_enabled acts on server rows only. This device has 1 server row(s): mock_device0/srv/synthetic_unbound_control_server_1\"",
+      "verdict": "held"
+    },
+    {
+      "title": "set_server_discovery_enabled on mock_device0, a node of kind device and not a server, is refused with unsupported",
+      "scope": "capability_claimed",
+      "capability": "server.discovery",
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal]; \"unsupported: the component exists but is not a server - the same use get_device_operation_modes makes of this code for a node that is not a device\"",
+      "expected": "error code \"unsupported\"",
+      "actual": "error unsupported: \"mock_device0\" is a device, not a server; set_server_discovery_enabled acts on server rows only. This device has 1 server row(s): mock_device0/srv/synthetic_unbound_control_server_1",
+      "verdict": "held"
+    },
+    {
+      "title": "set_server_discovery_enabled {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\",\"enabled\":true}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "set_server_discovery_enabled {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\",\"enabled\":true}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "set_server_discovery_enabled {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\",\"enabled\":true}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "server.discovery",
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal]",
+      "expected": "one of [not_found, unsupported, internal]",
+      "actual": "\"not_found\" - \"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"",
+      "verdict": "held"
+    },
+    {
+      "title": "set_server_discovery_enabled on the unknown node \"/quackoscope-conformance-sweep/no-such-node\" is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "server.discovery",
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal]; \"not_found: node_id names no component\"",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds mock_device0",
+      "verdict": "held"
+    },
+    {
+      "title": "the \"internal\" error code of set_server_discovery_enabled was not provoked",
+      "scope": "not_provokable",
+      "capability": "server.discovery",
+      "wire_method": "set_server_discovery_enabled",
+      "contract_citation": "contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal]; \"internal: mDNS advertising failed\"",
+      "expected": "no assertion: a well-formed wire client cannot force this without breaking the host from the outside",
+      "actual": "a failed mDNS advertisement is a fact about the host's network stack; no well-formed request can shape one, and nothing on the wire can take mDNS away from a healthy host",
+      "verdict": "not_provokable_by_a_wire_client"
+    },
+    {
+      "title": "start_recording mock_device0/fb/recorder: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "start_recording mock_device0/fb/recorder is accepted and returns void",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml operations[start_recording].returns = void; the row is one half of \"the reference's single Start/Stop button (recorder_view.py:90-106)\"",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_tree reports Node.recording true on mock_device0/fb/recorder after this session's own start_recording",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml types.Node.recording: \"IRecorder::getIsRecording(Bool*), recorder.h:62 ... the control is drawn or not drawn with no request at all.\" start_recording and stop_recording are \"the two halves of the reference's single Start/Stop button\", so a recording the tree does not show leaves that button wrong.",
+      "expected": "Node.recording === true",
+      "actual": "Node.recording true",
+      "verdict": "held"
+    },
+    {
+      "title": "stop_recording mock_device0/fb/recorder: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "stop_recording mock_device0/fb/recorder is accepted and returns void",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml operations[stop_recording].returns = void",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_tree reports Node.recording false on mock_device0/fb/recorder after this session's own stop_recording",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml types.Node.recording: \"IRecorder::getIsRecording(Bool*), recorder.h:62 ... the control is drawn or not drawn with no request at all.\" start_recording and stop_recording are \"the two halves of the reference's single Start/Stop button\", so a recording the tree does not show leaves that button wrong.",
+      "expected": "Node.recording === false",
+      "actual": "Node.recording false",
+      "verdict": "held"
+    },
+    {
+      "title": "start_recording {\"node_id\":\"mock_device0\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "start_recording {\"node_id\":\"mock_device0\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"\\\"mock_device0\\\" is a device and is not a recorder, so start_recording does not apply to it. This host's recorder rows are the ones built from catalogue type \\\"synthetic_sample_recorder\\\", and they are exactly the rows that report a non-null Node.recording: mock_device0/fb/recorder\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "start_recording {\"node_id\":\"mock_device0\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml operations[start_recording].errors = [not_found, unsupported, internal]",
+      "expected": "one of [not_found, unsupported, internal]",
+      "actual": "\"unsupported\" - \"\\\"mock_device0\\\" is a device and is not a recorder, so start_recording does not apply to it. This host's recorder rows are the ones built from catalogue type \\\"synthetic_sample_recorder\\\", and they are exactly the rows that report a non-null Node.recording: mock_device0/fb/recorder\"",
+      "verdict": "held"
+    },
+    {
+      "title": "start_recording on mock_device0, a node of kind device reporting Node.recording null, is refused with unsupported",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml operations[start_recording].errors = [not_found, unsupported, internal]; \"unsupported: the component exists and is not a recorder, i.e. the cast block_view.py:169 performs would fail.\" not_found would be a lie about a node that is in the tree.",
+      "expected": "error code \"unsupported\"",
+      "actual": "error unsupported: \"mock_device0\" is a device and is not a recorder, so start_recording does not apply to it. This host's recorder rows are the ones built from catalogue type \"synthetic_sample_recorder\", and they are exactly the rows that report a non-null Node.recording: mock_device0/fb/recorder",
+      "verdict": "held"
+    },
+    {
+      "title": "start_recording {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "start_recording {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "start_recording {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml operations[start_recording].errors = [not_found, unsupported, internal]",
+      "expected": "one of [not_found, unsupported, internal]",
+      "actual": "\"not_found\" - \"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"",
+      "verdict": "held"
+    },
+    {
+      "title": "start_recording on the unknown node \"/quackoscope-conformance-sweep/no-such-node\" is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml operations[start_recording].errors = [not_found, unsupported, internal]; \"not_found: node_id names nothing\"",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds mock_device0",
+      "verdict": "held"
+    },
+    {
+      "title": "the \"internal\" error code of start_recording was not provoked",
+      "scope": "not_provokable",
+      "capability": "recorder.control",
+      "wire_method": "start_recording",
+      "contract_citation": "contract.yaml operations[start_recording].errors = [not_found, unsupported, internal]",
+      "expected": "no assertion: a well-formed wire client cannot force this without breaking the host from the outside",
+      "actual": "internal here is \"IRecorder::startRecording threw - no writable path, a file already open, a device error\", which are facts about the host's filesystem and its device; a wire client can shape none of them from a well-formed request",
+      "verdict": "not_provokable_by_a_wire_client"
+    },
+    {
+      "title": "stop_recording {\"node_id\":\"mock_device0\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "stop_recording {\"node_id\":\"mock_device0\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"unsupported\",\"detail\":\"\\\"mock_device0\\\" is a device and is not a recorder, so stop_recording does not apply to it. This host's recorder rows are the ones built from catalogue type \\\"synthetic_sample_recorder\\\", and they are exactly the rows that report a non-null Node.recording: mock_device0/fb/recorder\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "stop_recording {\"node_id\":\"mock_device0\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml operations[stop_recording].errors = [not_found, unsupported, internal]",
+      "expected": "one of [not_found, unsupported, internal]",
+      "actual": "\"unsupported\" - \"\\\"mock_device0\\\" is a device and is not a recorder, so stop_recording does not apply to it. This host's recorder rows are the ones built from catalogue type \\\"synthetic_sample_recorder\\\", and they are exactly the rows that report a non-null Node.recording: mock_device0/fb/recorder\"",
+      "verdict": "held"
+    },
+    {
+      "title": "stop_recording on mock_device0, a node of kind device reporting Node.recording null, is refused with unsupported",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml operations[stop_recording].errors = [not_found, unsupported, internal]; \"unsupported: the component exists and is not a recorder, i.e. the cast block_view.py:169 performs would fail.\" not_found would be a lie about a node that is in the tree.",
+      "expected": "error code \"unsupported\"",
+      "actual": "error unsupported: \"mock_device0\" is a device and is not a recorder, so stop_recording does not apply to it. This host's recorder rows are the ones built from catalogue type \"synthetic_sample_recorder\", and they are exactly the rows that report a non-null Node.recording: mock_device0/fb/recorder",
+      "verdict": "held"
+    },
+    {
+      "title": "stop_recording {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "stop_recording {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "stop_recording {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml operations[stop_recording].errors = [not_found, unsupported, internal]",
+      "expected": "one of [not_found, unsupported, internal]",
+      "actual": "\"not_found\" - \"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"",
+      "verdict": "held"
+    },
+    {
+      "title": "stop_recording on the unknown node \"/quackoscope-conformance-sweep/no-such-node\" is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "recorder.control",
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml operations[stop_recording].errors = [not_found, unsupported, internal]; \"not_found: node_id names nothing\"",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds mock_device0",
+      "verdict": "held"
+    },
+    {
+      "title": "the \"internal\" error code of stop_recording was not provoked",
+      "scope": "not_provokable",
+      "capability": "recorder.control",
+      "wire_method": "stop_recording",
+      "contract_citation": "contract.yaml operations[stop_recording].errors = [not_found, unsupported, internal]",
+      "expected": "no assertion: a well-formed wire client cannot force this without breaking the host from the outside",
+      "actual": "internal here is \"IRecorder::startRecording threw - no writable path, a file already open, a device error\", which are facts about the host's filesystem and its device; a wire client can shape none of them from a well-formed request",
+      "verdict": "not_provokable_by_a_wire_client"
+    },
+    {
+      "title": "begin_batched_property_update mock_device0: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "begin_batched_property_update",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "begin_batched_property_update mock_device0 is accepted and returns void",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "begin_batched_property_update",
+      "contract_citation": "contract.yaml operations[begin_batched_property_update].returns = void; the row is IPropertyObject::beginUpdate",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_tree reports Node.updating true on mock_device0 while this session holds a batch open on it",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "begin_batched_property_update",
+      "contract_citation": "contract.yaml types.Node.updating: \"IPropertyObject::getUpdating(Bool*), property_object.h:361, whose own doc says it returns True if beginUpdate method has been called on the object and endUpdate has not\"; operations[begin_batched_property_update]: \"THE STATE IS Node.updating, so a client knows before it calls which of the two items is the live one, with no request.\"",
+      "expected": "Node.updating === true",
+      "actual": "Node.updating true",
+      "verdict": "held"
+    },
+    {
+      "title": "set_property_value while a batch is open on the device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "set_property_value",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "a write of 101 to mock_device0.acquisition_block_size_samples made while a batch is open on mock_device0 is HELD, not applied",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "begin_batched_property_update",
+      "contract_citation": "contract.yaml operations[begin_batched_property_update]: \"Between the two, setPropertyValue does not apply the value; endUpdate applies everything set in between (property_object.h:330-349)\"; types.Node.updating: \"While that holds, every set_property_value against the component is HELD rather than applied.\" beginUpdate is recursive over child property objects, so a batch on the device covers this node.",
+      "expected": "the read-back still reports the pre-batch value 100",
+      "actual": "the write was accepted and the read-back during the batch reports 100 (it was 100 before)",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update mock_device0: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update mock_device0 is accepted and returns void",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml operations[end_batched_property_update].returns = void; the row is IPropertyObject::endUpdate",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update applies the write that was held on mock_device0.acquisition_block_size_samples",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml operations[begin_batched_property_update]: \"endUpdate applies everything set in between (property_object.h:330-349)\". A batch that ends without applying its writes would tell a user their batch landed when it did not. contract.yaml types.PropertyDescriptor.coercer means a numeric write may be coerced, so the read-back is only required to differ from the value the batch opened on.",
+      "expected": "the read-back differs from the pre-batch value 100",
+      "actual": "110 (it was 100 before the batch, and 101 was written inside it)",
+      "verdict": "held"
+    },
+    {
+      "title": "get_component_tree reports Node.updating false on mock_device0 after this session's own end_batched_property_update",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml types.Node.updating: \"IPropertyObject::getUpdating(Bool*), property_object.h:361, whose own doc says it returns True if beginUpdate method has been called on the object and endUpdate has not\"; operations[begin_batched_property_update]: \"THE STATE IS Node.updating, so a client knows before it calls which of the two items is the live one, with no request.\"",
+      "expected": "Node.updating === false",
+      "actual": "Node.updating false",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update {\"node_id\":\"mock_device0\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update {\"node_id\":\"mock_device0\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"invalid_value\",\"detail\":\"end_batched_property_update on \\\"mock_device0\\\" arrived with no begin_batched_property_update open on that component: its batch update depth is 0, and Node.updating is false for it. Nothing was applied and nothing was discarded. 0 component(s) on this device are inside an open batch right now.\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update {\"node_id\":\"mock_device0\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml operations[end_batched_property_update].errors = [not_found, not_connected, invalid_value]",
+      "expected": "one of [not_found, not_connected, invalid_value]",
+      "actual": "\"invalid_value\" - \"end_batched_property_update on \\\"mock_device0\\\" arrived with no begin_batched_property_update open on that component: its batch update depth is 0, and Node.updating is false for it. Nothing was applied and nothing was discarded. 0 component(s) on this device are inside an open batch right now.\"",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update mock_device0 with no batch open is refused with invalid_value, never swallowed",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml operations[end_batched_property_update].errors = [not_found, not_connected, invalid_value]; \"invalid_value is this row's and not begin's: endUpdate raises when no beginUpdate is open, and the reference swallows exactly that with a bare `except RuntimeError: pass` ... A host must not swallow it the way the reference does: silence here would tell a user their batch was applied.\"",
+      "expected": "error code \"invalid_value\"",
+      "actual": "error invalid_value: end_batched_property_update on \"mock_device0\" arrived with no begin_batched_property_update open on that component: its batch update depth is 0, and Node.updating is false for it. Nothing was applied and nothing was discarded. 0 component(s) on this device are inside an open batch right now.",
+      "verdict": "held"
+    },
+    {
+      "title": "begin_batched_property_update {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "begin_batched_property_update",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "begin_batched_property_update {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "begin_batched_property_update",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "begin_batched_property_update {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "begin_batched_property_update",
+      "contract_citation": "contract.yaml operations[begin_batched_property_update].errors = [not_found, not_connected]",
+      "expected": "one of [not_found, not_connected]",
+      "actual": "\"not_found\" - \"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"",
+      "verdict": "held"
+    },
+    {
+      "title": "begin_batched_property_update on the unknown node \"/quackoscope-conformance-sweep/no-such-node\" is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "begin_batched_property_update",
+      "contract_citation": "contract.yaml operations[begin_batched_property_update].errors = [not_found, not_connected]; \"not_found: node_id names no component\"",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds mock_device0",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_found\",\"detail\":\"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update {\"node_id\":\"/quackoscope-conformance-sweep/no-such-node\"}: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml operations[end_batched_property_update].errors = [not_found, not_connected, invalid_value]",
+      "expected": "one of [not_found, not_connected, invalid_value]",
+      "actual": "\"not_found\" - \"no component with id \\\"/quackoscope-conformance-sweep/no-such-node\\\" in this session; it holds mock_device0\"",
+      "verdict": "held"
+    },
+    {
+      "title": "end_batched_property_update on the unknown node \"/quackoscope-conformance-sweep/no-such-node\" is refused with not_found",
+      "scope": "capability_claimed",
+      "capability": "property.batched_update",
+      "wire_method": "end_batched_property_update",
+      "contract_citation": "contract.yaml operations[end_batched_property_update].errors = [not_found, not_connected, invalid_value]; \"not_found: node_id names no component\"",
+      "expected": "error code \"not_found\"",
+      "actual": "error not_found: no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds mock_device0",
+      "verdict": "held"
+    },
+    {
+      "title": "what Node.updating on mock_device0 says after the session that opened a batch on it dropped without ending it",
+      "scope": "unconstrained",
+      "capability": null,
+      "wire_method": null,
+      "contract_citation": "contract.yaml operations[begin_batched_property_update], \"WHAT THIS CONTRACT DOES NOT RULE\": \"A batch is a property of the COMPONENT, not of the socket that opened it ... a session that begins and then drops leaves it there. Nothing here says whether a host must end an abandoned batch when its opener disconnects, whether a second session may end one it did not begin, or what either should answer. That is the SAME question already open and escalated for device.lock ... Node.updating is what makes the unruled state visible in the meantime.\"",
+      "expected": "no pass/fail is possible: the contract constrains the shape but not the occurrence",
+      "actual": "the contract states this question and declines to answer it, so neither ending the batch nor leaving it open can be failed here  observed: Node.updating true, read from the session that did NOT open the batch, ~300 ms after the opener's socket closed",
+      "verdict": "unconstrained_by_the_contract"
+    },
+    {
+      "title": "what this host answers when a session ends a batch it did not begin, on mock_device0",
+      "scope": "unconstrained",
+      "capability": null,
+      "wire_method": null,
+      "contract_citation": "contract.yaml operations[begin_batched_property_update]: \"Nothing here says ... whether a second session may end one it did not begin, or what either should answer ... a host must not quietly invent a policy and call it the contract.\"",
+      "expected": "no pass/fail is possible: the contract constrains the shape but not the occurrence",
+      "actual": "the contract states this question and declines to answer it, so accepting the end and refusing it are both conforming answers  observed: end_batched_property_update mock_device0 from the session that did not begin the batch: the host accepted, result null",
+      "verdict": "unconstrained_by_the_contract"
+    },
+    {
+      "title": "save_instance_configuration_to_string: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "save_instance_configuration_to_string",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "save_instance_configuration_to_string returns a non-empty string",
+      "scope": "capability_claimed",
+      "capability": "configuration.save",
+      "wire_method": "save_instance_configuration_to_string",
+      "contract_citation": "contract.yaml operations[save_instance_configuration_to_string].returns = {type: string, semantic: opendaq_instance_configuration_json}: \"The serialised configuration, whole, as openDAQ produced it. Opaque: no client parses it, no client edits it, and this contract declares nothing about its shape beyond it being the string saveConfiguration returned.\"",
+      "expected": "a string result",
+      "actual": "8398 characters, beginning \"{\\\"format\\\":\\\"quackoscope_mock_synthetic_instance_configuration\\\",\\\"what_this_is_not\\\":\\\"This is NOT an openDAQ saveConfigurati\"",
+      "verdict": "held"
+    },
+    {
+      "title": "save_instance_configuration_to_string on a second session that has connected no device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "save_instance_configuration_to_string",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "save_instance_configuration_to_string on a second session that has connected no device: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "save_instance_configuration_to_string",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_connected\",\"detail\":\"this session has connected no device; call connect_device first (a device another session connected is not visible here)\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "save_instance_configuration_to_string on a second session that has connected no device: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "configuration.save",
+      "wire_method": "save_instance_configuration_to_string",
+      "contract_citation": "contract.yaml operations[save_instance_configuration_to_string].errors = [not_connected, internal]",
+      "expected": "one of [not_connected, internal]",
+      "actual": "\"not_connected\" - \"this session has connected no device; call connect_device first (a device another session connected is not visible here)\"",
+      "verdict": "held"
+    },
+    {
+      "title": "save_instance_configuration_to_string, asked from a session that has connected no device, either answers a string or refuses not_connected",
+      "scope": "capability_claimed",
+      "capability": "configuration.save",
+      "wire_method": "save_instance_configuration_to_string",
+      "contract_citation": "contract.yaml operations[save_instance_configuration_to_string].errors = [not_connected, internal] and params = []. \"not_connected: no instance to serialise\" - and whether a host has an instance before any device is connected is not something the contract settles, exactly as it does not for list_loaded_modules, so both answers conform",
+      "expected": "a string result, or error not_connected",
+      "actual": "error not_connected: this session has connected no device; call connect_device first (a device another session connected is not visible here)",
+      "verdict": "held"
+    },
+    {
+      "title": "the \"internal\" error code of save_instance_configuration_to_string was not provoked",
+      "scope": "not_provokable",
+      "capability": "configuration.save",
+      "wire_method": "save_instance_configuration_to_string",
+      "contract_citation": "contract.yaml operations[save_instance_configuration_to_string].errors = [not_connected, internal]; \"internal: saveConfiguration threw, or the result does not fit this host's declared max_frame_bytes - detail carries both byte counts\"",
+      "expected": "no assertion: a well-formed wire client cannot force this without breaking the host from the outside",
+      "actual": "this row takes no parameters at all, so there is no input a wire client can shape. The frame-limit path would need the instance's serialised form to be pushed past handshake.limits.max_frame_bytes, and the only wire lever on that is set_property_value against whichever property of whichever node happens to enlarge THIS host's serialisation - which is a fact about one host's device and not about the contract, and a sweep that went looking for it would be testing a host it had identified rather than a contract it had read",
+      "verdict": "not_provokable_by_a_wire_client"
+    },
+    {
+      "title": "load_instance_configuration_from_string {\"configuration\":\"this text is not an openDAQ instance configuration; the quackoscope conformance sweep sent it to provo: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "load_instance_configuration_from_string {\"configuration\":\"this text is not an openDAQ instance configuration; the quackoscope conformance sweep sent it to provo: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"invalid_value\",\"detail\":\"the configuration is 118 character(s) and is not valid JSON, so nothing was loaded: SyntaxError: Unexpected token 'h', \\\"this text i\\\"... is not valid JSON\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "load_instance_configuration_from_string {\"configuration\":\"this text is not an openDAQ instance configuration; the quackoscope conformance sweep sent it to provo: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "configuration.load",
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml operations[load_instance_configuration_from_string].errors = [not_connected, invalid_value, internal]",
+      "expected": "one of [not_connected, invalid_value, internal]",
+      "actual": "\"invalid_value\" - \"the configuration is 118 character(s) and is not valid JSON, so nothing was loaded: SyntaxError: Unexpected token 'h', \\\"this text i\\\"... is not valid JSON\"",
+      "verdict": "held"
+    },
+    {
+      "title": "load_instance_configuration_from_string with a string that is not a configuration at all is refused with invalid_value",
+      "scope": "capability_claimed",
+      "capability": "configuration.load",
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml operations[load_instance_configuration_from_string].errors = [not_connected, invalid_value, internal]; \"invalid_value: the string is not a configuration openDAQ will load - not parseable, or describing devices this instance cannot reconcile. This is the likeliest answer a user will ever see from this row\"",
+      "expected": "error code \"invalid_value\"",
+      "actual": "error invalid_value: the configuration is 118 character(s) and is not valid JSON, so nothing was loaded: SyntaxError: Unexpected token 'h', \"this text i\"... is not valid JSON",
+      "verdict": "held"
+    },
+    {
+      "title": "load_instance_configuration_from_string on a second session that has connected no device: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, error",
+      "verdict": "held"
+    },
+    {
+      "title": "load_instance_configuration_from_string on a second session that has connected no device: the error object matches contract error_shape and the closed error set",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
+      "expected": "{code: one of the closed set, detail: string}",
+      "actual": "{\"code\":\"not_connected\",\"detail\":\"this session has connected no device; call connect_device first (a device another session connected is not visible here)\"}",
+      "verdict": "held"
+    },
+    {
+      "title": "load_instance_configuration_from_string on a second session that has connected no device: the refusal code is inside the subset this operation declares",
+      "scope": "capability_claimed",
+      "capability": "configuration.load",
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml operations[load_instance_configuration_from_string].errors = [not_connected, invalid_value, internal]",
+      "expected": "one of [not_connected, invalid_value, internal]",
+      "actual": "\"not_connected\" - \"this session has connected no device; call connect_device first (a device another session connected is not visible here)\"",
+      "verdict": "held"
+    },
+    {
+      "title": "load_instance_configuration_from_string with an unloadable string, asked from a session that has connected no device, is refused with a code from its own subset",
+      "scope": "capability_claimed",
+      "capability": "configuration.load",
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml operations[load_instance_configuration_from_string].errors = [not_connected, invalid_value, internal]; \"not_connected: no instance to load into\". Both not_connected and invalid_value are true of this request and the contract does not order them, so either conforms",
+      "expected": "one of [not_connected, invalid_value, internal]",
+      "actual": "error not_connected: this session has connected no device; call connect_device first (a device another session connected is not visible here)",
+      "verdict": "held"
+    },
+    {
+      "title": "load_instance_configuration_from_string the 8398-character configuration this host saved moments ago: the response carries exactly one of result or error",
+      "scope": "wire_protocol",
+      "capability": null,
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)",
+      "expected": "exactly one of the keys result / error, alongside the request's correlation id",
+      "actual": "keys: id, result",
+      "verdict": "held"
+    },
+    {
+      "title": "load_instance_configuration_from_string accepts the 8398-character configuration save_instance_configuration_to_string returned on this same host, and returns void",
+      "scope": "capability_claimed",
+      "capability": "configuration.load",
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml operations[load_instance_configuration_from_string].params configuration: \"The text of a configuration previously produced by save_instance_configuration_to_string, on this host or another\"; returns = void. This is the identity load, and it is the only load this sweep makes on the success path: what it applies is the configuration the instance already has, so it is the one load with nothing left behind.",
+      "expected": "a result envelope carrying null",
+      "actual": "result null",
+      "verdict": "held"
+    },
+    {
+      "title": "what the identity load left of the component tree on ws://127.0.0.1:8145/ws",
+      "scope": "unconstrained",
+      "capability": null,
+      "wire_method": null,
+      "contract_citation": "contract.yaml operations[load_instance_configuration_from_string] fixes the parameter, the return and the error subset, and says nothing at all about what a load must preserve; capabilities[configuration.load] says only that it \"REPLACES the configuration of every device under the instance in one call\"",
+      "expected": "no pass/fail is possible: the contract constrains the shape but not the occurrence",
+      "actual": "the contract constrains the call, never what the instance looks like afterwards, so nothing here can be passed or failed  observed: before the load the tree carried 15 node(s) and the device this run connected was mock_device0; after it the tree carries 15 node(s) and that device id is still present",
+      "verdict": "unconstrained_by_the_contract"
+    },
+    {
+      "title": "the \"internal\" error code of load_instance_configuration_from_string was not provoked",
+      "scope": "not_provokable",
+      "capability": "configuration.load",
+      "wire_method": "load_instance_configuration_from_string",
+      "contract_citation": "contract.yaml operations[load_instance_configuration_from_string].errors = [not_connected, invalid_value, internal]; \"internal: the string parsed and applying it threw partway\"",
+      "expected": "no assertion: a well-formed wire client cannot force this without breaking the host from the outside",
+      "actual": "a configuration that parses and then throws partway through being applied is a configuration crafted against one host's device tree, and building one would mean half-applying a replacement of every device's configuration with no way back - which is the change this sweep exists to avoid making",
+      "verdict": "not_provokable_by_a_wire_client"
+    },
+    {
       "title": "a method name that is not in the contract's operation table is refused with a closed-set error code",
       "scope": "wire_protocol",
       "capability": null,
       "wire_method": "quackoscope_conformance_sweep_method_that_is_not_in_the_contract",
       "contract_citation": "contract.yaml lints.no_undeclared_public_method and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]. The contract does not name WHICH code an unknown method must get - see the contract-vagueness notes",
       "expected": "an error envelope whose code is one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]",
-      "actual": "error unsupported: unknown method \"quackoscope_conformance_sweep_method_that_is_not_in_the_contract\"; quackoscope-host-mock serves scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_descriptors, get_property_value, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules",
+      "actual": "error unsupported: unknown method \"quackoscope_conformance_sweep_method_that_is_not_in_the_contract\"; quackoscope-host-mock serves scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_descriptors, get_property_value, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, get_component_attributes, set_component_attribute, list_server_types, add_server, set_server_discovery_enabled, start_recording, stop_recording, begin_batched_property_update, end_batched_property_update, save_instance_configuration_to_string, load_instance_configuration_from_string",
       "verdict": "held"
     },
     {
@@ -2666,7 +4092,7 @@
       "wire_method": null,
       "contract_citation": "contract.yaml events.closed = true, items [component_added, component_removed, property_changed, property_descriptor_changed, device_disconnected]",
       "expected": "no event name outside the closed set",
-      "actual": "16 event(s) received, names seen: property_changed, component_added, component_removed",
+      "actual": "21 event(s) received, names seen: property_changed, component_added, component_removed",
       "verdict": "held"
     },
     {
@@ -2676,7 +4102,7 @@
       "wire_method": null,
       "contract_citation": "contract.yaml events.carries_id_field = false; \"They are not responses and are never correlated.\"",
       "expected": "no event envelope has an id key",
-      "actual": "16 event(s), none carrying an id",
+      "actual": "21 event(s), none carrying an id",
       "verdict": "held"
     },
     {
@@ -2685,8 +4111,8 @@
       "capability": null,
       "wire_method": null,
       "contract_citation": "contract.yaml events.items[].payload",
-      "expected": "16 conforming event payloads",
-      "actual": "16 event(s), every declared payload key present and correctly typed",
+      "expected": "21 conforming event payloads",
+      "actual": "21 event(s), every declared payload key present and correctly typed",
       "verdict": "held"
     },
     {
@@ -2700,13 +4126,13 @@
       "verdict": "unconstrained_by_the_contract"
     },
     {
-      "title": "every one of the 19 operations in contract.yaml was put on the socket and judged",
+      "title": "every one of the 30 operations in contract.yaml was put on the socket and judged",
       "scope": "suite_coverage",
       "capability": null,
       "wire_method": null,
-      "contract_citation": "contract.yaml operations: 19 rows - scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_value, get_property_descriptors, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, read_samples_raw, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, load_module_from_host_path. Section 5 calls that table closed and says host coverage of it is 100%; a suite that reports a clean sweep while never asking one of its rows is reporting on a smaller contract than the one it read.",
-      "expected": "all 19 wire methods with at least one request sent on a session of this run AND at least one ledger entry naming them, or an explicit not_provokable_by_a_wire_client entry saying why this host's own data left the row undrivable",
-      "actual": "19 of 19 driven; requests sent per wire method: scan_available_devices=1, connect_device=2, disconnect_device=2, get_component_tree=7, get_property_value=42, get_property_descriptors=9, set_property_value=6, list_function_block_types=1, add_function_block=2, remove_function_block=2, subscribe_signal=2, unsubscribe_signal=3, read_samples_raw=1, get_device_operation_modes=4, set_device_operation_mode=6, lock_device=4, unlock_device=5, list_loaded_modules=2, load_module_from_host_path=1",
+      "contract_citation": "contract.yaml operations: 30 rows - scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_value, get_property_descriptors, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, read_samples_raw, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, load_module_from_host_path, get_component_attributes, set_component_attribute, list_server_types, add_server, set_server_discovery_enabled, start_recording, stop_recording, begin_batched_property_update, end_batched_property_update, save_instance_configuration_to_string, load_instance_configuration_from_string. Section 5 calls that table closed and says host coverage of it is 100%; a suite that reports a clean sweep while never asking one of its rows is reporting on a smaller contract than the one it read.",
+      "expected": "all 30 wire methods with at least one request sent on a session of this run AND at least one ledger entry naming them, or an explicit not_provokable_by_a_wire_client entry saying why this host's own data left the row undrivable",
+      "actual": "30 of 30 driven; requests sent per wire method: scan_available_devices=1, connect_device=3, disconnect_device=2, get_component_tree=13, get_property_value=45, get_property_descriptors=9, set_property_value=8, list_function_block_types=1, add_function_block=2, remove_function_block=2, subscribe_signal=2, unsubscribe_signal=3, read_samples_raw=1, get_device_operation_modes=4, set_device_operation_mode=6, lock_device=4, unlock_device=5, list_loaded_modules=2, load_module_from_host_path=1, get_component_attributes=4, set_component_attribute=10, list_server_types=2, add_server=2, set_server_discovery_enabled=4, start_recording=3, stop_recording=3, begin_batched_property_update=3, end_batched_property_update=4, save_instance_configuration_to_string=2, load_instance_configuration_from_string=3",
       "verdict": "held"
     }
   ]

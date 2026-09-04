@@ -25,6 +25,7 @@ import { sweepHandshake } from "./sweeps/sweep-handshake-against-contract-1-6.mj
 import { sweepEveryContractOperation } from "./sweeps/sweep-every-contract-operation.mjs";
 import { sweepDeviceOperationModeDeviceLockAndModules } from "./sweeps/sweep-device-operation-mode-device-lock-and-modules.mjs";
 import { sweepSubscriptionLifecycleAndBinaryFrames } from "./sweeps/sweep-subscription-lifecycle-and-binary-frames.mjs";
+import { sweepComponentAttributesServersRecorderBatchedUpdatesAndInstanceConfiguration } from "./sweeps/sweep-component-attributes-servers-recorder-batched-updates-and-instance-configuration.mjs";
 import { requireEveryContractOperationToBeDriven } from "./sweeps/require-every-contract-operation-to-be-driven.mjs";
 import {
   sweepDisconnectBehaviour,
@@ -186,7 +187,8 @@ async function runWireConformanceAgainstUrl() {
   // Every session this run opens, in the order it opens them. The coverage guard
   // counts the requests they sent; sweep 3 opens a second one, because the
   // read_only wording of lock_device can only be asserted from a client that is
-  // not the lock holder.
+  // not the lock holder, and sweep 5 opens one more, because a batch that was
+  // abandoned needs a socket that can be closed while it holds one open.
   const sessionsOpened = [session];
 
   console.log("--- sweep 1: the handshake, against contract 1.6 -----------------------------");
@@ -229,7 +231,23 @@ async function runWireConformanceAgainstUrl() {
     await sweepSubscriptionLifecycleAndBinaryFrames(ledger, contract, session, handshakeResult, discovered);
     printNewEntries();
 
-    console.log("\n--- sweep 5: wire-protocol rules, event delivery, disconnect behaviour -------");
+    // Sweep 5 runs here and not earlier: a batched update HOLDS every property
+    // write against a subtree and a configuration load replaces the
+    // configuration of every device under the instance, so neither may happen
+    // while sweep 4 is waiting for sample frames.
+    console.log("\n--- sweep 5: component attributes, servers, the recorder, batched updates, instance configuration ---");
+    const sweepFive = await sweepComponentAttributesServersRecorderBatchedUpdatesAndInstanceConfiguration(
+      ledger,
+      contract,
+      session,
+      handshakeResult,
+      discovered,
+      options,
+    );
+    sessionsOpened.push(...sweepFive.sessionsOpenedByThisSweep);
+    printNewEntries();
+
+    console.log("\n--- sweep 6: wire-protocol rules, event delivery, disconnect behaviour -------");
     await sweepWireProtocolRules(ledger, contract, session);
     await sweepDisconnectBehaviour(ledger, contract, session, handshakeResult, discovered);
     sweepEventDelivery(ledger, contract, session);

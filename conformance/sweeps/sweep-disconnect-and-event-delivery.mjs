@@ -1,4 +1,4 @@
-// Sweep 4: disconnect behaviour, event delivery, and the wire-protocol rules
+// Sweep 6: disconnect behaviour, event delivery, and the wire-protocol rules
 // that bind every host regardless of what it claims.
 //
 // Events are the honest awkward corner of this harness. contract.yaml section 6

@@ -49,7 +49,7 @@ import {
 const EMPTY_HOST_PATH = "";
 
 /** One response envelope in words, for a log line that is not an assertion. */
-function describeAnswer(response) {
+export function describeAnswer(response) {
   if (response && typeof response === "object" && "error" in response) {
     return `refused with ${response.error?.code}: ${String(response.error?.detail ?? "").slice(0, 160)}`;
   }
@@ -650,7 +650,7 @@ export async function sweepDeviceOperationModeDeviceLockAndModules(ledger, contr
 // ---------------------------------------------------------------------------
 
 /** Sends one request that must be refused, and records which code came back. */
-async function refuseWithOneOf(ledger, contract, session, { wireMethod, params, title, contractCitation, acceptableCodes, capability = null }) {
+export async function refuseWithOneOf(ledger, contract, session, { wireMethod, params, title, contractCitation, acceptableCodes, capability = null }) {
   const operation = contract.operationsByWireMethod.get(wireMethod);
   const response = await session.request(wireMethod, params);
   const judged = judgeResponseEnvelope(ledger, contract, {
