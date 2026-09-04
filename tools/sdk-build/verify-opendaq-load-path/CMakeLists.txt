@@ -1,10 +1,14 @@
 # Quackoscope openDAQ load-path verification (M1.1).
 #
 # Self-configuring: everything it needs is derived from manifest.json, which
-# resolve_sdk.py writes. Configure with no arguments at all:
+# resolve_sdk.py writes. The one thing that cannot be derived here is -G/-A: the
+# generator must be the one that built the openDAQ binaries, and resolve_sdk.py
+# reads it out of the SDK build tree's CMakeCache.txt and prints the whole
+# command line as `-- load-path verifier configure`. Copy that line rather than
+# typing a generator name; on this machine it currently reads:
 #
 #   cmake -S tools/sdk-build/verify-opendaq-load-path -B tools/sdk-build/verify-opendaq-load-path/build \
-#         -G "Visual Studio 17 2022" -A x64
+#         -G "Visual Studio 18 2026" -A x64
 #   cmake --build tools/sdk-build/verify-opendaq-load-path/build --config Release
 #
 # openDAQ_DIR may be overridden on the command line in the usual CMake way.

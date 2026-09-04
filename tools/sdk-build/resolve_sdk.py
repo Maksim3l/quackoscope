@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Resolve the openDAQ build tree and write Quackoscope's manifest.json.
 
-The default path is VERIFY-ONLY. The openDAQ build tree on this machine is
-already populated, so the script inspects it, confirms it is usable, and writes
-the manifest. It never rebuilds unless --rebuild is passed explicitly.
+The default path is VERIFY-ONLY. If the openDAQ build tree is already populated,
+the script inspects it, confirms it is usable, and writes the manifest. It never
+rebuilds unless --rebuild is passed explicitly.
 
 Usage
 -----
@@ -17,15 +17,36 @@ The manifest (spec Part 2.3) is written with exactly these keys:
     commit, sdk_version, mode, build_dir, module_path, log_level,
     rust { mode, crate_version, provenance }
 
+Nothing about this machine is hardcoded
+---------------------------------------
+Three facts vary per developer machine, and every one of them is discovered and
+printed with its source rather than guessed:
+
+  * the openDAQ source checkout      -- --opendaq-root, else the environment
+                                        variable QUACKOSCOPE_OPENDAQ_ROOT, else
+                                        the sibling checkout <repo parent>/openDAQ
+  * the preset / build tree          -- --preset, else the single build tree
+                                        found under <openDAQ root>/build
+  * the CMake generator that must    -- CMAKE_GENERATOR:INTERNAL and
+    be used to build the host           CMAKE_GENERATOR_PLATFORM:INTERNAL, read
+                                        out of that build tree's CMakeCache.txt
+
+The generator is deliberately NOT an option with a default. The host links
+daq::opendaq, so it must be compiled by the same MSVC toolset that produced the
+SDK binaries, and the build tree's own CMakeCache.txt is the only record of what
+that toolset was. A default here is what made this script print
+-G "Visual Studio 17 2022" on a machine whose SDK was built by
+"Visual Studio 18 2026". Discovery cannot be stale; a default can.
+
 sdk_version describes the BINARIES, not the source tree
 -------------------------------------------------------
 sdk_version is read out of the built opendaq-64-3.dll's Windows version
-resource (ProductVersion "3.31.0.661a96e9") and converted to the form a running
-Instance reports ("3.31.0_661a96e9"). It is never read from
+resource (ProductVersion "3.41.0.bec37b44") and converted to the form a running
+Instance reports ("3.41.0_bec37b44"). It is never read from
 <openDAQ>/opendaq_version: that file describes whatever source is checked out
 right now, which is not necessarily the source the binaries were compiled from,
 and reading it is how a manifest came to claim 3.41.0dev for binaries that
-report 3.31.0_661a96e9. The commit stamped into the DLL is cross-checked against
+report 3.41.0_bec37b44. The commit stamped into the DLL is cross-checked against
 the commit being recorded, and any divergence between the binaries and the
 source tree's HEAD is reported in full rather than quietly resolved.
 
@@ -34,40 +55,44 @@ The openDAQ CMake package directory
 The manifest key set is fixed by spec and does not grow, so the resolved CMake
 package directory is not a manifest key. It is printed as `-- cmake package`
 and, in the form the host build consumes it, as the complete `-- host configure`
-command line carrying -DopenDAQ_DIR=. That directory is the openDAQ *install*
-tree; the build root is not usable (see tools/sdk-build/README.md).
+command line carrying -G, -A and -DopenDAQ_DIR=. That directory is the openDAQ
+*install* tree; the build root is not usable (see tools/sdk-build/README.md).
 
 manifest.json holds absolute, machine-specific paths. It is gitignored and this
 script regenerates it. Running the script twice produces byte-identical output.
 
 Rebuild path (NON-DEFAULT, --rebuild)
 -------------------------------------
-Taken verbatim from the openDAQ repository's own documentation:
+The configure and build steps are taken verbatim from the openDAQ repository's
+own documentation, with the resolved preset substituted for the README's
+example preset:
 
-  * README.md lines 162-163 and 180:
+  * README.md, "Generate CMake project for specific compiler / preset" and
+    "Build the project" (lines 164-165 and 184 at openDAQ 6e54a041):
         cmake --list-presets=all
-        cmake --preset "x64/msvc-22/full"
-        cmake --build build/x64/msvc-22/full
+        cmake --preset "<preset>"
+        cmake --build build/<preset>
 
-  * CMakeBasePresets.json defines the preset `x64/msvc-22/full`
-    (inherits full/release + msvc-22 + msvc-x64), with
-    binaryDir = build/${presetName}, generator "Visual Studio 17 2022",
-    architecture x64.
+  * CMakeBasePresets.json defines each x64/msvc-NN/full preset with
+    binaryDir = build/${presetName} and architecture x64, so the preset name and
+    the build directory under build/ are the same string. That is what makes
+    discovering the preset from the build tree layout sound.
 
-`--config Release` is appended to the build step. That flag is NOT in the
-README line; it is required because "Visual Studio 17 2022" is a multi-config
-generator, for which the preset's CMAKE_BUILD_TYPE=Release has no effect on
-`cmake --build`. This addition is called out here rather than silently applied.
+`--config <config>` is appended to the build step. That flag is NOT in the
+README line; it is required because the Visual Studio generators are
+multi-config, for which the preset's CMAKE_BUILD_TYPE=Release has no effect on
+`cmake --build`. It is appended only when the resolved generator really is
+multi-config, and this addition is called out here rather than silently applied.
 
 The install step is also NOT documented in BUILD.md, CMake-Options.md,
-CMakePresets.json or the CI workflows. It is inferred: the tree on this machine
-contains build/x64/msvc-22/full/install, which is the only location carrying a
-usable CMake package (lib/cmake/opendaq/openDAQConfig.cmake + openDAQ.cmake +
-openDAQ-release.cmake). CMakeCache.txt records
-CMAKE_INSTALL_PREFIX=C:/Program Files/openDAQ, so that tree was produced by an
-explicit `--prefix` override, not by a default install. --rebuild therefore runs
+CMakePresets.json or the CI workflows. It is inferred: a build tree that has
+been installed carries build/<preset>/install with the only usable CMake package
+(lib/cmake/opendaq/openDAQConfig.cmake + openDAQ.cmake + openDAQ-release.cmake),
+while CMakeCache.txt records CMAKE_INSTALL_PREFIX=C:/Program Files/openDAQ, so
+that tree is produced by an explicit `--prefix` override, not by a default
+install. --rebuild therefore runs
 
-        cmake --install <build> --config Release --prefix <build>/install
+        cmake --install <build> --config <config> --prefix <build>/install
 
 and this is flagged as an inferred, undocumented step.
 """
@@ -84,16 +109,24 @@ import tempfile
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Defaults. Every one of these is overridable on the command line; nothing here
-# is consumed by host source code -- the host only ever reads manifest.json.
+# Defaults. Only values that are the same on every machine appear here. The
+# openDAQ root, the preset and the CMake generator are machine-specific and are
+# resolved at run time (resolve_opendaq_root / resolve_build_tree /
+# read_cmake_generator_from_build_tree), never defaulted. Nothing here is
+# consumed by host source code -- the host only ever reads manifest.json.
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OPENDAQ_ROOT = Path("C:/Users/lokna/Project/openDAQ")
-DEFAULT_PRESET = "x64/msvc-22/full"
+OPENDAQ_ROOT_ENVIRONMENT_VARIABLE = "QUACKOSCOPE_OPENDAQ_ROOT"
+SIBLING_OPENDAQ_DIRECTORY_NAME = "openDAQ"
 DEFAULT_CONFIG = "Release"
 DEFAULT_MANIFEST = REPO_ROOT / "manifest.json"
 DEFAULT_LOG_LEVEL = 0  # OPENDAQ_LOG_LEVEL_TRACE, per opendaq/log_level.h
+
+# How deep under <openDAQ root>/build a CMakeCache.txt may sit for the build
+# tree to be discovered. openDAQ preset names are 2-3 segments
+# ("x64/msvc-26/full", "x64/gcc/full/debug"), so 4 covers every shipped preset.
+MAX_PRESET_PATH_SEGMENTS = 4
 
 # Files that must exist in the build output directory for the tree to count as
 # resolved. Names are the openDAQ 3.x x64 naming scheme.
@@ -103,6 +136,12 @@ REQUIRED_CORE_BINARIES = (
     "daqcoreobjects-64-3.dll",
 )
 MODULE_SUFFIX = ".module.dll"
+
+# CMake generators that build every configuration from one configure step, and
+# therefore need --config on `cmake --build`.
+MULTI_CONFIG_GENERATOR_PATTERN = re.compile(
+    r"^(Visual Studio \d+ \d+|Xcode|.*Multi-Config)$"
+)
 
 
 class ResolveError(RuntimeError):
@@ -127,173 +166,236 @@ def git(root: Path, *args: str) -> str:
     return proc.stdout.strip()
 
 
-def read_windows_product_version_resource(binary_path: Path) -> str:
-    """The ProductVersion string from a Windows PE file's version resource.
+# ---------------------------------------------------------------------------
+# Machine-specific facts, discovered rather than defaulted
+# ---------------------------------------------------------------------------
 
-    Reads the same value PowerShell reports as
-    `(Get-Item <dll>).VersionInfo.ProductVersion`, via version.dll
-    (GetFileVersionInfoSizeW / GetFileVersionInfoW / VerQueryValueW). For
-    openDAQ's opendaq-64-3.dll this is a four-part string whose last part is the
-    short commit the DLL was compiled from, e.g. "3.31.0.661a96e9".
+
+def reject_reason_for_opendaq_checkout(candidate: Path) -> str | None:
+    """Why this path is not a usable openDAQ checkout, or None if it is one."""
+    if not candidate.is_dir():
+        return "no such directory"
+    if not (candidate / ".git").exists():
+        return "exists but has no .git, so it is not an openDAQ checkout"
+    return None
+
+
+def resolve_opendaq_root(explicit_root: Path | None) -> Path:
+    """Locate the openDAQ source checkout, printing where the answer came from.
+
+    Order: the --opendaq-root argument, then the environment variable
+    QUACKOSCOPE_OPENDAQ_ROOT, then the checkout sitting beside this repository.
+    There is no built-in path: a path naming one developer's home directory is
+    wrong on every other machine, and it fails late and confusingly (`not a git
+    checkout: C:\\Users\\someone\\Project\\openDAQ`) instead of saying what it
+    was looking for.
+
+    The first two sources are somebody stating where the checkout is, so a bad
+    value there is an error naming that value -- never a silent fall-through to
+    a different tree, which would resolve the manifest against a checkout the
+    caller did not ask for.
     """
-    import ctypes
-    from ctypes import wintypes
-
-    if os.name != "nt":
-        raise ResolveError(
-            f"cannot read a Windows version resource on os.name={os.name!r}; "
-            f"the built artifact {binary_path} carries its version there, and "
-            f"the source tree's opendaq_version file must not be substituted "
-            f"for it (it describes the checked-out source, not this binary)"
+    stated: list[tuple[str, Path]] = []
+    if explicit_root is not None:
+        stated.append(("--opendaq-root argument", explicit_root))
+    environment_value = os.environ.get(OPENDAQ_ROOT_ENVIRONMENT_VARIABLE)
+    if environment_value:
+        stated.append(
+            (f"environment variable {OPENDAQ_ROOT_ENVIRONMENT_VARIABLE}",
+             Path(environment_value))
         )
 
-    path_text = str(binary_path)
-    version_api = ctypes.WinDLL("version", use_last_error=True)
-    version_api.GetFileVersionInfoSizeW.argtypes = [
-        wintypes.LPCWSTR,
-        ctypes.POINTER(wintypes.DWORD),
-    ]
-    version_api.GetFileVersionInfoSizeW.restype = wintypes.DWORD
-    version_api.GetFileVersionInfoW.argtypes = [
-        wintypes.LPCWSTR,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        wintypes.LPVOID,
-    ]
-    version_api.GetFileVersionInfoW.restype = wintypes.BOOL
-    version_api.VerQueryValueW.argtypes = [
-        wintypes.LPCVOID,
-        wintypes.LPCWSTR,
-        ctypes.POINTER(wintypes.LPVOID),
-        ctypes.POINTER(wintypes.UINT),
-    ]
-    version_api.VerQueryValueW.restype = wintypes.BOOL
+    for source, candidate in stated:
+        resolved = candidate.expanduser().absolute()
+        reason = reject_reason_for_opendaq_checkout(resolved)
+        if reason is not None:
+            raise ResolveError(
+                f"the openDAQ source checkout named by the {source} is not "
+                f"usable.\n"
+                f"  given    : {candidate}\n"
+                f"  resolved : {str(resolved).replace(chr(92), '/')}\n"
+                f"  problem  : {reason}\n"
+                f"  Correct that value, or drop it to fall back to the "
+                f"{SIBLING_OPENDAQ_DIRECTORY_NAME} checkout beside this "
+                f"repository ({posix(REPO_ROOT.parent)})."
+            )
+        print(
+            f"-- openDAQ root resolved from {source}: {posix(resolved)}",
+            file=sys.stderr,
+        )
+        return resolved.resolve()
 
-    ignored_handle = wintypes.DWORD(0)
-    resource_size = version_api.GetFileVersionInfoSizeW(
-        path_text, ctypes.byref(ignored_handle)
+    sibling = REPO_ROOT.parent / SIBLING_OPENDAQ_DIRECTORY_NAME
+    reason = reject_reason_for_opendaq_checkout(sibling)
+    if reason is not None:
+        raise ResolveError(
+            f"cannot locate the openDAQ source checkout. No --opendaq-root "
+            f"argument was given and {OPENDAQ_ROOT_ENVIRONMENT_VARIABLE} is not "
+            f"set, so the only candidate was the checkout beside this "
+            f"repository:\n"
+            f"  candidate : {posix(REPO_ROOT.parent)}/{SIBLING_OPENDAQ_DIRECTORY_NAME}\n"
+            f"  problem   : {reason}\n"
+            f"  Point at it with --opendaq-root <path>, or set "
+            f"{OPENDAQ_ROOT_ENVIRONMENT_VARIABLE}=<path>."
+        )
+    print(
+        f"-- openDAQ root resolved from the {SIBLING_OPENDAQ_DIRECTORY_NAME} "
+        f"checkout beside this repository ({posix(REPO_ROOT.parent)}): "
+        f"{posix(sibling)}",
+        file=sys.stderr,
     )
-    if resource_size == 0:
-        raise ResolveError(
-            f"GetFileVersionInfoSizeW({path_text}) returned 0 "
-            f"(GetLastError={ctypes.get_last_error()}): that file carries no "
-            f"version resource, so the built SDK version cannot be read from it"
+    return sibling.resolve()
+
+
+def available_configure_presets(opendaq_root: Path) -> list[str]:
+    """The preset names `cmake --list-presets=all` reports in the openDAQ tree."""
+    proc = subprocess.run(
+        ["cmake", "--list-presets=all"],
+        cwd=str(opendaq_root),
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return []
+    names = []
+    for line in proc.stdout.splitlines():
+        match = re.match(r'\s+"([^"]+)"', line)
+        if match:
+            names.append(match.group(1))
+    return names
+
+
+def discover_build_trees(opendaq_root: Path) -> list[str]:
+    """Preset names for every configured build tree under <openDAQ root>/build.
+
+    A build tree is a directory holding a CMakeCache.txt. openDAQ's presets set
+    binaryDir = build/${presetName}, so that directory's path relative to
+    build/ IS the preset name.
+    """
+    build_root = opendaq_root / "build"
+    if not build_root.is_dir():
+        return []
+    found = []
+    for cache in build_root.rglob("CMakeCache.txt"):
+        relative = cache.parent.relative_to(build_root)
+        if len(relative.parts) <= MAX_PRESET_PATH_SEGMENTS:
+            found.append(relative.as_posix())
+    return sorted(found)
+
+
+def resolve_build_tree(opendaq_root: Path, explicit_preset: str | None) -> str:
+    """Decide which preset's build tree to read, printing why.
+
+    Explicit --preset wins. Otherwise the build trees actually present under
+    <openDAQ root>/build are discovered; exactly one is used, several is an
+    error naming all of them, none is an error naming the presets the openDAQ
+    tree offers.
+    """
+    build_root = opendaq_root / "build"
+    if explicit_preset:
+        cache = build_root / explicit_preset / "CMakeCache.txt"
+        if not cache.is_file():
+            discovered = discover_build_trees(opendaq_root)
+            raise ResolveError(
+                f"--preset {explicit_preset!r} names a build tree that is not "
+                f"configured: {posix(build_root / explicit_preset)} has no "
+                f"CMakeCache.txt.\n"
+                f"  configured build trees under {posix(build_root)}: "
+                + (", ".join(discovered) if discovered else "(none)")
+            )
+        print(
+            f"-- preset from --preset argument: {explicit_preset} "
+            f"(build tree {posix(build_root / explicit_preset)})",
+            file=sys.stderr,
         )
+        return explicit_preset
 
-    resource = ctypes.create_string_buffer(resource_size)
-    if not version_api.GetFileVersionInfoW(path_text, 0, resource_size, resource):
-        raise ResolveError(
-            f"GetFileVersionInfoW({path_text}, size={resource_size}) failed "
-            f"(GetLastError={ctypes.get_last_error()})"
+    discovered = discover_build_trees(opendaq_root)
+    if len(discovered) == 1:
+        preset = discovered[0]
+        print(
+            f"-- preset discovered as the only configured build tree under "
+            f"{posix(build_root)}: {preset}",
+            file=sys.stderr,
         )
-
-    translation_block = wintypes.LPVOID()
-    translation_bytes = wintypes.UINT(0)
-    if not version_api.VerQueryValueW(
-        resource,
-        "\\VarFileInfo\\Translation",
-        ctypes.byref(translation_block),
-        ctypes.byref(translation_bytes),
-    ):
+        return preset
+    if not discovered:
+        presets = available_configure_presets(opendaq_root)
         raise ResolveError(
-            f"VerQueryValueW(\\VarFileInfo\\Translation) failed for {path_text} "
-            f"(GetLastError={ctypes.get_last_error()}); the version resource has "
-            f"no string table to read ProductVersion from"
+            f"no configured build tree under {posix(build_root)}: searched "
+            f"{MAX_PRESET_PATH_SEGMENTS} levels deep for CMakeCache.txt and "
+            f"found none. openDAQ has not been configured in this checkout.\n"
+            f"  presets this checkout offers (cmake --list-presets=all in "
+            f"{posix(opendaq_root)}): "
+            + (", ".join(presets) if presets else "(cmake --list-presets=all failed)")
+            + "\n  Configure one, then rerun; or pass --preset <name> to name "
+            "the tree you intend to use."
         )
-
-    words = ctypes.cast(translation_block, ctypes.POINTER(wintypes.WORD))
-    translations = [
-        (words[i * 2], words[i * 2 + 1]) for i in range(translation_bytes.value // 4)
-    ]
-    if not translations:
-        raise ResolveError(
-            f"version resource of {path_text} lists zero language/codepage pairs"
-        )
-
-    attempted = []
-    for language, codepage in translations:
-        sub_block = f"\\StringFileInfo\\{language:04x}{codepage:04x}\\ProductVersion"
-        attempted.append(sub_block)
-        value_block = wintypes.LPVOID()
-        value_chars = wintypes.UINT(0)
-        if version_api.VerQueryValueW(
-            resource, sub_block, ctypes.byref(value_block), ctypes.byref(value_chars)
-        ):
-            product_version = ctypes.wstring_at(value_block, value_chars.value)
-            product_version = product_version.rstrip("\x00").strip()
-            if product_version:
-                return product_version
-
     raise ResolveError(
-        f"no non-empty ProductVersion string in the version resource of "
-        f"{path_text}; queried " + ", ".join(attempted)
+        f"{len(discovered)} configured build trees exist under "
+        f"{posix(build_root)}, so which one the manifest should describe is "
+        f"ambiguous:\n  - " + "\n  - ".join(discovered) + "\n"
+        "  Name one with --preset <name>."
     )
 
 
-def read_sdk_identity_from_built_dll(build_dir: Path) -> dict:
-    """The SDK version and commit of the BINARIES, taken from the binaries.
+def read_cmake_cache_entries(cache_file: Path) -> dict[str, str]:
+    """Every NAME:TYPE=VALUE line of a CMakeCache.txt, keyed by NAME."""
+    if not cache_file.is_file():
+        raise ResolveError(f"missing CMakeCache.txt: {posix(cache_file)}")
+    entries: dict[str, str] = {}
+    for line in cache_file.read_text(encoding="utf-8", errors="replace").splitlines():
+        match = re.match(r"^([A-Za-z_][A-Za-z0-9_\-]*):[A-Z]+=(.*)$", line)
+        if match:
+            entries[match.group(1)] = match.group(2)
+    return entries
 
-    manifest.sdk_version must describe the DLLs the host will actually load, not
-    whatever the openDAQ source tree happens to have checked out. openDAQ stamps
-    opendaq-64-3.dll's version resource with "<base>.<short commit>"
-    ("3.31.0.661a96e9"); a running Instance reports the same identity with an
-    underscore ("3.31.0_661a96e9"). This reads the resource and converts it to
-    the runtime form, which is what goes into the manifest.
+
+def read_cmake_generator_from_build_tree(package_root: Path) -> dict:
+    """The generator and platform that produced the openDAQ binaries.
+
+    The host links daq::opendaq, so it must be built by the same toolset. The
+    build tree records exactly which one in its own CMakeCache.txt; that is the
+    authority, and it is read rather than assumed.
     """
-    dll = build_dir / "opendaq-64-3.dll"
-    if not dll.is_file():
-        raise ResolveError(
-            f"cannot read the built SDK version: {dll} does not exist. "
-            f"sdk_version is derived from the built artifact, never from "
-            f"<openDAQ>/opendaq_version."
-        )
+    cache_file = package_root / "CMakeCache.txt"
+    entries = read_cmake_cache_entries(cache_file)
 
-    product_version = read_windows_product_version_resource(dll)
-    parts = product_version.split(".")
-    if len(parts) != 4:
+    generator = entries.get("CMAKE_GENERATOR", "").strip()
+    if not generator:
         raise ResolveError(
-            f"{dll} reports ProductVersion {product_version!r}, which is not the "
-            f"expected 4-part <major>.<minor>.<patch>.<short commit> form; "
-            f"refusing to guess what commit these binaries came from"
+            f"{posix(cache_file)} has no CMAKE_GENERATOR entry, so the CMake "
+            f"generator that built the openDAQ binaries in {posix(package_root)} "
+            f"cannot be determined. The host must be configured with the same "
+            f"generator; refusing to print a guessed -G line."
         )
-
-    base_version = ".".join(parts[:3])
-    artifact_commit_short = parts[3]
-    if not re.fullmatch(r"[0-9a-f]{7,40}", artifact_commit_short):
-        raise ResolveError(
-            f"{dll} reports ProductVersion {product_version!r}, whose last part "
-            f"{artifact_commit_short!r} is not a git short commit (7-40 lowercase "
-            f"hex characters). These binaries carry no commit identity, so the "
-            f"manifest cannot be cross-checked against them and would be "
-            f"attributing them to a commit on nothing but hope."
-        )
-    runtime_version = f"{base_version}_{artifact_commit_short}"
+    platform = entries.get("CMAKE_GENERATOR_PLATFORM", "").strip()
 
     print(
-        f"-- sdk_version read from the built artifact {dll}: "
-        f"ProductVersion {product_version} -> runtime form {runtime_version}",
+        f"-- CMake generator read from {posix(cache_file)}: "
+        f"CMAKE_GENERATOR={generator}, CMAKE_GENERATOR_PLATFORM="
+        + (platform if platform else "(empty)"),
         file=sys.stderr,
     )
     return {
-        "product_version_resource": product_version,
-        "base_version": base_version,
-        "artifact_commit_short": artifact_commit_short,
-        "runtime_version": runtime_version,
-        "dll": dll,
+        "generator": generator,
+        "platform": platform,
+        "cache_file": cache_file,
+        "multi_config": bool(MULTI_CONFIG_GENERATOR_PATTERN.match(generator)),
     }
 
 
-def read_source_tree_declared_version(opendaq_root: Path) -> str:
-    """<openDAQ>/opendaq_version, used ONLY to report source/binary divergence.
+def generator_arguments(toolchain: dict) -> str:
+    """The -G / -A fragment of a configure command line, from the cache values."""
+    fragment = f'-G "{toolchain["generator"]}"'
+    if toolchain["platform"]:
+        fragment += f' -A {toolchain["platform"]}'
+    return fragment
 
-    This value never becomes manifest.sdk_version. It describes the source that
-    is checked out right now, which may not be the source the binaries in
-    build/.../bin/Release were compiled from.
-    """
-    version_file = opendaq_root / "opendaq_version"
-    if not version_file.is_file():
-        return f"<missing file {version_file}>"
-    return version_file.read_text(encoding="utf-8").strip() or f"<empty file {version_file}>"
+
+# ---------------------------------------------------------------------------
+# Build tree verification
+# ---------------------------------------------------------------------------
 
 
 def verify_build_tree(package_root: Path, build_dir: Path, config: str) -> dict:
@@ -301,7 +403,18 @@ def verify_build_tree(package_root: Path, build_dir: Path, config: str) -> dict:
     problems = []
 
     if not build_dir.is_dir():
-        problems.append(f"build output directory does not exist: {build_dir}")
+        binaries_root = package_root / "bin"
+        siblings = (
+            sorted(p.name for p in binaries_root.iterdir() if p.is_dir())
+            if binaries_root.is_dir()
+            else []
+        )
+        problems.append(
+            f"build output directory does not exist: {posix(build_dir)} "
+            f"(--config {config}); configuration directories present under "
+            f"{posix(binaries_root)}: "
+            + (", ".join(siblings) if siblings else "(none)")
+        )
     else:
         for name in REQUIRED_CORE_BINARIES:
             if not (build_dir / name).is_file():
@@ -404,11 +517,195 @@ def resolve_cmake_package_dir(package_root: Path, config: str) -> Path:
     return cmake_pkg
 
 
-def rebuild_commands(opendaq_root: Path, preset: str, config: str) -> list[list[str]]:
+# ---------------------------------------------------------------------------
+# SDK identity, read out of the built artifact
+# ---------------------------------------------------------------------------
+
+
+def read_windows_product_version_resource(binary_path: Path) -> str:
+    """The ProductVersion string from a Windows PE file's version resource.
+
+    Reads the same value PowerShell reports as
+    `(Get-Item <dll>).VersionInfo.ProductVersion`, via version.dll
+    (GetFileVersionInfoSizeW / GetFileVersionInfoW / VerQueryValueW). For
+    openDAQ's opendaq-64-3.dll this is a four-part string whose last part is the
+    short commit the DLL was compiled from, e.g. "3.41.0.bec37b44".
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    if os.name != "nt":
+        raise ResolveError(
+            f"cannot read a Windows version resource on os.name={os.name!r}; "
+            f"the built artifact {binary_path} carries its version there, and "
+            f"the source tree's opendaq_version file must not be substituted "
+            f"for it (it describes the checked-out source, not this binary)"
+        )
+
+    path_text = str(binary_path)
+    version_api = ctypes.WinDLL("version", use_last_error=True)
+    version_api.GetFileVersionInfoSizeW.argtypes = [
+        wintypes.LPCWSTR,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    version_api.GetFileVersionInfoSizeW.restype = wintypes.DWORD
+    version_api.GetFileVersionInfoW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+    ]
+    version_api.GetFileVersionInfoW.restype = wintypes.BOOL
+    version_api.VerQueryValueW.argtypes = [
+        wintypes.LPCVOID,
+        wintypes.LPCWSTR,
+        ctypes.POINTER(wintypes.LPVOID),
+        ctypes.POINTER(wintypes.UINT),
+    ]
+    version_api.VerQueryValueW.restype = wintypes.BOOL
+
+    ignored_handle = wintypes.DWORD(0)
+    resource_size = version_api.GetFileVersionInfoSizeW(
+        path_text, ctypes.byref(ignored_handle)
+    )
+    if resource_size == 0:
+        raise ResolveError(
+            f"GetFileVersionInfoSizeW({path_text}) returned 0 "
+            f"(GetLastError={ctypes.get_last_error()}): that file carries no "
+            f"version resource, so the built SDK version cannot be read from it"
+        )
+
+    resource = ctypes.create_string_buffer(resource_size)
+    if not version_api.GetFileVersionInfoW(path_text, 0, resource_size, resource):
+        raise ResolveError(
+            f"GetFileVersionInfoW({path_text}, size={resource_size}) failed "
+            f"(GetLastError={ctypes.get_last_error()})"
+        )
+
+    translation_block = wintypes.LPVOID()
+    translation_bytes = wintypes.UINT(0)
+    if not version_api.VerQueryValueW(
+        resource,
+        "\\VarFileInfo\\Translation",
+        ctypes.byref(translation_block),
+        ctypes.byref(translation_bytes),
+    ):
+        raise ResolveError(
+            f"VerQueryValueW(\\VarFileInfo\\Translation) failed for {path_text} "
+            f"(GetLastError={ctypes.get_last_error()}); the version resource has "
+            f"no string table to read ProductVersion from"
+        )
+
+    words = ctypes.cast(translation_block, ctypes.POINTER(wintypes.WORD))
+    translations = [
+        (words[i * 2], words[i * 2 + 1]) for i in range(translation_bytes.value // 4)
+    ]
+    if not translations:
+        raise ResolveError(
+            f"version resource of {path_text} lists zero language/codepage pairs"
+        )
+
+    attempted = []
+    for language, codepage in translations:
+        sub_block = f"\\StringFileInfo\\{language:04x}{codepage:04x}\\ProductVersion"
+        attempted.append(sub_block)
+        value_block = wintypes.LPVOID()
+        value_chars = wintypes.UINT(0)
+        if version_api.VerQueryValueW(
+            resource, sub_block, ctypes.byref(value_block), ctypes.byref(value_chars)
+        ):
+            product_version = ctypes.wstring_at(value_block, value_chars.value)
+            product_version = product_version.rstrip("\x00").strip()
+            if product_version:
+                return product_version
+
+    raise ResolveError(
+        f"no non-empty ProductVersion string in the version resource of "
+        f"{path_text}; queried " + ", ".join(attempted)
+    )
+
+
+def read_sdk_identity_from_built_dll(build_dir: Path) -> dict:
+    """The SDK version and commit of the BINARIES, taken from the binaries.
+
+    manifest.sdk_version must describe the DLLs the host will actually load, not
+    whatever the openDAQ source tree happens to have checked out. openDAQ stamps
+    opendaq-64-3.dll's version resource with "<base>.<short commit>"
+    ("3.41.0.bec37b44"); a running Instance reports the same identity with an
+    underscore ("3.41.0_bec37b44"). This reads the resource and converts it to
+    the runtime form, which is what goes into the manifest.
+    """
+    dll = build_dir / "opendaq-64-3.dll"
+    if not dll.is_file():
+        raise ResolveError(
+            f"cannot read the built SDK version: {dll} does not exist. "
+            f"sdk_version is derived from the built artifact, never from "
+            f"<openDAQ>/opendaq_version."
+        )
+
+    product_version = read_windows_product_version_resource(dll)
+    parts = product_version.split(".")
+    if len(parts) != 4:
+        raise ResolveError(
+            f"{dll} reports ProductVersion {product_version!r}, which is not the "
+            f"expected 4-part <major>.<minor>.<patch>.<short commit> form; "
+            f"refusing to guess what commit these binaries came from"
+        )
+
+    base_version = ".".join(parts[:3])
+    artifact_commit_short = parts[3]
+    if not re.fullmatch(r"[0-9a-f]{7,40}", artifact_commit_short):
+        raise ResolveError(
+            f"{dll} reports ProductVersion {product_version!r}, whose last part "
+            f"{artifact_commit_short!r} is not a git short commit (7-40 lowercase "
+            f"hex characters). These binaries carry no commit identity, so the "
+            f"manifest cannot be cross-checked against them and would be "
+            f"attributing them to a commit on nothing but hope."
+        )
+    runtime_version = f"{base_version}_{artifact_commit_short}"
+
+    print(
+        f"-- sdk_version read from the built artifact {dll}: "
+        f"ProductVersion {product_version} -> runtime form {runtime_version}",
+        file=sys.stderr,
+    )
+    return {
+        "product_version_resource": product_version,
+        "base_version": base_version,
+        "artifact_commit_short": artifact_commit_short,
+        "runtime_version": runtime_version,
+        "dll": dll,
+    }
+
+
+def read_source_tree_declared_version(opendaq_root: Path) -> str:
+    """<openDAQ>/opendaq_version, used ONLY to report source/binary divergence.
+
+    This value never becomes manifest.sdk_version. It describes the source that
+    is checked out right now, which may not be the source the binaries in
+    build/.../bin/Release were compiled from.
+    """
+    version_file = opendaq_root / "opendaq_version"
+    if not version_file.is_file():
+        return f"<missing file {version_file}>"
+    return version_file.read_text(encoding="utf-8").strip() or f"<empty file {version_file}>"
+
+
+# ---------------------------------------------------------------------------
+# Rebuild path (non-default)
+# ---------------------------------------------------------------------------
+
+
+def rebuild_commands(
+    opendaq_root: Path, preset: str, config: str, multi_config: bool
+) -> list[list[str]]:
     build_dir = opendaq_root / "build" / preset
+    build_step = ["cmake", "--build", f"build/{preset}"]
+    if multi_config:
+        build_step += ["--config", config]
     return [
         ["cmake", "--preset", preset],
-        ["cmake", "--build", f"build/{preset}", "--config", config],
+        build_step,
         [
             "cmake",
             "--install",
@@ -421,14 +718,24 @@ def rebuild_commands(opendaq_root: Path, preset: str, config: str) -> list[list[
     ]
 
 
-def run_rebuild(opendaq_root: Path, preset: str, config: str) -> None:
-    print("!! --rebuild: running a FULL openDAQ build. This takes hours.",
-          file=sys.stderr)
-    for cmd in rebuild_commands(opendaq_root, preset, config):
+def run_rebuild(
+    opendaq_root: Path, preset: str, config: str, multi_config: bool
+) -> None:
+    print(
+        f"!! --rebuild: running a FULL openDAQ build of preset {preset} in "
+        f"{posix(opendaq_root)}. This takes hours.",
+        file=sys.stderr,
+    )
+    for cmd in rebuild_commands(opendaq_root, preset, config, multi_config):
         print("+ " + " ".join(cmd), file=sys.stderr)
         proc = subprocess.run(cmd, cwd=str(opendaq_root))
         if proc.returncode != 0:
             raise ResolveError(f"rebuild step failed: {' '.join(cmd)}")
+
+
+# ---------------------------------------------------------------------------
+# Manifest
+# ---------------------------------------------------------------------------
 
 
 def build_manifest(
@@ -485,8 +792,25 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="openDAQ git revision (default: HEAD of the openDAQ source tree)",
     )
-    parser.add_argument("--opendaq-root", type=Path, default=DEFAULT_OPENDAQ_ROOT)
-    parser.add_argument("--preset", default=DEFAULT_PRESET)
+    parser.add_argument(
+        "--opendaq-root",
+        type=Path,
+        default=None,
+        help=(
+            "openDAQ source checkout. No built-in default: falls back to "
+            f"${OPENDAQ_ROOT_ENVIRONMENT_VARIABLE}, then to the "
+            f"{SIBLING_OPENDAQ_DIRECTORY_NAME} checkout beside this repository"
+        ),
+    )
+    parser.add_argument(
+        "--preset",
+        default=None,
+        help=(
+            "openDAQ CMake preset, which is also its directory under "
+            "<openDAQ root>/build. No built-in default: falls back to the single "
+            "configured build tree found there"
+        ),
+    )
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--log-level", type=int, default=DEFAULT_LOG_LEVEL)
@@ -511,17 +835,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    opendaq_root = args.opendaq_root.resolve()
-    package_root = opendaq_root / "build" / args.preset
+    opendaq_root = resolve_opendaq_root(args.opendaq_root)
+    preset = resolve_build_tree(opendaq_root, args.preset)
+    package_root = opendaq_root / "build" / preset
     build_dir = package_root / "bin" / args.config
+    toolchain = read_cmake_generator_from_build_tree(package_root)
 
     if args.show_rebuild:
-        for cmd in rebuild_commands(opendaq_root, args.preset, args.config):
+        for cmd in rebuild_commands(
+            opendaq_root, preset, args.config, toolchain["multi_config"]
+        ):
             print(" ".join(cmd))
         return 0
-
-    if not (opendaq_root / ".git").exists():
-        raise ResolveError(f"not a git checkout: {opendaq_root}")
 
     head = git(opendaq_root, "rev-parse", "HEAD")
     requested = args.commit or "HEAD"
@@ -541,7 +866,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     if args.rebuild:
-        run_rebuild(opendaq_root, args.preset, args.config)
+        run_rebuild(opendaq_root, preset, args.config, toolchain["multi_config"])
     else:
         print(f"-- verify-only: not rebuilding {package_root}", file=sys.stderr)
 
@@ -588,23 +913,58 @@ def main(argv: list[str] | None = None) -> int:
     manifest = build_manifest(commit, sdk_version, build_dir, args.log_level)
     changed = write_manifest(manifest, args.manifest.resolve())
 
+    generator_fragment = generator_arguments(toolchain)
     host_configure = (
-        f'cmake -S hosts/cpp -B hosts/cpp/build -G "Visual Studio 17 2022" -A x64 '
+        f"cmake -S hosts/cpp -B hosts/cpp/build {generator_fragment} "
         f'-DopenDAQ_DIR={info["cmake_package_dir"]}'
     )
+    host_build = "cmake --build hosts/cpp/build" + (
+        f" --config {args.config}" if toolchain["multi_config"] else ""
+    )
+    load_path_verifier_configure = (
+        "cmake -S tools/sdk-build/verify-opendaq-load-path "
+        "-B tools/sdk-build/verify-opendaq-load-path/build "
+        f"{generator_fragment}"
+    )
 
-    print(f"-- openDAQ root      {posix(opendaq_root)}")
-    print(f"-- commit            {commit}  ({describe})")
-    print(f"-- source tree HEAD  {head}  ({head_describe}), opendaq_version {source_declared_version}")
-    print(f"-- sdk_version       {sdk_version}  (from {artifact['dll'].name} ProductVersion {artifact['product_version_resource']})")
-    print(f"-- source vs binary  {'binaries are source tree HEAD' if binaries_match_source_head else 'DIVERGED -- binaries are ' + artifact_commit_short + ', source HEAD is ' + head_short}")
-    print(f"-- build_dir         {manifest['build_dir']}")
-    print(f"-- module_path       {manifest['module_path']}")
-    print(f"-- modules found     {len(info['modules'])}")
-    print(f"-- log_level         {manifest['log_level']}")
-    print(f"-- cmake package     {info['cmake_package_dir']}  (find_package(openDAQ) verified against it)")
-    print(f"-- host configure    {host_configure}")
-    print(f"-- manifest          {posix(args.manifest)} ({'written' if changed else 'unchanged'})")
+    summary = [
+        ("openDAQ root", posix(opendaq_root)),
+        ("preset", f"{preset}  (build tree {posix(package_root)})"),
+        ("commit", f"{commit}  ({describe})"),
+        ("source tree HEAD",
+         f"{head}  ({head_describe}), opendaq_version {source_declared_version}"),
+        ("sdk_version",
+         f"{sdk_version}  (from {artifact['dll'].name} ProductVersion "
+         f"{artifact['product_version_resource']})"),
+        ("source vs binary",
+         "binaries are source tree HEAD" if binaries_match_source_head
+         else f"DIVERGED -- binaries are {artifact_commit_short}, "
+              f"source HEAD is {head_short}"),
+        ("build_dir", manifest["build_dir"]),
+        ("module_path", manifest["module_path"]),
+        ("modules found", str(len(info["modules"]))),
+        ("log_level", str(manifest["log_level"])),
+        ("cmake package",
+         f"{info['cmake_package_dir']}  (find_package(openDAQ) verified against it)"),
+        ("cmake generator",
+         toolchain["generator"]
+         + (f", platform {toolchain['platform']}" if toolchain["platform"]
+            else ", no platform")
+         + "  (read from CMAKE_GENERATOR/CMAKE_GENERATOR_PLATFORM in "
+         + posix(toolchain["cache_file"]) + "; "
+         + ("multi-config, so --config is required on cmake --build"
+            if toolchain["multi_config"]
+            else "single-config, so cmake --build takes no --config")
+         + ")"),
+        ("host configure", host_configure),
+        ("host build", host_build),
+        ("load-path verifier configure", load_path_verifier_configure),
+        ("manifest",
+         f"{posix(args.manifest)} ({'written' if changed else 'unchanged'})"),
+    ]
+    label_width = max(len(label) for label, _ in summary)
+    for label, value in summary:
+        print(f"-- {label.ljust(label_width)}  {value}")
     return 0
 
 

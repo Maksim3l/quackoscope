@@ -40,7 +40,7 @@ void setLogLevelEnv(int logLevel)
 
 std::string numericBaseVersion(const std::string& version)
 {
-    // "3.31.0dev" -> "3.31.0" ; "3.31.0_661a96e9" -> "3.31.0"
+    // "3.41.0_bec37b44" -> "3.41.0" ; "3.41.0dev" -> "3.41.0"
     std::string base;
     for (const char c : version)
     {
@@ -128,9 +128,12 @@ int main(int argc, char** argv)
         std::cout << "verify-opendaq-load-path: fb types      " << functionBlockTypes.getCount() << "\n";
         for (const auto& key : functionBlockTypes.getKeys())
             std::cout << "verify-opendaq-load-path:   fb          " << key.toStdString() << "\n";
-        // manifest.sdk_version is the source-tree string ("3.31.0dev"); the running
-        // SDK reports the same base version joined to the short commit
-        // ("3.31.0_661a96e9"). They agree when the numeric base version matches.
+        // manifest.sdk_version is read out of the built DLL's version resource and
+        // is already in the runtime form the SDK reports ("3.41.0_bec37b44"), so
+        // the two strings normally match outright. The comparison is on the
+        // numeric base version anyway, so that a manifest written by hand or by
+        // an older tool carrying the source-tree form ("3.41.0dev") is still
+        // judged against the same base version rather than failing on shape.
         const std::string manifestBase = numericBaseVersion(manifestSdkVersion);
         const std::string runningBase = numericBaseVersion(sdkVersion);
         const bool versionsAgree = !manifestBase.empty() && manifestBase == runningBase;
