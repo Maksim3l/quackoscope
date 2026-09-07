@@ -1,0 +1,141 @@
+/* ---------------------------------------------------------------------------
+   §2.16 T2 — the modules tree becomes the module card grid.
+
+   Adds to src/card-grid/card-grid.css and never restates it: the card anatomy,
+   the state borders, the grid geometry and the quack strip are all that file's.
+   What is here is the three things this surface has that no other grid does —
+   the banner row, the kind-count line on a module card face, and the four
+   counted bands inside a module card's expansion.
+   --------------------------------------------------------------------------- */
+
+/* The LEFT pane's content under the Modules view. It scrolls inside itself, the
+   way the tree does, so the view dropdown above it stays put. */
+.loaded-modules-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 0 8px 8px;
+}
+
+/* The state of the one call that fills this pane. */
+.loaded-modules-state {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  min-height: 14px;
+}
+
+/* The version in the module card's value cell. Nothing renders here when
+   ModuleInfo.version is null. */
+.module-card-version { font-size: 12px; color: var(--muted); }
+
+/* §1.4's rule holds on a card too: a glyph never carries a fact on its own, so
+   every kind glyph on this line is followed by the count and the kind in words. */
+.module-card-kind-counts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.module-card-kind-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.module-card-kind-count .component-icon { width: 14px; height: 14px; }
+.module-card-kind-count .mono { color: var(--fg); }
+
+/* --- the expansion: the reference's four counted sections ------------------ */
+
+.module-type-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.module-type-band-heading {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: none;
+}
+.module-type-band-heading .component-icon { width: 14px; height: 14px; }
+
+/* An empty band keeps its heading and its (0): the reference inserts all four
+   sections whether or not the dictionary behind one holds anything, and "this
+   module offers no server types" is a fact about the module. */
+.module-type-band[data-component-type-count="0"] .module-type-band-heading {
+  opacity: 0.6;
+}
+
+.module-type-grid { align-items: start; }
+
+.loaded-modules-quack-strip-holder {
+  margin-top: auto;
+  padding-top: 4px;
+}
+.loaded-modules-quack-strip-holder .card-quack-strip {
+  margin: 0;
+  padding: 2px 0 0;
+}
+
+/* --- the pinned add card: load_module_from_host_path ----------------------- */
+
+.load-module-path-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+.load-module-path-input { width: 100%; font-size: 12px; }
+
+/* --- the RIGHT pane: the module the left pane selected --------------------- */
+
+.module-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.module-detail-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.module-detail-glyph { color: var(--accent); flex: none; align-self: center; }
+.module-detail-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.module-detail-version { font-size: 12px; color: var(--muted); }
+
+/* The reference's header block: `ID` and `Version` as labelled rows. A field the
+   host sent nothing for draws no row at all. */
+.module-detail-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 11px;
+}
+.module-detail-facts dt { color: var(--muted); }
+.module-detail-facts dd { margin: 0; display: flex; align-items: center; gap: 10px; }
+
+/* The add card sits at the top of the pane, above the grid bar, and outside
+   every branch that can unmount while a call is in flight. */
+.loaded-modules-add-card { display: flex; flex-direction: column; }

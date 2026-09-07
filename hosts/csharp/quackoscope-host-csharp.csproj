@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>quackoscope-host-csharp</AssemblyName>
+    <RootNamespace>Quackoscope.Host.CSharp</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- Where the openDAQ managed binding assembly lives. It is produced by the
+       openDAQ build with OPENDAQ_GENERATE_CSHARP_BINDINGS=ON and lands in the
+       INSTALL tree, not bin/Release. Override on the command line with
+       -p:OpenDaqDotnetBindingDirectory=<path> when the openDAQ build tree is
+       somewhere else. This is a BUILD-time reference path only; the runtime
+       module_path and log_level come from manifest.json and nowhere else. -->
+  <PropertyGroup Condition="'$(OpenDaqDotnetBindingDirectory)' == ''">
+    <OpenDaqDotnetBindingDirectory>C:\Users\opendaq\Projects\openDAQ\build\x64\msvc-26\full\install\bindings\dotnet\net8.0</OpenDaqDotnetBindingDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="openDAQ.Net">
+      <HintPath>$(OpenDaqDotnetBindingDirectory)\openDAQ.Net.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="src\QuackoscopeHostCSharpEntryPoint.cs" />
+    <Compile Include="src\Service\ManifestFile.cs" />
+    <Compile Include="src\Service\CapabilityBaselineArtifact.cs" />
+    <Compile Include="src\Service\WireErrorCode.cs" />
+    <Compile Include="src\Service\WireTypes.cs" />
+    <Compile Include="src\Service\ComponentTreeBackendContract.cs" />
+    <Compile Include="src\Service\SignalDecimator.cs" />
+    <Compile Include="src\Service\SessionHub.cs" />
+    <Compile Include="src\Transport\WireEnvelope.cs" />
+    <Compile Include="src\Transport\WebSocketListener.cs" />
+    <Compile Include="src\OpenDaq\OpenDaqBackend.cs" />
+  </ItemGroup>
+
+</Project>

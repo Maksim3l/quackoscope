@@ -1,0 +1,457 @@
+/* ---------------------------------------------------------------------------
+   The property card grid — §2.2 (T3), §2.8 (D8, the card's back), §2.14 (D12,
+   the edit-container dialog deleted) of
+   quackoscope-gui-design-specification-logger-added-look-with-card-grids-replacing-dialogs-and-tables.md
+   plus the user's widget rulings: a bool is a switch, a numeric with both bounds
+   is a slider whose number stays editable, and a drag never writes per pixel.
+
+   This file adds to src/App.css and src/card-grid/card-grid.css and restates
+   neither. Every colour is one of their tokens.
+   --------------------------------------------------------------------------- */
+
+.property-card-grid-holder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   The value cell: the reference's `value` column, on the card's header row.
+   At rest it is text; a double-click swaps in the editor its type asks for.
+   --------------------------------------------------------------------------- */
+
+.property-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+.property-value-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.property-value-unit {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  /* Never shrunk: a unit clipped to "H." is worse than no unit at all. */
+  flex: none;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* §1.8's read-only row: value as text, a small lock glyph before it, --muted. */
+.property-value--read-only { color: var(--muted); }
+.property-value-lock { font-size: 10px; flex: none; }
+
+/* The slot is drawn at rest, not only on hover: a property whose value is the
+   empty string still has a value cell, and a reader has to be able to see where
+   to double-click. */
+.property-value--resting {
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #0f151d;
+  cursor: text;
+  min-height: 20px;
+  justify-content: flex-start;
+  width: 100%;
+}
+.property-value--resting:hover { border-color: #2c343f; }
+.property-value--resting[data-uncommitted="true"] { border-color: var(--warn); color: var(--warn); }
+.property-value--resting[data-invalid="true"] { border-color: var(--danger); color: var(--danger); }
+.property-value--resting[aria-disabled="true"] { cursor: default; color: var(--muted); }
+
+.property-value--container {
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #161d26;
+  color: var(--muted);
+  width: 100%;
+  justify-content: space-between;
+}
+.property-value--container:hover:not(:disabled) { color: var(--fg); }
+.property-value-container-arrow { flex: none; }
+
+.property-value-editor {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.property-value-field,
+.property-value-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  font-size: 12px;
+  padding: 1px 6px;
+}
+
+/* The editable combobox: type a value, or press the arrow and pick one. */
+.property-combo {
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.property-combo-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  padding: 1px 6px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* The pick list, shared by the combobox and by a slider's number field. */
+.property-suggestions { position: relative; flex: none; display: inline-flex; }
+.property-suggestions-arrow {
+  flex: none;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #161d26;
+  color: var(--muted);
+}
+.property-combo .property-suggestions-arrow {
+  border-left: none;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.property-suggestions-arrow:hover:not(:disabled) { color: var(--fg); }
+.property-suggestions-arrow[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+.property-suggestions-list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 2px);
+  right: 0;
+  min-width: 84px;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+}
+.property-suggestions-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--fg);
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.property-suggestions-option:hover { background: #14283c; }
+.property-suggestions-option[aria-selected="true"] { color: var(--accent); }
+
+.property-card-reread {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-color: var(--warn);
+  color: var(--warn);
+  align-self: flex-start;
+}
+
+/* --- §2.8 the back: every PropertyDescriptor field ------------------------- */
+
+.property-card-back { display: flex; flex-direction: column; gap: 8px; }
+.property-card-back dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 10px;
+  margin: 0;
+}
+.property-card-back-row { display: contents; }
+.property-card-back dt { color: var(--muted); white-space: nowrap; }
+.property-card-back dd { margin: 0; overflow-wrap: anywhere; }
+.property-card-back-provenance { margin: 0; font-size: 11px; line-height: 1.5; }
+
+/* ---------------------------------------------------------------------------
+   The user's ruling: bool -> a switch, not a checkbox. It lives in the value
+   cell, so it is the height of a line of text.
+   --------------------------------------------------------------------------- */
+
+.property-switch-row { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+
+.property-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #161d26;
+  color: var(--muted);
+  font-size: 11px;
+}
+.property-switch--on { color: var(--accent); border-color: var(--accent); background: #14283c; }
+.property-switch--inline { padding: 1px 8px; font-size: 11px; }
+
+.property-switch-track {
+  width: 24px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #0b1017;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px;
+  flex: none;
+  transition: background-color 90ms linear, border-color 90ms linear;
+}
+.property-switch--on .property-switch-track { background: #14283c; border-color: var(--accent); }
+.property-switch-knob {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--muted);
+  transition: margin-left 90ms linear, background-color 90ms linear;
+}
+.property-switch--on .property-switch-knob { margin-left: 12px; background: var(--accent); }
+.property-switch-word { font-size: 11px; }
+.property-switch-unreadable { font-size: 11px; color: var(--warn); }
+
+/* ---------------------------------------------------------------------------
+   The user's ruling: a numeric with BOTH bounds -> a slider, the number still
+   directly editable, default and suggested_values marked on the track, and no
+   write until the handle is released. Number, unit and track share one line.
+   --------------------------------------------------------------------------- */
+
+.property-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 auto;
+  width: 100%;
+  /* When the number, the suggestions arrow, the unit and the track cannot all
+     fit on one line, the TRACK drops to a second line rather than the name being
+     eaten. That costs the card 16 px and only on the properties that need it. */
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.property-slider-number {
+  flex: 0 0 56px;
+  width: 56px;
+  min-width: 44px;
+  font-size: 12px;
+  padding: 1px 4px;
+  /* The spinner arrows cost about 14 px of a 66 px field and the track beside
+     it does the same job better, so the digits get the room instead. */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.property-slider-number::-webkit-outer-spin-button,
+.property-slider-number::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* The track holder is the coordinate system every mark is placed in, so the
+   ticks, the device mark and the thumb all agree about where a value sits. */
+.property-slider-track-holder {
+  position: relative;
+  display: block;
+  flex: 1 1 56px;
+  min-width: 46px;
+  height: 12px;
+}
+
+.property-slider-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  display: block;
+}
+.property-slider-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #0b1017;
+  border: 1px solid var(--line);
+}
+.property-slider-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #0b1017;
+  border: 1px solid var(--line);
+}
+/* 12 px, and PropertyValueSlider.tsx's THUMB_WIDTH_PX is the same 12. Change one
+   and the ticks stop lining up with the handle, so change both. */
+.property-slider-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 1px solid #0b1017;
+  cursor: pointer;
+}
+.property-slider-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 1px solid #0b1017;
+  cursor: pointer;
+}
+.property-slider-range:disabled::-webkit-slider-thumb { background: var(--muted); cursor: default; }
+.property-slider-range:disabled::-moz-range-thumb { background: var(--muted); cursor: default; }
+
+/* An uncommitted drag is not device state, and §1.8 says so in colour as well as
+   in words: the thumb goes amber for exactly as long as the draft lives. */
+.property-slider-range[data-uncommitted="true"]::-webkit-slider-thumb { background: var(--warn); }
+.property-slider-range[data-uncommitted="true"]::-moz-range-thumb { background: var(--warn); }
+
+.property-slider-marks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: block;
+}
+
+/* The device's own value, read back from the host. It is drawn separately from
+   the handle precisely so that a drag can be seen NOT to have moved it. */
+.property-slider-device-mark {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  background: var(--ok);
+  border-radius: 1px;
+}
+
+.property-slider-tick {
+  position: absolute;
+  top: 3px;
+  width: 1px;
+  height: 6px;
+  margin-left: -0.5px;
+  background: var(--line);
+}
+.property-slider-tick--default { background: var(--accent); height: 9px; top: 2px; }
+
+/* ---------------------------------------------------------------------------
+   §2.14 container rows: the edit-container dialog, deleted and replaced inline
+   --------------------------------------------------------------------------- */
+
+.property-container { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.property-container-summary { margin: 0; font-size: 11px; }
+
+.property-container-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.property-container-fields { margin: 0; display: flex; flex-direction: column; gap: 3px; }
+
+.property-container-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.property-container-index { font-size: 11px; color: var(--muted); min-width: 1.4em; }
+.property-container-key {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 90px;
+}
+.property-container-key-text { color: var(--muted); }
+.property-container-key-input { font-size: 11px; padding: 1px 5px; width: 120px; }
+.property-container-value {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1 1 140px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.property-container-scalar { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.property-container-scalar-input { width: 100%; font-size: 12px; padding: 2px 6px; }
+
+.property-container-action {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #161d26;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.property-container-action:hover:not(:disabled) { color: var(--fg); }
+.property-container-action--remove:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+
+.property-container-refusal { font-size: 11px; color: var(--danger); margin: 0; overflow-wrap: anywhere; }
+.property-container-not-a-container { margin: 0; font-size: 11px; overflow-wrap: anywhere; }
+
+.property-container-nested {
+  flex: 1 1 100%;
+  border-left: 2px solid var(--line);
+  padding-left: 8px;
+  margin-left: 2px;
+  min-width: 0;
+}
+
+.property-container-breadcrumb {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #161d26;
+  color: var(--accent);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- §2.2's breadcrumb board: the grid navigates instead of nesting a third
+       time, and the trail is labelled rather than implied ------------------- */
+
+.property-container-board { display: flex; flex-direction: column; gap: 8px; }
+.property-container-trail { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; font-size: 11px; }
+.property-container-trail-step {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  font-size: 11px;
+  color: var(--accent);
+}
+.property-container-trail-step:hover { text-decoration: underline; background: none; border-color: transparent; }
+.property-container-trail-separator { color: var(--muted); }
+.property-container-board-note { margin: 0; font-size: 11px; line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .property-switch-track,
+  .property-switch-knob {
+    transition: none;
+  }
+}

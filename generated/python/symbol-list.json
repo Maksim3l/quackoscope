@@ -1,0 +1,314 @@
+{
+  "target": "python",
+  "naming_basis": "contract.yaml casing.targets.python",
+  "join": "snake_case",
+  "getter_prefix": "keep_get",
+  "setter_prefix": "keep_set",
+  "async_style": "async_def",
+  "collapse_getter_setter_pairs": true,
+  "reserved_word_strategy": "suffix_underscore",
+  "symbol_count": 43,
+  "symbols": [
+    {
+      "symbol": "scan_available_devices",
+      "kind": "call",
+      "covers_wire_methods": [
+        "scan_available_devices"
+      ]
+    },
+    {
+      "symbol": "connect_device",
+      "kind": "call",
+      "covers_wire_methods": [
+        "connect_device"
+      ]
+    },
+    {
+      "symbol": "disconnect_device",
+      "kind": "call",
+      "covers_wire_methods": [
+        "disconnect_device"
+      ]
+    },
+    {
+      "symbol": "get_component_tree",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_component_tree"
+      ]
+    },
+    {
+      "symbol": "get_property_value",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_property_value"
+      ]
+    },
+    {
+      "symbol": "get_property_descriptors",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_property_descriptors"
+      ]
+    },
+    {
+      "symbol": "set_property_value",
+      "kind": "call",
+      "covers_wire_methods": [
+        "set_property_value"
+      ]
+    },
+    {
+      "symbol": "list_function_block_types",
+      "kind": "call",
+      "covers_wire_methods": [
+        "list_function_block_types"
+      ]
+    },
+    {
+      "symbol": "add_function_block",
+      "kind": "call",
+      "covers_wire_methods": [
+        "add_function_block"
+      ]
+    },
+    {
+      "symbol": "remove_function_block",
+      "kind": "call",
+      "covers_wire_methods": [
+        "remove_function_block"
+      ]
+    },
+    {
+      "symbol": "subscribe_signal",
+      "kind": "call",
+      "covers_wire_methods": [
+        "subscribe_signal"
+      ]
+    },
+    {
+      "symbol": "unsubscribe_signal",
+      "kind": "call",
+      "covers_wire_methods": [
+        "unsubscribe_signal"
+      ]
+    },
+    {
+      "symbol": "read_samples_raw",
+      "kind": "call",
+      "covers_wire_methods": [
+        "read_samples_raw"
+      ]
+    },
+    {
+      "symbol": "get_device_operation_modes",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_device_operation_modes"
+      ]
+    },
+    {
+      "symbol": "set_device_operation_mode",
+      "kind": "call",
+      "covers_wire_methods": [
+        "set_device_operation_mode"
+      ]
+    },
+    {
+      "symbol": "lock_device",
+      "kind": "call",
+      "covers_wire_methods": [
+        "lock_device"
+      ]
+    },
+    {
+      "symbol": "unlock_device",
+      "kind": "call",
+      "covers_wire_methods": [
+        "unlock_device"
+      ]
+    },
+    {
+      "symbol": "list_loaded_modules",
+      "kind": "call",
+      "covers_wire_methods": [
+        "list_loaded_modules"
+      ]
+    },
+    {
+      "symbol": "load_module_from_host_path",
+      "kind": "call",
+      "covers_wire_methods": [
+        "load_module_from_host_path"
+      ]
+    },
+    {
+      "symbol": "get_component_attributes",
+      "kind": "call",
+      "covers_wire_methods": [
+        "get_component_attributes"
+      ]
+    },
+    {
+      "symbol": "set_component_attribute",
+      "kind": "call",
+      "covers_wire_methods": [
+        "set_component_attribute"
+      ]
+    },
+    {
+      "symbol": "list_server_types",
+      "kind": "call",
+      "covers_wire_methods": [
+        "list_server_types"
+      ]
+    },
+    {
+      "symbol": "add_server",
+      "kind": "call",
+      "covers_wire_methods": [
+        "add_server"
+      ]
+    },
+    {
+      "symbol": "set_server_discovery_enabled",
+      "kind": "call",
+      "covers_wire_methods": [
+        "set_server_discovery_enabled"
+      ]
+    },
+    {
+      "symbol": "start_recording",
+      "kind": "call",
+      "covers_wire_methods": [
+        "start_recording"
+      ]
+    },
+    {
+      "symbol": "stop_recording",
+      "kind": "call",
+      "covers_wire_methods": [
+        "stop_recording"
+      ]
+    },
+    {
+      "symbol": "begin_batched_property_update",
+      "kind": "call",
+      "covers_wire_methods": [
+        "begin_batched_property_update"
+      ]
+    },
+    {
+      "symbol": "end_batched_property_update",
+      "kind": "call",
+      "covers_wire_methods": [
+        "end_batched_property_update"
+      ]
+    },
+    {
+      "symbol": "save_instance_configuration_to_string",
+      "kind": "call",
+      "covers_wire_methods": [
+        "save_instance_configuration_to_string"
+      ]
+    },
+    {
+      "symbol": "load_instance_configuration_from_string",
+      "kind": "call",
+      "covers_wire_methods": [
+        "load_instance_configuration_from_string"
+      ]
+    },
+    {
+      "symbol": "component_added",
+      "kind": "event",
+      "covers_wire_methods": [
+        "component_added"
+      ]
+    },
+    {
+      "symbol": "component_removed",
+      "kind": "event",
+      "covers_wire_methods": [
+        "component_removed"
+      ]
+    },
+    {
+      "symbol": "property_changed",
+      "kind": "event",
+      "covers_wire_methods": [
+        "property_changed"
+      ]
+    },
+    {
+      "symbol": "property_descriptor_changed",
+      "kind": "event",
+      "covers_wire_methods": [
+        "property_descriptor_changed"
+      ]
+    },
+    {
+      "symbol": "device_disconnected",
+      "kind": "event",
+      "covers_wire_methods": [
+        "device_disconnected"
+      ]
+    },
+    {
+      "symbol": "DeviceInfo",
+      "kind": "type",
+      "covers_wire_methods": [
+        "DeviceInfo"
+      ]
+    },
+    {
+      "symbol": "Node",
+      "kind": "type",
+      "covers_wire_methods": [
+        "Node"
+      ]
+    },
+    {
+      "symbol": "PropertyDescriptor",
+      "kind": "type",
+      "covers_wire_methods": [
+        "PropertyDescriptor"
+      ]
+    },
+    {
+      "symbol": "ComponentAttribute",
+      "kind": "type",
+      "covers_wire_methods": [
+        "ComponentAttribute"
+      ]
+    },
+    {
+      "symbol": "SignalDescriptor",
+      "kind": "type",
+      "covers_wire_methods": [
+        "SignalDescriptor"
+      ]
+    },
+    {
+      "symbol": "Gap",
+      "kind": "type",
+      "covers_wire_methods": [
+        "Gap"
+      ]
+    },
+    {
+      "symbol": "ComponentTypeInfo",
+      "kind": "type",
+      "covers_wire_methods": [
+        "ComponentTypeInfo"
+      ]
+    },
+    {
+      "symbol": "ModuleInfo",
+      "kind": "type",
+      "covers_wire_methods": [
+        "ModuleInfo"
+      ]
+    }
+  ]
+}

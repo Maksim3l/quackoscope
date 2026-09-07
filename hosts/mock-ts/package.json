@@ -1,0 +1,13 @@
+{
+  "name": "quackoscope-host-mock",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Schema-complete Quackoscope host with no openDAQ SDK: a synthetic reference device behind the M1 wire contract. Vendored package.json so the repo-root package.json is never edited; it has no dependencies at all.",
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "start-mock-host-on-7791": "node src/start-mock-host.ts --port 7791 --dist ../../dist"
+  }
+}

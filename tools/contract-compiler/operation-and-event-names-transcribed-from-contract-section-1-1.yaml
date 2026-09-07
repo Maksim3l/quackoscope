@@ -1,0 +1,135 @@
+# The name section 1.1 of contract/contract.yaml REQUIRES for every operation
+# and every event, in every target language.
+#
+# THIS FILE IS NOT GENERATED. Nothing under tools/contract-compiler/ writes it,
+# the contract compiler does not emit it, and it must never be derived from the
+# compiler's output.
+#
+# WHY IT IS HAND-WRITTEN AND MUST STAY HAND-WRITTEN
+# tools/contract-compiler/assert_operation_names_match_casing_table.py exists to
+# catch the compiler agreeing with itself. Every other table in this repository
+# that used to be typed by hand now READS generated/wire/capability-baseline.json
+# and refuses to run when its own copy disagrees, because a second copy of the
+# contract is a second thing that can drift. This table is the one place that
+# cure would destroy the point: if the expectations came out of name_casing.py,
+# a name_casing.py that started producing "ScanAvailableDevices" without the
+# Async suffix would produce a table saying "ScanAvailableDevices" and the
+# assertion would pass. The expectations below are therefore transcribed BY HAND
+# from the section 1.1 join table and are deliberately an independent second
+# opinion about what the compiler should produce.
+#
+# HOW THIS FILE IS STOPPED FROM DRIFTING ANYWAY
+# The assertion checks that the `operations` key set below is EXACTLY the set of
+# wire method names contract/contract.yaml declares, and that `events` is exactly
+# its event set - same members, same order. A row added to contract.yaml with no
+# row here fails the assertion by name, and a row here that contract.yaml no
+# longer declares fails it by name too. That is what turns "somebody forgot to
+# update the table" from a silent pass into a named failure. Growing the contract
+# therefore requires transcribing the new row here from section 1.1, by hand,
+# which is the work this assertion exists to make somebody do.
+#
+# THE SECTION 1.1 JOIN TABLE THESE ROWS APPLY
+#   | Target | Join        | Getter convention                               | Async convention   |
+#   | wire   | snake_case  | keep get_ prefix                                | n/a                |
+#   | C++    | camelCase   | get prefix                                      | callback or future |
+#   | C#     | PascalCase  | property where a getter/setter pair exists      | Async suffix       |
+#   | Python | snake_case  | @property where a pair exists, else get_ prefix | async def          |
+#   | Rust   | snake_case  | no prefix on getters, set_ on setters           | async fn           |
+
+# The order the five columns of every row below are written in.
+targets_in_column_order: [wire, cpp, csharp, python, rust]
+
+# --- operations, transcribed from section 1.4's operation table -------------
+#
+# C# takes the Async suffix on all 19 because every operation is a network round
+# trip. C# and Python collapse a getter/setter pair into a property, but the
+# contract's only pair, get/set_property_value, cannot collapse: the getter takes
+# node_id and property_id and a zero-argument accessor cannot carry those. So
+# both keep the get_ prefix here. Rust drops a leading "get" token, which is why
+# get_component_tree is component_tree but the getter list_function_block_types,
+# whose token list does not begin with "get", is unchanged.
+operations:
+  #                              wire                         cpp                        csharp                          python                       rust
+  scan_available_devices:      [scan_available_devices,      scanAvailableDevices,      ScanAvailableDevicesAsync,      scan_available_devices,      scan_available_devices]
+  connect_device:              [connect_device,              connectDevice,             ConnectDeviceAsync,             connect_device,              connect_device]
+  disconnect_device:           [disconnect_device,           disconnectDevice,          DisconnectDeviceAsync,          disconnect_device,           disconnect_device]
+  get_component_tree:          [get_component_tree,          getComponentTree,          GetComponentTreeAsync,          get_component_tree,          component_tree]
+  get_property_value:          [get_property_value,          getPropertyValue,          GetPropertyValueAsync,          get_property_value,          property_value]
+  get_property_descriptors:    [get_property_descriptors,    getPropertyDescriptors,    GetPropertyDescriptorsAsync,    get_property_descriptors,    property_descriptors]
+  set_property_value:          [set_property_value,          setPropertyValue,          SetPropertyValueAsync,          set_property_value,          set_property_value]
+  list_function_block_types:   [list_function_block_types,   listFunctionBlockTypes,    ListFunctionBlockTypesAsync,    list_function_block_types,   list_function_block_types]
+  add_function_block:          [add_function_block,          addFunctionBlock,          AddFunctionBlockAsync,          add_function_block,          add_function_block]
+  remove_function_block:       [remove_function_block,       removeFunctionBlock,       RemoveFunctionBlockAsync,       remove_function_block,       remove_function_block]
+  subscribe_signal:            [subscribe_signal,            subscribeSignal,           SubscribeSignalAsync,           subscribe_signal,            subscribe_signal]
+  unsubscribe_signal:          [unsubscribe_signal,          unsubscribeSignal,         UnsubscribeSignalAsync,         unsubscribe_signal,          unsubscribe_signal]
+  read_samples_raw:            [read_samples_raw,            readSamplesRaw,            ReadSamplesRawAsync,            read_samples_raw,            read_samples_raw]
+  # The five rows the component-state, operation-mode and lock work added.
+  # get_device_operation_modes is the second getter whose leading "get" rust
+  # drops; lock_device and unlock_device do NOT collide with C#'s "lock" keyword,
+  # because reserved_word_escaped matches the whole wire name and the whole name
+  # is lock_device. list_loaded_modules begins with "list", so rust leaves it
+  # alone exactly as it leaves list_function_block_types.
+  get_device_operation_modes:  [get_device_operation_modes,  getDeviceOperationModes,   GetDeviceOperationModesAsync,   get_device_operation_modes,  device_operation_modes]
+  set_device_operation_mode:   [set_device_operation_mode,   setDeviceOperationMode,    SetDeviceOperationModeAsync,    set_device_operation_mode,   set_device_operation_mode]
+  lock_device:                 [lock_device,                 lockDevice,                LockDeviceAsync,                lock_device,                 lock_device]
+  unlock_device:               [unlock_device,               unlockDevice,              UnlockDeviceAsync,              unlock_device,               unlock_device]
+  list_loaded_modules:         [list_loaded_modules,         listLoadedModules,         ListLoadedModulesAsync,         list_loaded_modules,         list_loaded_modules]
+  # The nineteenth row, added by the module-loading work. tokens are
+  # [load, module, from, host, path] and kind is action, so no getter or setter
+  # convention applies in any target: the whole name is joined and nothing is
+  # dropped or prefixed. "from" and "host" and "path" are ordinary tokens, none
+  # of them in the closed acronym list, and load_module_from_host_path collides
+  # with no reserved word in any of the five targets.
+  load_module_from_host_path:  [load_module_from_host_path,  loadModuleFromHostPath,    LoadModuleFromHostPathAsync,    load_module_from_host_path,  load_module_from_host_path]
+  # Rows twenty to thirty, added by the work on the last reference panels:
+  # component attributes, servers and their discovery, the recorder, the
+  # begin/end update pair, and saving and loading the instance configuration.
+  #
+  # get_component_attributes is the THIRD getter whose leading "get" rust drops,
+  # after get_component_tree and get_device_operation_modes; every other row here
+  # begins with set, list, add, start, stop, begin, end, save or load, none of
+  # which rust touches. list_server_types begins with "list", so rust leaves it
+  # exactly as it leaves list_function_block_types and list_loaded_modules.
+  #
+  # Reserved-word check, done per target against casing.targets[].reserved_words
+  # and against the WHOLE wire name, which is what reserved_word_escaped matches:
+  #   - load_instance_configuration_from_string contains the token "from", which
+  #     is a python reserved word on its own, and save_instance_configuration_to_string
+  #     ends in the token "string", which is a C# reserved word on its own.
+  #     Neither escapes, because neither whole wire name is a reserved word - the
+  #     same reason load_module_from_host_path did not escape in python either.
+  #   - set_server_discovery_enabled, begin_batched_property_update and
+  #     end_batched_property_update collide with nothing in any of the five lists.
+  #   - add_server and start_recording and stop_recording likewise; "server" and
+  #     "recording" appear in no reserved_words list.
+  # No token in any of these eleven rows is in the closed acronym list, so no
+  # acronym_rendering applies and C# Pascal-cases every token the ordinary way.
+  get_component_attributes:            [get_component_attributes,            getComponentAttributes,            GetComponentAttributesAsync,            get_component_attributes,            component_attributes]
+  set_component_attribute:             [set_component_attribute,             setComponentAttribute,             SetComponentAttributeAsync,             set_component_attribute,             set_component_attribute]
+  list_server_types:                   [list_server_types,                   listServerTypes,                   ListServerTypesAsync,                   list_server_types,                   list_server_types]
+  add_server:                          [add_server,                          addServer,                         AddServerAsync,                         add_server,                          add_server]
+  set_server_discovery_enabled:        [set_server_discovery_enabled,        setServerDiscoveryEnabled,         SetServerDiscoveryEnabledAsync,         set_server_discovery_enabled,        set_server_discovery_enabled]
+  start_recording:                     [start_recording,                     startRecording,                    StartRecordingAsync,                    start_recording,                     start_recording]
+  stop_recording:                      [stop_recording,                      stopRecording,                     StopRecordingAsync,                     stop_recording,                      stop_recording]
+  begin_batched_property_update:       [begin_batched_property_update,       beginBatchedPropertyUpdate,        BeginBatchedPropertyUpdateAsync,        begin_batched_property_update,       begin_batched_property_update]
+  end_batched_property_update:         [end_batched_property_update,         endBatchedPropertyUpdate,          EndBatchedPropertyUpdateAsync,          end_batched_property_update,         end_batched_property_update]
+  save_instance_configuration_to_string:   [save_instance_configuration_to_string,   saveInstanceConfigurationToString,   SaveInstanceConfigurationToStringAsync,   save_instance_configuration_to_string,   save_instance_configuration_to_string]
+  load_instance_configuration_from_string: [load_instance_configuration_from_string, loadInstanceConfigurationFromString, LoadInstanceConfigurationFromStringAsync, load_instance_configuration_from_string, load_instance_configuration_from_string]
+
+# --- events, transcribed from section 1.5's event table ---------------------
+#
+# Events are not calls, so C# takes no Async suffix on any of them.
+events:
+  #                              wire                           cpp                          csharp                       python                         rust
+  component_added:             [component_added,              componentAdded,              ComponentAdded,              component_added,              component_added]
+  component_removed:           [component_removed,            componentRemoved,            ComponentRemoved,            component_removed,            component_removed]
+  property_changed:            [property_changed,             propertyChanged,             PropertyChanged,             property_changed,             property_changed]
+  property_descriptor_changed: [property_descriptor_changed,  propertyDescriptorChanged,   PropertyDescriptorChanged,   property_descriptor_changed,  property_descriptor_changed]
+  device_disconnected:         [device_disconnected,          deviceDisconnected,          DeviceDisconnected,          device_disconnected,          device_disconnected]
+
+# The closed acronym token list of 1.1, in the order 1.1 gives it. Always cased
+# as a unit. C# keeps two-letter acronyms upper, longer ones Pascal.
+acronym_tokens: [id, ids, io, lt, ns, rpc, ui, csv]
+
+# The keyword collisions 1.1 says to watch for.
+keyword_collisions_to_watch: [type, id, object, input, next, match, ref, async]

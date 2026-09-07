@@ -1,0 +1,261 @@
+/* The two creating grids of §2.5 and §2.7, and the call preview of §3.5.
+
+   Everything structural — the card's five bands, the 3 px state border, the
+   grid geometry, the quack strip — is src/card-grid/card-grid.css. This file
+   adds only what a CREATING grid needs and an editing grid does not: the call
+   preview band, the commit control named for its wire method, the connection
+   string with its copy control, and the two surfaces' headings.
+
+   Colours are the tokens of src/App.css and src/card-grid/card-grid.css. No
+   literal is introduced that is not already one of them. */
+
+/* ---------------------------------------------------------------------------
+   §3.5 the draft card is the call preview
+   --------------------------------------------------------------------------- */
+
+.draft-call {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* The preview is chrome, not a quack target: quacking it would answer with the
+   card's own data-op, which is what quacking the card already does. The card's
+   commit BUTTON is the specific target (§3.1). */
+.draft-call-preview {
+  border: 1px dashed var(--line);
+  border-radius: 3px;
+  padding: 5px 7px;
+  background: #0b1017;
+}
+
+.draft-call-preview-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.draft-call-preview-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.draft-call-envelope-toggle {
+  margin-left: auto;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.draft-call-envelope-toggle:hover { color: var(--fg); }
+
+.draft-call-parameters {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.draft-call-parameters .draft-call-method { color: var(--fg); }
+.draft-call-parameters li { overflow-wrap: anywhere; }
+
+.draft-call-envelope {
+  margin: 4px 0 0;
+  padding: 4px 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  background: #0d1117;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.draft-call-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* §2.0: "labelled with the wire method it will send … never OK". */
+.draft-call-commit {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.draft-call-commit:disabled { border-color: var(--line); color: var(--muted); }
+
+.draft-call-discard {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 6px;
+}
+.draft-call-discard:hover { color: var(--fg); }
+
+.draft-call-refusal,
+.draft-call-answered {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.draft-call-refusal { color: var(--muted); }
+.draft-call-answered { color: var(--ok); overflow-wrap: anywhere; }
+
+/* ---------------------------------------------------------------------------
+   §2.5 the discovery grid
+   --------------------------------------------------------------------------- */
+
+.discovery-surface,
+.function-block-type-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.discovery-heading,
+.function-block-type-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.discovery-heading h3,
+.function-block-type-heading h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.discovery-scan-state,
+.function-block-list-state,
+.function-block-parent {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.discovery-rescan,
+.function-block-relist {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+.discovery-connection-string {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.discovery-connection-string code {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--fg);
+  background: #0b1017;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 3px 5px;
+  /* Middle truncation has no CSS form; the full string is the title and the
+     copy control puts it on the clipboard. Wrapping beats an ellipsis that
+     hides the port. */
+  overflow-wrap: anywhere;
+}
+.discovery-copy {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 2px 4px;
+}
+.discovery-copy:hover { color: var(--fg); }
+.discovery-copy-report {
+  flex-basis: 100%;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.discovery-typed-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+.discovery-typed-label input { font-size: 12px; width: 100%; }
+
+.discovery-typed-string-still-works,
+.function-block-capability-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.discovery-configure-blocked,
+.function-block-configure-blocked {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.discovery-configure,
+.function-block-configure {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-style: dashed;
+}
+
+/* ---------------------------------------------------------------------------
+   §2.7 the type card grid and the configuration card it moves to
+   --------------------------------------------------------------------------- */
+
+.function-block-configuration {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-left: 2px solid var(--accent);
+  padding-left: 8px;
+}
+.function-block-configuration-lead { margin: 0; font-size: 12px; }
+.function-block-configuration p { margin: 0; font-size: 11px; line-height: 1.6; }
+
+.function-block-descriptor-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  font-size: 11px;
+}
+.function-block-descriptor-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.function-block-descriptor-list dt { color: var(--fg); overflow-wrap: anywhere; }
+.function-block-descriptor-list dd { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+
+/* §3.7: the body of the card that stands where a whole grid would have been. */
+.gapped-grid-body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}

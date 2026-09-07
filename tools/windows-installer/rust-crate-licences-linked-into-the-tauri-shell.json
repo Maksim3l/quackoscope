@@ -1,0 +1,4922 @@
+{
+  "what_this_file_is": "Every Rust crate inside src-tauri's release binary quackoscope.exe, with the SPDX expression the crate declares in its own Cargo.toml and the licence files its published source carries.",
+  "generated_by": "node tools/windows-installer/list-rust-crate-licences-linked-into-the-tauri-shell.mjs",
+  "do_not_edit_by_hand": "Regenerate it with the command above. stage-host-and-opendaq-runtime-into-the-installer-payload.mjs checks cargo_lock_sha256 against src-tauri/Cargo.lock and refuses to stage when they disagree.",
+  "target_triple": "x86_64-pc-windows-msvc",
+  "dependency_kinds_walked": [
+    "normal",
+    "build"
+  ],
+  "cargo_lock_path": "src-tauri/Cargo.lock",
+  "cargo_lock_sha256": "f410070aefa93b8c910c45bb56060d9bec2e3eb7f79a00091861b83cc8700f35",
+  "crate_count": 258,
+  "licence_expression_counts": {
+    "MIT OR Apache-2.0": 126,
+    "MIT": 44,
+    "Apache-2.0 OR MIT": 27,
+    "Unicode-3.0": 18,
+    "MIT/Apache-2.0": 11,
+    "Unlicense OR MIT": 8,
+    "MPL-2.0": 5,
+    "BSD-3-Clause": 2,
+    "MIT OR Apache-2.0 OR Zlib": 2,
+    "MIT OR Zlib OR Apache-2.0": 2,
+    "Unlicense/MIT": 2,
+    "Zlib": 2,
+    "(MIT OR Apache-2.0) AND Unicode-3.0": 1,
+    "0BSD OR MIT OR Apache-2.0": 1,
+    "Apache-2.0": 1,
+    "Apache-2.0 / MIT": 1,
+    "Apache-2.0 AND MIT": 1,
+    "BSD-3-Clause AND MIT": 1,
+    "BSD-3-Clause/MIT": 1,
+    "CC0-1.0 OR MIT-0 OR Apache-2.0": 1,
+    "Zlib OR Apache-2.0 OR MIT": 1
+  },
+  "crates_publishing_no_licence_file": [
+    "alloc-stdlib 0.2.4 (BSD-3-Clause)",
+    "defmt-parser 1.0.0 (MIT OR Apache-2.0)",
+    "selectors 0.36.1 (MPL-2.0)",
+    "unic-char-property 0.9.0 (MIT/Apache-2.0)",
+    "unic-char-range 0.9.0 (MIT/Apache-2.0)",
+    "unic-common 0.9.0 (MIT/Apache-2.0)",
+    "unic-ucd-ident 0.9.0 (MIT/Apache-2.0)",
+    "unic-ucd-version 0.9.0 (MIT/Apache-2.0)",
+    "webview2-com-macros 0.8.1 (MIT)",
+    "webview2-com-sys 0.38.2 (MIT)",
+    "webview2-com 0.38.2 (MIT)"
+  ],
+  "crates": [
+    {
+      "name": "adler2",
+      "version": "2.0.1",
+      "spdx": "0BSD OR MIT OR Apache-2.0",
+      "repository": "https://github.com/oyvindln/adler2",
+      "authors": [
+        "Jonas Schievink <jonasschievink@gmail.com>",
+        "oyvindln <oyvindln@users.noreply.github.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/adler2-2.0.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-0BSD",
+          "bytes": 665
+        },
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10860
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "aho-corasick",
+      "version": "1.1.5",
+      "spdx": "Unlicense OR MIT",
+      "repository": "https://github.com/BurntSushi/aho-corasick",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aho-corasick-1.1.5",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 126
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1081
+        },
+        {
+          "name": "UNLICENSE",
+          "bytes": 1211
+        }
+      ]
+    },
+    {
+      "name": "alloc-no-stdlib",
+      "version": "2.0.4",
+      "spdx": "BSD-3-Clause",
+      "repository": "https://github.com/dropbox/rust-alloc-no-stdlib",
+      "authors": [
+        "Daniel Reiter Horn <danielrh@dropbox.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/alloc-no-stdlib-2.0.4",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1483
+        }
+      ]
+    },
+    {
+      "name": "alloc-stdlib",
+      "version": "0.2.4",
+      "spdx": "BSD-3-Clause",
+      "repository": "https://github.com/dropbox/rust-alloc-no-stdlib",
+      "authors": [
+        "Daniel Reiter Horn <danielrh@dropbox.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/alloc-stdlib-0.2.4",
+      "licence_files": []
+    },
+    {
+      "name": "anyhow",
+      "version": "1.0.104",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/anyhow",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "autocfg",
+      "version": "1.5.1",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/cuviper/autocfg",
+      "authors": [
+        "Josh Stone <cuviper@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1054
+        }
+      ]
+    },
+    {
+      "name": "base64",
+      "version": "0.22.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/marshallpierce/rust-base64",
+      "authors": [
+        "Marshall Pierce <marshall@mpierce.org>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/base64-0.22.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1076
+        }
+      ]
+    },
+    {
+      "name": "bit-set",
+      "version": "0.8.0",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/contain-rs/bit-set",
+      "authors": [
+        "Alexis Beingessner <a.beingessner@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bit-set-0.8.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10850
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "bit-vec",
+      "version": "0.8.0",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/contain-rs/bit-vec",
+      "authors": [
+        "Alexis Beingessner <a.beingessner@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bit-vec-0.8.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10850
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "bitflags",
+      "version": "1.3.2",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/bitflags/bitflags",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitflags-1.3.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "bitflags",
+      "version": "2.13.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/bitflags/bitflags",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitflags-2.13.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RustCrypto/utils",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block-buffer-0.10.4",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10849
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1082
+        }
+      ]
+    },
+    {
+      "name": "brotli-decompressor",
+      "version": "5.0.3",
+      "spdx": "BSD-3-Clause/MIT",
+      "repository": "https://github.com/dropbox/rust-brotli-decompressor",
+      "authors": [
+        "Daniel Reiter Horn <danielrh@dropbox.com>",
+        "The Brotli Authors"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/brotli-decompressor-5.0.3",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1483
+        }
+      ]
+    },
+    {
+      "name": "brotli",
+      "version": "8.0.4",
+      "spdx": "BSD-3-Clause AND MIT",
+      "repository": "https://github.com/dropbox/rust-brotli",
+      "authors": [
+        "Daniel Reiter Horn <danielrh@dropbox.com>",
+        "The Brotli Authors"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/brotli-8.0.4",
+      "licence_files": [
+        {
+          "name": "LICENSE.BSD-3-Clause",
+          "bytes": 1483
+        },
+        {
+          "name": "LICENSE.MIT",
+          "bytes": 1084
+        }
+      ]
+    },
+    {
+      "name": "bs58",
+      "version": "0.5.1",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/Nullus157/bs58-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bs58-0.5.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1082
+        }
+      ]
+    },
+    {
+      "name": "byteorder",
+      "version": "1.5.0",
+      "spdx": "Unlicense OR MIT",
+      "repository": "https://github.com/BurntSushi/byteorder",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/byteorder-1.5.0",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 126
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1081
+        },
+        {
+          "name": "UNLICENSE",
+          "bytes": 1211
+        }
+      ]
+    },
+    {
+      "name": "bytes",
+      "version": "1.12.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/tokio-rs/bytes",
+      "authors": [
+        "Carl Lerche <me@carllerche.com>",
+        "Sean McArthur <sean@seanmonstar.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1055
+        }
+      ]
+    },
+    {
+      "name": "camino",
+      "version": "1.2.5",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/camino-rs/camino",
+      "authors": [
+        "Without Boats <saoirse@without.boats>",
+        "Ashley Williams <ashley666ashley@gmail.com>",
+        "Steve Klabnik <steve@steveklabnik.com>",
+        "Rain <rain@sunshowers.io>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/camino-1.2.5",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "cargo-platform",
+      "version": "0.1.9",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/cargo",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo-platform-0.1.9",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10860
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "cargo_metadata",
+      "version": "0.19.2",
+      "spdx": "MIT",
+      "repository": "https://github.com/oli-obk/cargo_metadata",
+      "authors": [
+        "Oliver Schneider <git-spam-no-reply9815368754983@oli-obk.de>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_metadata-0.19.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "cargo_toml",
+      "version": "0.22.3",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://gitlab.com/lib.rs/cargo_toml",
+      "authors": [
+        "Kornel <kornel@geekhood.net>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-0.22.3",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 11193
+        }
+      ]
+    },
+    {
+      "name": "cc",
+      "version": "1.4.4",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/cc-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cc-1.4.4",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1057
+        }
+      ]
+    },
+    {
+      "name": "cfb",
+      "version": "0.7.3",
+      "spdx": "MIT",
+      "repository": "https://github.com/mdsteele/rust-cfb",
+      "authors": [
+        "Matthew D. Steele <mdsteele@alum.mit.edu>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cfb-0.7.3",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1074
+        }
+      ]
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.4",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/cfg-if",
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cfg-if-1.0.4",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1057
+        }
+      ]
+    },
+    {
+      "name": "chrono",
+      "version": "0.4.45",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/chronotope/chrono",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/chrono-0.4.45",
+      "licence_files": [
+        {
+          "name": "LICENSE.txt",
+          "bytes": 12307
+        }
+      ]
+    },
+    {
+      "name": "cookie",
+      "version": "0.18.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/SergioBenitez/cookie-rs",
+      "authors": [
+        "Sergio Benitez <sb@sergio.bz>",
+        "Alex Crichton <alex@alexcrichton.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cookie-0.18.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10863
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1091
+        }
+      ]
+    },
+    {
+      "name": "cpufeatures",
+      "version": "0.2.17",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RustCrypto/utils",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cpufeatures-0.2.17",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10849
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1082
+        }
+      ]
+    },
+    {
+      "name": "crc32fast",
+      "version": "1.5.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/srijs/rust-crc32fast",
+      "authors": [
+        "Sam Rijs <srijs@airpost.net>",
+        "Alex Crichton <alex@alexcrichton.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1097
+        }
+      ]
+    },
+    {
+      "name": "crossbeam-channel",
+      "version": "0.5.16",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/crossbeam-rs/crossbeam",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-channel-0.5.16",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1099
+        },
+        {
+          "name": "LICENSE-THIRD-PARTY",
+          "bytes": 33447
+        }
+      ]
+    },
+    {
+      "name": "crossbeam-utils",
+      "version": "0.8.22",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/crossbeam-rs/crossbeam",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.22",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1099
+        }
+      ]
+    },
+    {
+      "name": "crypto-common",
+      "version": "0.1.7",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RustCrypto/traits",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crypto-common-0.1.7",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10849
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1065
+        }
+      ]
+    },
+    {
+      "name": "cssparser-macros",
+      "version": "0.6.1",
+      "spdx": "MPL-2.0",
+      "repository": "https://github.com/servo/rust-cssparser",
+      "authors": [
+        "Simon Sapin <simon.sapin@exyr.org>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cssparser-macros-0.6.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 16726
+        }
+      ]
+    },
+    {
+      "name": "cssparser",
+      "version": "0.36.0",
+      "spdx": "MPL-2.0",
+      "repository": "https://github.com/servo/rust-cssparser",
+      "authors": [
+        "Simon Sapin <simon.sapin@exyr.org>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cssparser-0.36.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 16726
+        }
+      ]
+    },
+    {
+      "name": "ctor-proc-macro",
+      "version": "0.0.7",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/mmastrac/rust-ctor",
+      "authors": [
+        "Matt Mastracci <matthew@mastracci.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ctor-proc-macro-0.0.7",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11324
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1022
+        }
+      ]
+    },
+    {
+      "name": "ctor",
+      "version": "0.8.0",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/mmastrac/rust-ctor",
+      "authors": [
+        "Matt Mastracci <matthew@mastracci.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ctor-0.8.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11324
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1022
+        }
+      ]
+    },
+    {
+      "name": "darling",
+      "version": "0.23.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/TedDriggs/darling",
+      "authors": [
+        "Ted Driggs <ted.driggs@outlook.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling-0.23.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1067
+        }
+      ]
+    },
+    {
+      "name": "darling_core",
+      "version": "0.23.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/TedDriggs/darling",
+      "authors": [
+        "Ted Driggs <ted.driggs@outlook.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling_core-0.23.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1067
+        }
+      ]
+    },
+    {
+      "name": "darling_macro",
+      "version": "0.23.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/TedDriggs/darling",
+      "authors": [
+        "Ted Driggs <ted.driggs@outlook.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling_macro-0.23.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1067
+        }
+      ]
+    },
+    {
+      "name": "defmt-macros",
+      "version": "1.1.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/knurling-rs/defmt",
+      "authors": [
+        "The Knurling-rs developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/defmt-macros-1.1.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10850
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1053
+        }
+      ]
+    },
+    {
+      "name": "defmt-parser",
+      "version": "1.0.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/knurling-rs/defmt",
+      "authors": [
+        "The Knurling-rs developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/defmt-parser-1.0.0",
+      "licence_files": []
+    },
+    {
+      "name": "defmt",
+      "version": "1.1.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/knurling-rs/defmt",
+      "authors": [
+        "The Knurling-rs developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/defmt-1.1.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10850
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1053
+        }
+      ]
+    },
+    {
+      "name": "deranged",
+      "version": "0.5.8",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/jhpratt/deranged",
+      "authors": [
+        "Jacob Pratt <jacob@jhpratt.dev>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/deranged-0.5.8",
+      "licence_files": [
+        {
+          "name": "LICENSE-Apache",
+          "bytes": 11349
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "derive_more-impl",
+      "version": "2.1.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/JelteF/derive_more",
+      "authors": [
+        "Jelte Fennema <github-tech@jeltef.nl>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/derive_more-impl-2.1.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1080
+        }
+      ]
+    },
+    {
+      "name": "derive_more",
+      "version": "2.1.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/JelteF/derive_more",
+      "authors": [
+        "Jelte Fennema <github-tech@jeltef.nl>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/derive_more-2.1.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1080
+        }
+      ]
+    },
+    {
+      "name": "digest",
+      "version": "0.10.7",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RustCrypto/traits",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/digest-0.10.7",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10849
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1057
+        }
+      ]
+    },
+    {
+      "name": "dirs-sys",
+      "version": "0.5.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dirs-dev/dirs-sys-rs",
+      "authors": [
+        "Simon Ochsenreither <simon@ochsenreither.de>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dirs-sys-0.5.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9694
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1069
+        }
+      ]
+    },
+    {
+      "name": "dirs",
+      "version": "6.0.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/soc/dirs-rs",
+      "authors": [
+        "Simon Ochsenreither <simon@ochsenreither.de>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dirs-6.0.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9694
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1069
+        }
+      ]
+    },
+    {
+      "name": "displaydoc",
+      "version": "0.2.7",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/yaahc/displaydoc",
+      "authors": [
+        "Jane Lusby <jlusby@yaah.dev>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/displaydoc-0.2.7",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "dom_query",
+      "version": "0.27.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/niklak/dom_query",
+      "authors": [
+        "niklak <morgenpurple@gmail.com>",
+        "importcjj <importcjj@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dom_query-0.27.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1328
+        }
+      ]
+    },
+    {
+      "name": "dpi",
+      "version": "0.1.2",
+      "spdx": "Apache-2.0 AND MIT",
+      "repository": "https://github.com/rust-windowing/winit",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dpi-0.1.2",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 11323
+        },
+        {
+          "name": "LICENSE-LIBM-MIT",
+          "bytes": 2444
+        }
+      ]
+    },
+    {
+      "name": "dtoa-short",
+      "version": "0.3.5",
+      "spdx": "MPL-2.0",
+      "repository": "https://github.com/upsuper/dtoa-short",
+      "authors": [
+        "Xidorn Quan <me@upsuper.org>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-short-0.3.5",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 16725
+        }
+      ]
+    },
+    {
+      "name": "dtoa",
+      "version": "1.0.11",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/dtoa",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "dtor-proc-macro",
+      "version": "0.0.6",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/mmastrac/rust-ctor",
+      "authors": [
+        "Matt Mastracci <matthew@mastracci.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtor-proc-macro-0.0.6",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11324
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1022
+        }
+      ]
+    },
+    {
+      "name": "dtor",
+      "version": "0.3.0",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/mmastrac/rust-ctor",
+      "authors": [
+        "Matt Mastracci <matthew@mastracci.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtor-0.3.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11324
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1022
+        }
+      ]
+    },
+    {
+      "name": "dunce",
+      "version": "1.0.5",
+      "spdx": "CC0-1.0 OR MIT-0 OR Apache-2.0",
+      "repository": "https://gitlab.com/kornelski/dunce",
+      "authors": [
+        "Kornel <kornel@geekhood.net>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dunce-1.0.5",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 7048
+        }
+      ]
+    },
+    {
+      "name": "dyn-clone",
+      "version": "1.0.20",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/dyn-clone",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dyn-clone-1.0.20",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "embed-resource",
+      "version": "3.0.11",
+      "spdx": "MIT",
+      "repository": "https://github.com/nabijaczleweli/rust-embed-resource",
+      "authors": [
+        "наб <nabijaczleweli@nabijaczleweli.xyz>",
+        "Cat Plus Plus <piotrlegnica@piotrl.pl>",
+        "Liigo <liigo@qq.com>",
+        "azyobuzin <azyobuzin@users.sourceforge.jp>",
+        "Peter Atashian <retep998@gmail.com>",
+        "pravic <ehysta@gmail.com>",
+        "Gabriel Majeri <gabriel.majeri6@gmail.com>",
+        "SonnyX",
+        "Johan Andersson <repi@repi.se>",
+        "Jordan Poles <jpdev.noreply@gmail.com>",
+        "MSxDOS <melcodos@gmail.com>",
+        "Jim McGrath <jimmc2@gmail.com>",
+        "roblabla <unfiltered@roblab.la>",
+        "Jasper Bekkers <jasper@traverseresearch.nl>",
+        "Richard Markiewicz <rmarkiewicz@devolutions.net>",
+        "Emerson de Freitas Barcelos <emersonfxbx@gmail.com>",
+        "Li Keqing <me@kaze.ai>",
+        "Alexis Bourget <alexis.bourget@gmail.com>",
+        "Michael Farrell <micolous+git@gmail.com>",
+        "Jacob Okamoto <oko@oko.io>",
+        "Marijn Suijten <marijn@traverseresearch.nl>",
+        "Lucas Nogueira <lucas@tauri.app>",
+        "CharlesChen0823 <yongchen0823@gmail.com>",
+        "Daniel Schaefer <dhs@frame.work>",
+        "Rene Leonhardt",
+        "ssrlive",
+        "Kan-Ru Chen <kanru@kanru.info>",
+        "Tony <legendmastertony@gmail.com>",
+        "Berrysoft <Strawberry_Str@hotmail.com>",
+        "Marcus Ahlberg <marcus.ahlberg@kvaser.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embed-resource-3.0.11",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1081
+        }
+      ]
+    },
+    {
+      "name": "equivalent",
+      "version": "1.0.2",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/indexmap-rs/equivalent",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/equivalent-1.0.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1049
+        }
+      ]
+    },
+    {
+      "name": "erased-serde",
+      "version": "0.4.10",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/erased-serde",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/erased-serde-0.4.10",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "fastrand",
+      "version": "2.5.0",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/smol-rs/fastrand",
+      "authors": [
+        "Stjepan Glavina <stjepang@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fastrand-2.5.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "fdeflate",
+      "version": "0.3.7",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/image-rs/fdeflate",
+      "authors": [
+        "The image-rs Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fdeflate-0.3.7",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1036
+        }
+      ]
+    },
+    {
+      "name": "find-msvc-tools",
+      "version": "0.1.11",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/cc-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/find-msvc-tools-0.1.11",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1057
+        }
+      ]
+    },
+    {
+      "name": "flate2",
+      "version": "1.1.10",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/flate2-rs",
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>",
+        "Josh Triplett <josh@joshtriplett.org>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/flate2-1.1.10",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "fnv",
+      "version": "1.0.7",
+      "spdx": "Apache-2.0 / MIT",
+      "repository": "https://github.com/servo/rust-fnv",
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fnv-1.0.7",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1056
+        }
+      ]
+    },
+    {
+      "name": "foldhash",
+      "version": "0.2.0",
+      "spdx": "Zlib",
+      "repository": "https://github.com/orlp/foldhash",
+      "authors": [
+        "Orson Peters <orsonpeters@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/foldhash-0.2.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 856
+        }
+      ]
+    },
+    {
+      "name": "form_urlencoded",
+      "version": "1.2.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/rust-url",
+      "authors": [
+        "The rust-url developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/form_urlencoded-1.2.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1072
+        }
+      ]
+    },
+    {
+      "name": "generic-array",
+      "version": "0.14.7",
+      "spdx": "MIT",
+      "repository": "https://github.com/fizyk20/generic-array.git",
+      "authors": [
+        "Bartłomiej Kamiński <fizyk20@gmail.com>",
+        "Aaron Trent <novacrazy@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/generic-array-0.14.7",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1107
+        }
+      ]
+    },
+    {
+      "name": "getrandom",
+      "version": "0.3.4",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-random/getrandom",
+      "authors": [
+        "The Rand Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.3.4",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10849
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1130
+        }
+      ]
+    },
+    {
+      "name": "getrandom",
+      "version": "0.4.3",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-random/getrandom",
+      "authors": [
+        "The Rand Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.4.3",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10849
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1130
+        }
+      ]
+    },
+    {
+      "name": "glob",
+      "version": "0.3.4",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/glob",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glob-0.3.4",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "hashbrown",
+      "version": "0.12.3",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/hashbrown",
+      "authors": [
+        "Amanieu d'Antras <amanieu@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hashbrown-0.12.3",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1060
+        }
+      ]
+    },
+    {
+      "name": "hashbrown",
+      "version": "0.17.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/hashbrown",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hashbrown-0.17.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1060
+        }
+      ]
+    },
+    {
+      "name": "heck",
+      "version": "0.5.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/withoutboats/heck",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/heck-0.5.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "hex",
+      "version": "0.4.3",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/KokaKiwi/rust-hex",
+      "authors": [
+        "KokaKiwi <kokakiwi@kokakiwi.net>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hex-0.4.3",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1125
+        }
+      ]
+    },
+    {
+      "name": "html5ever",
+      "version": "0.38.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/html5ever",
+      "authors": [
+        "The html5ever Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/html5ever-0.38.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1076
+        }
+      ]
+    },
+    {
+      "name": "http",
+      "version": "1.5.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/hyperium/http",
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>",
+        "Carl Lerche <me@carllerche.com>",
+        "Sean McArthur <sean@seanmonstar.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/http-1.5.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10835
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1059
+        }
+      ]
+    },
+    {
+      "name": "ico",
+      "version": "0.5.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/mdsteele/rust-ico",
+      "authors": [
+        "Matthew D. Steele <mdsteele@alum.mit.edu>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ico-0.5.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1074
+        }
+      ]
+    },
+    {
+      "name": "icu_collections",
+      "version": "2.3.0",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_collections-2.3.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "icu_locale_core",
+      "version": "2.3.0",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_locale_core-2.3.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "icu_normalizer",
+      "version": "2.3.0",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "icu_normalizer_data",
+      "version": "2.3.0",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer_data-2.3.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "icu_properties",
+      "version": "2.3.0",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_properties-2.3.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "icu_properties_data",
+      "version": "2.3.0",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_properties_data-2.3.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "icu_provider",
+      "version": "2.3.1",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_provider-2.3.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "ident_case",
+      "version": "1.0.1",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/TedDriggs/ident_case",
+      "authors": [
+        "Ted Driggs <ted.driggs@outlook.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ident_case-1.0.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1036
+        }
+      ]
+    },
+    {
+      "name": "idna",
+      "version": "1.1.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/rust-url/",
+      "authors": [
+        "The rust-url developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/idna-1.1.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1072
+        }
+      ]
+    },
+    {
+      "name": "idna_adapter",
+      "version": "1.2.2",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/hsivonen/idna_adapter",
+      "authors": [
+        "The rust-url developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/idna_adapter-1.2.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "indexmap",
+      "version": "1.9.3",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/bluss/indexmap",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/indexmap-1.9.3",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1049
+        }
+      ]
+    },
+    {
+      "name": "indexmap",
+      "version": "2.14.1",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/indexmap-rs/indexmap",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/indexmap-2.14.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1049
+        }
+      ]
+    },
+    {
+      "name": "infer",
+      "version": "0.19.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/bojand/infer",
+      "authors": [
+        "Bojan <dbojan@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/infer-0.19.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "itoa",
+      "version": "1.0.18",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/itoa",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "jiff-core",
+      "version": "0.1.0",
+      "spdx": "Unlicense OR MIT",
+      "repository": "https://github.com/BurntSushi/jiff",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jiff-core-0.1.0",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 126
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1081
+        },
+        {
+          "name": "UNLICENSE",
+          "bytes": 1211
+        }
+      ]
+    },
+    {
+      "name": "jiff-tzdb-platform",
+      "version": "0.1.3",
+      "spdx": "Unlicense OR MIT",
+      "repository": "https://github.com/BurntSushi/jiff",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jiff-tzdb-platform-0.1.3",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 126
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1081
+        },
+        {
+          "name": "UNLICENSE",
+          "bytes": 1211
+        }
+      ]
+    },
+    {
+      "name": "jiff-tzdb",
+      "version": "0.1.8",
+      "spdx": "Unlicense OR MIT",
+      "repository": "https://github.com/BurntSushi/jiff",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jiff-tzdb-0.1.8",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 126
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1081
+        },
+        {
+          "name": "UNLICENSE",
+          "bytes": 1211
+        }
+      ]
+    },
+    {
+      "name": "jiff",
+      "version": "0.2.35",
+      "spdx": "Unlicense OR MIT",
+      "repository": "https://github.com/BurntSushi/jiff",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jiff-0.2.35",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 126
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1081
+        },
+        {
+          "name": "UNLICENSE",
+          "bytes": 1211
+        }
+      ]
+    },
+    {
+      "name": "json-patch",
+      "version": "3.0.1",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/idubrov/json-patch",
+      "authors": [
+        "Ivan Dubrov <dubrov.ivan@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/json-patch-3.0.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11357
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1068
+        }
+      ]
+    },
+    {
+      "name": "jsonptr",
+      "version": "0.6.3",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/chanced/jsonptr",
+      "authors": [
+        "chance dinkins",
+        "André Sá de Mello <codasm@pm.me>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jsonptr-0.6.3",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10867
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "keyboard-types",
+      "version": "0.7.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/pyfisch/keyboard-types",
+      "authors": [
+        "Pyfisch <pyfisch@posteo.org>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/keyboard-types-0.7.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10846
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1050
+        }
+      ]
+    },
+    {
+      "name": "libc",
+      "version": "0.2.189",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/libc",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libc-0.2.189",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1066
+        }
+      ]
+    },
+    {
+      "name": "litemap",
+      "version": "0.8.3",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/litemap-0.8.3",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "lock_api",
+      "version": "0.4.14",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/Amanieu/parking_lot",
+      "authors": [
+        "Amanieu d'Antras <amanieu@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lock_api-0.4.14",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "log",
+      "version": "0.4.34",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/log",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "markup5ever",
+      "version": "0.38.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/html5ever",
+      "authors": [
+        "The html5ever Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1076
+        }
+      ]
+    },
+    {
+      "name": "memchr",
+      "version": "2.8.3",
+      "spdx": "Unlicense OR MIT",
+      "repository": "https://github.com/BurntSushi/memchr",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>",
+        "bluss"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memchr-2.8.3",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 126
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1081
+        },
+        {
+          "name": "UNLICENSE",
+          "bytes": 1211
+        }
+      ]
+    },
+    {
+      "name": "mime",
+      "version": "0.3.17",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/hyperium/mime",
+      "authors": [
+        "Sean McArthur <sean@seanmonstar.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mime-0.3.17",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1058
+        }
+      ]
+    },
+    {
+      "name": "miniz_oxide",
+      "version": "0.8.9",
+      "spdx": "MIT OR Zlib OR Apache-2.0",
+      "repository": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide",
+      "authors": [
+        "Frommi <daniil.liferenko@gmail.com>",
+        "oyvindln <oyvindln@users.noreply.github.com>",
+        "Rich Geldreich richgel99@gmail.com"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1213
+        },
+        {
+          "name": "LICENSE-APACHE.md",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE-MIT.md",
+          "bytes": 1212
+        },
+        {
+          "name": "LICENSE-ZLIB.md",
+          "bytes": 984
+        }
+      ]
+    },
+    {
+      "name": "miniz_oxide",
+      "version": "0.9.1",
+      "spdx": "MIT OR Zlib OR Apache-2.0",
+      "repository": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide",
+      "authors": [
+        "Frommi <daniil.liferenko@gmail.com>",
+        "oyvindln <oyvindln@users.noreply.github.com>",
+        "Rich Geldreich richgel99@gmail.com"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.9.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1213
+        },
+        {
+          "name": "LICENSE-APACHE.md",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE-MIT.md",
+          "bytes": 1212
+        },
+        {
+          "name": "LICENSE-ZLIB.md",
+          "bytes": 984
+        }
+      ]
+    },
+    {
+      "name": "mio",
+      "version": "1.2.2",
+      "spdx": "MIT",
+      "repository": "https://github.com/tokio-rs/mio",
+      "authors": [
+        "Carl Lerche <me@carllerche.com>",
+        "Thomas de Zeeuw <thomasdezeeuw@gmail.com>",
+        "Tokio Contributors <team@tokio.rs>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mio-1.2.2",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1082
+        }
+      ]
+    },
+    {
+      "name": "muda",
+      "version": "0.19.3",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/tauri-apps/muda",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/muda-0.19.3",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1108
+        },
+        {
+          "name": "LICENSE.spdx",
+          "bytes": 809
+        }
+      ]
+    },
+    {
+      "name": "new_debug_unreachable",
+      "version": "1.0.6",
+      "spdx": "MIT",
+      "repository": "https://github.com/mbrubeck/rust-debug-unreachable",
+      "authors": [
+        "Matt Brubeck <mbrubeck@limpet.net>",
+        "Jonathan Reem <jonathan.reem@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/new_debug_unreachable-1.0.6",
+      "licence_files": [
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1057
+        }
+      ]
+    },
+    {
+      "name": "num-conv",
+      "version": "0.2.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/jhpratt/num-conv",
+      "authors": [
+        "Jacob Pratt <jacob@jhpratt.dev>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/num-conv-0.2.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-Apache",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1050
+        }
+      ]
+    },
+    {
+      "name": "num-traits",
+      "version": "0.2.19",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-num/num-traits",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/num-traits-0.2.19",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "once_cell",
+      "version": "1.21.4",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/matklad/once_cell",
+      "authors": [
+        "Aleksey Kladov <aleksey.kladov@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.4",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "option-ext",
+      "version": "0.2.0",
+      "spdx": "MPL-2.0",
+      "repository": "https://github.com/soc/option-ext.git",
+      "authors": [
+        "Simon Ochsenreither <simon@ochsenreither.de>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/option-ext-0.2.0",
+      "licence_files": [
+        {
+          "name": "LICENSE.txt",
+          "bytes": 16727
+        }
+      ]
+    },
+    {
+      "name": "parking_lot",
+      "version": "0.12.5",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/Amanieu/parking_lot",
+      "authors": [
+        "Amanieu d'Antras <amanieu@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/parking_lot-0.12.5",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "parking_lot_core",
+      "version": "0.9.12",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/Amanieu/parking_lot",
+      "authors": [
+        "Amanieu d'Antras <amanieu@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/parking_lot_core-0.9.12",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "percent-encoding",
+      "version": "2.3.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/rust-url/",
+      "authors": [
+        "The rust-url developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1072
+        }
+      ]
+    },
+    {
+      "name": "phf",
+      "version": "0.13.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/rust-phf/rust-phf",
+      "authors": [
+        "Steven Fackler <sfackler@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.13.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1099
+        }
+      ]
+    },
+    {
+      "name": "phf_codegen",
+      "version": "0.13.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/rust-phf/rust-phf",
+      "authors": [
+        "Steven Fackler <sfackler@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf_codegen-0.13.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1099
+        }
+      ]
+    },
+    {
+      "name": "phf_generator",
+      "version": "0.13.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/rust-phf/rust-phf",
+      "authors": [
+        "Steven Fackler <sfackler@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf_generator-0.13.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1099
+        }
+      ]
+    },
+    {
+      "name": "phf_macros",
+      "version": "0.13.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/rust-phf/rust-phf",
+      "authors": [
+        "Steven Fackler <sfackler@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf_macros-0.13.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1099
+        }
+      ]
+    },
+    {
+      "name": "phf_shared",
+      "version": "0.13.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/rust-phf/rust-phf",
+      "authors": [
+        "Steven Fackler <sfackler@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf_shared-0.13.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1099
+        }
+      ]
+    },
+    {
+      "name": "pin-project-lite",
+      "version": "0.2.17",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/taiki-e/pin-project-lite",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pin-project-lite-0.2.17",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "plist",
+      "version": "1.10.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/ebarnard/rust-plist/",
+      "authors": [
+        "Ed Barnard <eabarnard@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/plist-1.10.0",
+      "licence_files": [
+        {
+          "name": "LICENCE",
+          "bytes": 1057
+        }
+      ]
+    },
+    {
+      "name": "png",
+      "version": "0.17.16",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/image-rs/image-png",
+      "authors": [
+        "The image-rs Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/png-0.17.16",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1048
+        }
+      ]
+    },
+    {
+      "name": "potential_utf",
+      "version": "0.1.6",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/potential_utf-0.1.6",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "powerfmt",
+      "version": "0.2.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/jhpratt/powerfmt",
+      "authors": [
+        "Jacob Pratt <jacob@jhpratt.dev>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/powerfmt-0.2.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-Apache",
+          "bytes": 11349
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "precomputed-hash",
+      "version": "0.1.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/emilio/precomputed-hash",
+      "authors": [
+        "Emilio Cobos Álvarez <emilio@crisal.io>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/precomputed-hash-0.1.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1078
+        }
+      ]
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.107",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/proc-macro2",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>",
+        "Alex Crichton <alex@alexcrichton.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/proc-macro2-1.0.107",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "quick-xml",
+      "version": "0.41.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/tafia/quick-xml",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-xml-0.41.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-MIT.md",
+          "bytes": 1105
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "version": "1.0.47",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/quote",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quote-1.0.47",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "raw-window-handle",
+      "version": "0.6.2",
+      "spdx": "MIT OR Apache-2.0 OR Zlib",
+      "repository": "https://github.com/rust-windowing/raw-window-handle",
+      "authors": [
+        "Osspial <osspial@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/raw-window-handle-0.6.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE.md",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE-MIT.md",
+          "bytes": 1064
+        },
+        {
+          "name": "LICENSE-ZLIB.md",
+          "bytes": 836
+        }
+      ]
+    },
+    {
+      "name": "ref-cast-impl",
+      "version": "1.0.27",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/ref-cast",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ref-cast-impl-1.0.27",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "ref-cast",
+      "version": "1.0.27",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/ref-cast",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ref-cast-1.0.27",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "regex-automata",
+      "version": "0.4.18",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/regex",
+      "authors": [
+        "The Rust Project Developers",
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-automata-0.4.18",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "regex-syntax",
+      "version": "0.8.11",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/regex",
+      "authors": [
+        "The Rust Project Developers",
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-syntax-0.8.11",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "regex",
+      "version": "1.13.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/regex",
+      "authors": [
+        "The Rust Project Developers",
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-1.13.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "rustc-hash",
+      "version": "2.1.3",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/rust-lang/rustc-hash",
+      "authors": [
+        "The Rust Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rustc-hash-2.1.3",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9722
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1022
+        }
+      ]
+    },
+    {
+      "name": "rustc_version",
+      "version": "0.4.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/djc/rustc-version-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rustc_version-0.4.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "same-file",
+      "version": "1.0.6",
+      "spdx": "Unlicense/MIT",
+      "repository": "https://github.com/BurntSushi/same-file",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/same-file-1.0.6",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 126
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1081
+        },
+        {
+          "name": "UNLICENSE",
+          "bytes": 1211
+        }
+      ]
+    },
+    {
+      "name": "schemars",
+      "version": "0.8.22",
+      "spdx": "MIT",
+      "repository": "https://github.com/GREsau/schemars",
+      "authors": [
+        "Graham Esau <gesau@hotmail.co.uk>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/schemars-0.8.22",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1068
+        }
+      ]
+    },
+    {
+      "name": "schemars",
+      "version": "0.9.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/GREsau/schemars",
+      "authors": [
+        "Graham Esau <gesau@hotmail.co.uk>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/schemars-0.9.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1068
+        }
+      ]
+    },
+    {
+      "name": "schemars",
+      "version": "1.2.2",
+      "spdx": "MIT",
+      "repository": "https://github.com/GREsau/schemars",
+      "authors": [
+        "Graham Esau <gesau@hotmail.co.uk>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/schemars-1.2.2",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1068
+        }
+      ]
+    },
+    {
+      "name": "schemars_derive",
+      "version": "0.8.22",
+      "spdx": "MIT",
+      "repository": "https://github.com/GREsau/schemars",
+      "authors": [
+        "Graham Esau <gesau@hotmail.co.uk>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/schemars_derive-0.8.22",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1068
+        }
+      ]
+    },
+    {
+      "name": "scopeguard",
+      "version": "1.2.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/bluss/scopeguard",
+      "authors": [
+        "bluss"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scopeguard-1.2.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1097
+        }
+      ]
+    },
+    {
+      "name": "selectors",
+      "version": "0.36.1",
+      "spdx": "MPL-2.0",
+      "repository": "https://github.com/servo/stylo",
+      "authors": [
+        "The Servo Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/selectors-0.36.1",
+      "licence_files": []
+    },
+    {
+      "name": "semver",
+      "version": "1.0.28",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/semver",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.28",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "serde-untagged",
+      "version": "0.1.9",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/serde-untagged",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-untagged-0.1.9",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "serde",
+      "version": "1.0.229",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/serde-rs/serde",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "serde_core",
+      "version": "1.0.229",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/serde-rs/serde",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_core-1.0.229",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "serde_derive",
+      "version": "1.0.229",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/serde-rs/serde",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_derive-1.0.229",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "serde_derive_internals",
+      "version": "0.29.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/serde-rs/serde",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_derive_internals-0.29.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.151",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/serde-rs/json",
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "serde_repr",
+      "version": "0.1.21",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/serde-repr",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_repr-0.1.21",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "serde_spanned",
+      "version": "1.1.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_spanned-1.1.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "serde_with",
+      "version": "3.22.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/jonasbb/serde_with/",
+      "authors": [
+        "Jonas Bushart",
+        "Marcin Kaźmierczak"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with-3.22.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1043
+        }
+      ]
+    },
+    {
+      "name": "serde_with_macros",
+      "version": "3.22.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/jonasbb/serde_with/",
+      "authors": [
+        "Jonas Bushart"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.22.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1043
+        }
+      ]
+    },
+    {
+      "name": "serialize-to-javascript-impl",
+      "version": "0.1.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/chippers/serialize-to-javascript",
+      "authors": [
+        "Chip Reed <chip@chip.sh>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serialize-to-javascript-impl-0.1.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11357
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1066
+        }
+      ]
+    },
+    {
+      "name": "serialize-to-javascript",
+      "version": "0.1.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/chippers/serialize-to-javascript",
+      "authors": [
+        "Chip Reed <chip@chip.sh>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serialize-to-javascript-0.1.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11357
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1066
+        }
+      ]
+    },
+    {
+      "name": "servo_arc",
+      "version": "0.4.3",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/stylo",
+      "authors": [
+        "The Servo Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/servo_arc-0.4.3",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "sha2",
+      "version": "0.10.9",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RustCrypto/hashes",
+      "authors": [
+        "RustCrypto Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sha2-0.10.9",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10849
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1138
+        }
+      ]
+    },
+    {
+      "name": "shlex",
+      "version": "2.0.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/comex/rust-shlex",
+      "authors": [
+        "comex <comexk@gmail.com>",
+        "Fenhl <fenhl@fenhl.net>",
+        "Adrian Taylor <adetaylor@chromium.org>",
+        "Alex Touchet <alextouchet@outlook.com>",
+        "Daniel Parks <dp+git@oxidized.org>",
+        "Garrett Berg <googberg@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shlex-2.0.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 566
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1092
+        }
+      ]
+    },
+    {
+      "name": "simd-adler32",
+      "version": "0.3.10",
+      "spdx": "MIT",
+      "repository": "https://github.com/mcountryman/simd-adler32",
+      "authors": [
+        "Marvin Countryman <me@maar.vin>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/simd-adler32-0.3.10",
+      "licence_files": [
+        {
+          "name": "LICENSE.md",
+          "bytes": 1078
+        }
+      ]
+    },
+    {
+      "name": "siphasher",
+      "version": "1.0.3",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/jedisct1/rust-siphash",
+      "authors": [
+        "Frank Denis <github@pureftpd.org>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/siphasher-1.0.3",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 281
+        }
+      ]
+    },
+    {
+      "name": "smallvec",
+      "version": "1.15.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/rust-smallvec",
+      "authors": [
+        "The Servo Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/smallvec-1.15.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1072
+        }
+      ]
+    },
+    {
+      "name": "socket2",
+      "version": "0.6.5",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/socket2",
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>",
+        "Thomas de Zeeuw <thomasdezeeuw@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.5",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1057
+        }
+      ]
+    },
+    {
+      "name": "softbuffer",
+      "version": "0.4.8",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-windowing/softbuffer",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/softbuffer-0.4.8",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11312
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1056
+        }
+      ]
+    },
+    {
+      "name": "stable_deref_trait",
+      "version": "1.2.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/storyyeller/stable_deref_trait",
+      "authors": [
+        "Robert Grosse <n210241048576@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/stable_deref_trait-1.2.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1056
+        }
+      ]
+    },
+    {
+      "name": "string_cache",
+      "version": "0.9.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/string-cache",
+      "authors": [
+        "The Servo Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/string_cache-0.9.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1067
+        }
+      ]
+    },
+    {
+      "name": "string_cache_codegen",
+      "version": "0.6.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/string-cache",
+      "authors": [
+        "The Servo Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/string_cache_codegen-0.6.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1067
+        }
+      ]
+    },
+    {
+      "name": "strsim",
+      "version": "0.11.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/rapidfuzz/strsim-rs",
+      "authors": [
+        "Danny Guo <danny@dannyguo.com>",
+        "maxbachmann <oss@maxbachmann.de>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/strsim-0.11.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1166
+        }
+      ]
+    },
+    {
+      "name": "syn",
+      "version": "2.0.119",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/syn",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/syn-2.0.119",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "syn",
+      "version": "3.0.4",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/syn",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/syn-3.0.4",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "synstructure",
+      "version": "0.13.2",
+      "spdx": "MIT",
+      "repository": "https://github.com/mystor/synstructure",
+      "authors": [
+        "Nika Layzell <nika@thelayzells.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/synstructure-0.13.2",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1052
+        }
+      ]
+    },
+    {
+      "name": "tao",
+      "version": "0.35.3",
+      "spdx": "Apache-2.0",
+      "repository": "https://github.com/tauri-apps/tao",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy",
+        "The winit contributors"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tao-0.35.3",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 11323
+        },
+        {
+          "name": "LICENSE.spdx",
+          "bytes": 793
+        }
+      ]
+    },
+    {
+      "name": "tauri-build",
+      "version": "2.6.3",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/tauri-apps/tauri",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-build-2.6.3",
+      "licence_files": [
+        {
+          "name": "LICENSE_APACHE-2.0",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE_MIT",
+          "bytes": 1090
+        }
+      ]
+    },
+    {
+      "name": "tauri-codegen",
+      "version": "2.6.3",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/tauri-apps/tauri",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-codegen-2.6.3",
+      "licence_files": [
+        {
+          "name": "LICENSE_APACHE-2.0",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE_MIT",
+          "bytes": 1090
+        }
+      ]
+    },
+    {
+      "name": "tauri-macros",
+      "version": "2.6.3",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/tauri-apps/tauri",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-macros-2.6.3",
+      "licence_files": [
+        {
+          "name": "LICENSE_APACHE-2.0",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE_MIT",
+          "bytes": 1090
+        }
+      ]
+    },
+    {
+      "name": "tauri-runtime-wry",
+      "version": "2.11.4",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/tauri-apps/tauri",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-runtime-wry-2.11.4",
+      "licence_files": [
+        {
+          "name": "LICENSE_APACHE-2.0",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE_MIT",
+          "bytes": 1090
+        }
+      ]
+    },
+    {
+      "name": "tauri-runtime",
+      "version": "2.11.3",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/tauri-apps/tauri",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-runtime-2.11.3",
+      "licence_files": [
+        {
+          "name": "LICENSE_APACHE-2.0",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE_MIT",
+          "bytes": 1090
+        }
+      ]
+    },
+    {
+      "name": "tauri-utils",
+      "version": "2.9.3",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/tauri-apps/tauri",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-utils-2.9.3",
+      "licence_files": [
+        {
+          "name": "LICENSE_APACHE-2.0",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE_MIT",
+          "bytes": 1090
+        }
+      ]
+    },
+    {
+      "name": "tauri-winres",
+      "version": "0.3.6",
+      "spdx": "MIT",
+      "repository": "https://github.com/tauri-apps/winres",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy",
+        "Max Resch <resch.max@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-winres-0.3.6",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1129
+        }
+      ]
+    },
+    {
+      "name": "tauri",
+      "version": "2.11.5",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/tauri-apps/tauri",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-2.11.5",
+      "licence_files": [
+        {
+          "name": "LICENSE_APACHE-2.0",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE_MIT",
+          "bytes": 1090
+        }
+      ]
+    },
+    {
+      "name": "tendril",
+      "version": "0.5.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/html5ever",
+      "authors": [
+        "Keegan McAllister <mcallister.keegan@gmail.com>",
+        "Simon Sapin <simon.sapin@exyr.org>",
+        "Chris Morgan <me@chrismorgan.info>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1061
+        }
+      ]
+    },
+    {
+      "name": "thiserror-impl",
+      "version": "1.0.69",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/thiserror",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-1.0.69",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "thiserror-impl",
+      "version": "2.0.20",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/thiserror",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.20",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "thiserror",
+      "version": "1.0.69",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/thiserror",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "thiserror",
+      "version": "2.0.20",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/thiserror",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.20",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "time-core",
+      "version": "0.1.9",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/time-rs/time",
+      "authors": [
+        "Jacob Pratt <open-source@jhpratt.dev>",
+        "Time contributors"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-core-0.1.9",
+      "licence_files": [
+        {
+          "name": "LICENSE-Apache",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1057
+        }
+      ]
+    },
+    {
+      "name": "time-macros",
+      "version": "0.2.32",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/time-rs/time",
+      "authors": [
+        "Jacob Pratt <open-source@jhpratt.dev>",
+        "Time contributors"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-macros-0.2.32",
+      "licence_files": [
+        {
+          "name": "LICENSE-Apache",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1057
+        }
+      ]
+    },
+    {
+      "name": "time",
+      "version": "0.3.55",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/time-rs/time",
+      "authors": [
+        "Jacob Pratt <open-source@jhpratt.dev>",
+        "Time contributors"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-0.3.55",
+      "licence_files": [
+        {
+          "name": "LICENSE-Apache",
+          "bytes": 10174
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1057
+        }
+      ]
+    },
+    {
+      "name": "tinystr",
+      "version": "0.8.4",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinystr-0.8.4",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "tinyvec",
+      "version": "1.12.0",
+      "spdx": "Zlib OR Apache-2.0 OR MIT",
+      "repository": "https://github.com/Lokathor/tinyvec",
+      "authors": [
+        "Lokathor <zefria@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinyvec-1.12.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE.md",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT.md",
+          "bytes": 1023
+        },
+        {
+          "name": "LICENSE-ZLIB.md",
+          "bytes": 851
+        }
+      ]
+    },
+    {
+      "name": "tinyvec_macros",
+      "version": "0.1.1",
+      "spdx": "MIT OR Apache-2.0 OR Zlib",
+      "repository": "https://github.com/Soveu/tinyvec_macros",
+      "authors": [
+        "Soveu <marx.tomasz@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tinyvec_macros-0.1.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE.md",
+          "bytes": 11350
+        },
+        {
+          "name": "LICENSE-MIT.md",
+          "bytes": 1062
+        },
+        {
+          "name": "LICENSE-ZLIB.md",
+          "bytes": 864
+        }
+      ]
+    },
+    {
+      "name": "tokio",
+      "version": "1.53.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/tokio-rs/tokio",
+      "authors": [
+        "Tokio Contributors <team@tokio.rs>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1070
+        }
+      ]
+    },
+    {
+      "name": "toml",
+      "version": "0.9.12+spec-1.1.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.9.12+spec-1.1.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "toml",
+      "version": "1.1.4+spec-1.1.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-1.1.4+spec-1.1.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "toml_datetime",
+      "version": "0.7.5+spec-1.1.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_datetime-0.7.5+spec-1.1.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "toml_datetime",
+      "version": "1.1.1+spec-1.1.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_datetime-1.1.1+spec-1.1.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "toml_parser",
+      "version": "1.1.3+spec-1.1.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_parser-1.1.3+spec-1.1.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "toml_writer",
+      "version": "1.1.2+spec-1.1.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml_writer-1.1.2+spec-1.1.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "tracing-core",
+      "version": "0.1.36",
+      "spdx": "MIT",
+      "repository": "https://github.com/tokio-rs/tracing",
+      "authors": [
+        "Tokio Contributors <team@tokio.rs>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-core-0.1.36",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "tracing",
+      "version": "0.1.44",
+      "spdx": "MIT",
+      "repository": "https://github.com/tokio-rs/tracing",
+      "authors": [
+        "Eliza Weisman <eliza@buoyant.io>",
+        "Tokio Contributors <team@tokio.rs>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-0.1.44",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1062
+        }
+      ]
+    },
+    {
+      "name": "tray-icon",
+      "version": "0.24.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/tauri-apps/tray-icon",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tray-icon-0.24.2",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1108
+        },
+        {
+          "name": "LICENSE.spdx",
+          "bytes": 832
+        }
+      ]
+    },
+    {
+      "name": "typeid",
+      "version": "1.0.3",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/typeid",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typeid-1.0.3",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "typenum",
+      "version": "1.20.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/paholg/typenum",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typenum-1.20.1",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 17
+        },
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10835
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1083
+        }
+      ]
+    },
+    {
+      "name": "unic-char-property",
+      "version": "0.9.0",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/open-i18n/rust-unic/",
+      "authors": [
+        "The UNIC Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unic-char-property-0.9.0",
+      "licence_files": []
+    },
+    {
+      "name": "unic-char-range",
+      "version": "0.9.0",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/open-i18n/rust-unic/",
+      "authors": [
+        "The UNIC Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unic-char-range-0.9.0",
+      "licence_files": []
+    },
+    {
+      "name": "unic-common",
+      "version": "0.9.0",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/open-i18n/rust-unic/",
+      "authors": [
+        "The UNIC Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unic-common-0.9.0",
+      "licence_files": []
+    },
+    {
+      "name": "unic-ucd-ident",
+      "version": "0.9.0",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/open-i18n/rust-unic/",
+      "authors": [
+        "The UNIC Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unic-ucd-ident-0.9.0",
+      "licence_files": []
+    },
+    {
+      "name": "unic-ucd-version",
+      "version": "0.9.0",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/open-i18n/rust-unic/",
+      "authors": [
+        "The UNIC Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unic-ucd-version-0.9.0",
+      "licence_files": []
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.24",
+      "spdx": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "repository": "https://github.com/dtolnay/unicode-ident",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-ident-1.0.24",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 9723
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        },
+        {
+          "name": "LICENSE-UNICODE",
+          "bytes": 1995
+        }
+      ]
+    },
+    {
+      "name": "unicode-segmentation",
+      "version": "1.13.3",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/unicode-rs/unicode-segmentation",
+      "authors": [
+        "kwantam <kwantam@gmail.com>",
+        "Manish Goregaokar <manishsmail@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-segmentation-1.13.3",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1071
+        }
+      ]
+    },
+    {
+      "name": "url",
+      "version": "2.5.8",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/rust-url",
+      "authors": [
+        "The rust-url developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-2.5.8",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1072
+        }
+      ]
+    },
+    {
+      "name": "urlpattern",
+      "version": "0.3.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/denoland/rust-urlpattern",
+      "authors": [
+        "the Deno authors",
+        "crowlKats <crowlkats@toaxl.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/urlpattern-0.3.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1073
+        }
+      ]
+    },
+    {
+      "name": "utf8_iter",
+      "version": "1.0.4",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/hsivonen/utf8_iter",
+      "authors": [
+        "Henri Sivonen <hsivonen@hsivonen.fi>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/utf8_iter-1.0.4",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 11358
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1053
+        }
+      ]
+    },
+    {
+      "name": "uuid",
+      "version": "1.26.0",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/uuid-rs/uuid",
+      "authors": [
+        "Ashley Mannix<ashleymannix@live.com.au>",
+        "Dylan DPC<dylan.dpc@gmail.com>",
+        "Hunar Roop Kahlon<hunar.roop@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.26.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1157
+        }
+      ]
+    },
+    {
+      "name": "version_check",
+      "version": "0.9.5",
+      "spdx": "MIT/Apache-2.0",
+      "repository": "https://github.com/SergioBenitez/version_check",
+      "authors": [
+        "Sergio Benitez <sb@sergio.bz>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1085
+        }
+      ]
+    },
+    {
+      "name": "vswhom-sys",
+      "version": "0.1.3",
+      "spdx": "MIT",
+      "repository": "https://github.com/nabijaczleweli/vswhom-sys.rs",
+      "authors": [
+        "наб <nabijaczleweli@nabijaczleweli.xyz>",
+        "forrestsmithfb <forrest.smith@fb.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/vswhom-sys-0.1.3",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1082
+        }
+      ]
+    },
+    {
+      "name": "vswhom",
+      "version": "0.1.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/nabijaczleweli/vswhom.rs",
+      "authors": [
+        "nabijaczleweli <nabijaczleweli@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/vswhom-0.1.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1082
+        }
+      ]
+    },
+    {
+      "name": "walkdir",
+      "version": "2.5.0",
+      "spdx": "Unlicense/MIT",
+      "repository": "https://github.com/BurntSushi/walkdir",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/walkdir-2.5.0",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 126
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1081
+        },
+        {
+          "name": "UNLICENSE",
+          "bytes": 1211
+        }
+      ]
+    },
+    {
+      "name": "web_atoms",
+      "version": "0.2.6",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/html5ever",
+      "authors": [
+        "The html5ever Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web_atoms-0.2.6",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1076
+        }
+      ]
+    },
+    {
+      "name": "webview2-com-macros",
+      "version": "0.8.1",
+      "spdx": "MIT",
+      "repository": "https://github.com/wravery/webview2-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/webview2-com-macros-0.8.1",
+      "licence_files": []
+    },
+    {
+      "name": "webview2-com-sys",
+      "version": "0.38.2",
+      "spdx": "MIT",
+      "repository": "https://github.com/wravery/webview2-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/webview2-com-sys-0.38.2",
+      "licence_files": []
+    },
+    {
+      "name": "webview2-com",
+      "version": "0.38.2",
+      "spdx": "MIT",
+      "repository": "https://github.com/wravery/webview2-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/webview2-com-0.38.2",
+      "licence_files": []
+    },
+    {
+      "name": "winapi-util",
+      "version": "0.1.11",
+      "spdx": "Unlicense OR MIT",
+      "repository": "https://github.com/BurntSushi/winapi-util",
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winapi-util-0.1.11",
+      "licence_files": [
+        {
+          "name": "COPYING",
+          "bytes": 126
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1081
+        },
+        {
+          "name": "UNLICENSE",
+          "bytes": 1211
+        }
+      ]
+    },
+    {
+      "name": "window-vibrancy",
+      "version": "0.6.0",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/tauri-apps/tauri-plugin-vibrancy",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/window-vibrancy-0.6.0",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1108
+        },
+        {
+          "name": "LICENSE.spdx",
+          "bytes": 840
+        }
+      ]
+    },
+    {
+      "name": "windows-collections",
+      "version": "0.2.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-collections-0.2.0",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-core",
+      "version": "0.61.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [
+        "Microsoft"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-core-0.61.2",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-future",
+      "version": "0.2.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-future-0.2.1",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-implement",
+      "version": "0.60.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-implement-0.60.2",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-interface",
+      "version": "0.59.3",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-interface-0.59.3",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-link",
+      "version": "0.1.3",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [
+        "Microsoft"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-link-0.1.3",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-link",
+      "version": "0.2.1",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-link-0.2.1",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-numerics",
+      "version": "0.2.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-numerics-0.2.0",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-result",
+      "version": "0.3.4",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [
+        "Microsoft"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-result-0.3.4",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-strings",
+      "version": "0.4.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [
+        "Microsoft"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-strings-0.4.2",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-sys",
+      "version": "0.59.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [
+        "Microsoft"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-sys-0.59.0",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-sys",
+      "version": "0.61.2",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-sys-0.61.2",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-targets",
+      "version": "0.52.6",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [
+        "Microsoft"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-targets-0.52.6",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-threading",
+      "version": "0.1.0",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [
+        "Microsoft"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-threading-0.1.0",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows-version",
+      "version": "0.1.7",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-version-0.1.7",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows",
+      "version": "0.61.3",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [
+        "Microsoft"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-0.61.3",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "windows_x86_64_msvc",
+      "version": "0.52.6",
+      "spdx": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "authors": [
+        "Microsoft"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows_x86_64_msvc-0.52.6",
+      "licence_files": [
+        {
+          "name": "license-apache-2.0",
+          "bytes": 11351
+        },
+        {
+          "name": "license-mit",
+          "bytes": 1141
+        }
+      ]
+    },
+    {
+      "name": "winnow",
+      "version": "0.7.15",
+      "spdx": "MIT",
+      "repository": "https://github.com/winnow-rs/winnow",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winnow-0.7.15",
+      "licence_files": [
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "winnow",
+      "version": "1.0.4",
+      "spdx": "MIT",
+      "repository": "https://github.com/winnow-rs/winnow",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winnow-1.0.4",
+      "licence_files": [
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    },
+    {
+      "name": "winreg",
+      "version": "0.55.0",
+      "spdx": "MIT",
+      "repository": "https://github.com/gentoo90/winreg-rs",
+      "authors": [
+        "Igor Shaula <gentoo90@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winreg-0.55.0",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 1055
+        }
+      ]
+    },
+    {
+      "name": "writeable",
+      "version": "0.6.4",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/writeable-0.6.4",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "wry",
+      "version": "0.55.1",
+      "spdx": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/tauri-apps/wry",
+      "authors": [
+        "Tauri Programme within The Commons Conservancy"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wry-0.55.1",
+      "licence_files": [
+        {
+          "name": "LICENSE-APACHE",
+          "bytes": 10847
+        },
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1121
+        },
+        {
+          "name": "LICENSE.spdx",
+          "bytes": 833
+        }
+      ]
+    },
+    {
+      "name": "yoke-derive",
+      "version": "0.8.2",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "Manish Goregaokar <manishsmail@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yoke-derive-0.8.2",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "yoke",
+      "version": "0.8.3",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "Manish Goregaokar <manishsmail@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yoke-0.8.3",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "zerofrom-derive",
+      "version": "0.1.7",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "Manish Goregaokar <manishsmail@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-derive-0.1.7",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "zerofrom",
+      "version": "0.1.8",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerofrom-0.1.8",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "zerotrie",
+      "version": "0.2.5",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerotrie-0.2.5",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "zerovec-derive",
+      "version": "0.11.6",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "Manish Goregaokar <manishsmail@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-derive-0.11.6",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "zerovec",
+      "version": "0.11.8",
+      "spdx": "Unicode-3.0",
+      "repository": "https://github.com/unicode-org/icu4x",
+      "authors": [
+        "The ICU4X Project Developers"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerovec-0.11.8",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 2195
+        }
+      ]
+    },
+    {
+      "name": "zlib-rs",
+      "version": "0.6.7",
+      "spdx": "Zlib",
+      "repository": "https://github.com/trifectatechfoundation/zlib-rs",
+      "authors": [],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zlib-rs-0.6.7",
+      "licence_files": [
+        {
+          "name": "LICENSE",
+          "bytes": 856
+        }
+      ]
+    },
+    {
+      "name": "zmij",
+      "version": "1.0.23",
+      "spdx": "MIT",
+      "repository": "https://github.com/dtolnay/zmij",
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ],
+      "crate_source_directory": "C:/Users/opendaq/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zmij-1.0.23",
+      "licence_files": [
+        {
+          "name": "LICENSE-MIT",
+          "bytes": 1023
+        }
+      ]
+    }
+  ]
+}
