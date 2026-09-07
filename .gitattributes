@@ -1,0 +1,20 @@
+# This repository byte-compares generated output against committed golden files
+# and against the tree in generated/. Git's autocrlf turns those files into CRLF
+# on a Windows checkout while every generator here writes LF, so the comparison
+# fails on a fresh clone for a reason that has nothing to do with the contract.
+# That is not hypothetical: it failed on this machine the moment main was merged
+# and checked out, and it would fail the same way on the hosted windows-latest
+# runner the merge-gating tier is meant to run on.
+#
+# Everything the tooling reads or writes is therefore pinned to LF.
+
+* text=auto eol=lf
+
+# Binary, so Git must never touch line endings in them.
+*.png binary
+*.ico binary
+*.icns binary
+*.pyd binary
+*.dll binary
+*.exe binary
+*.lib binary
