@@ -60,8 +60,7 @@ private:
 // operation's declared subset is the class (b) failure the conformance harness
 // exists to catch, so this context maps into the four codes and no others.
 //
-// The eight contexts below the first two exist for that one reason and no
-// other: contract section 5 gives each operation a SUBSET of the closed error
+// The contexts below ModuleLoad exist for that one reason and no other: contract section 5 gives each operation a SUBSET of the closed error
 // set, and the General table can produce codes outside it. Each context names
 // the operation whose subset it confines the General answer to, and the fallback
 // each uses is stated at its case in error.cpp.
@@ -76,9 +75,15 @@ enum class MapContext
     ServerTypeList,
     // add_server: not_connected, unsupported, invalid_value, internal.
     ServerAdd,
-    // set_server_discovery_enabled: not_found, unsupported, internal.
+    // remove_server: not_found, unsupported, internal.
+    ServerRemove,
+    // set_server_discovery_enabled: not_found, unsupported, internal (and
+    // invalid_value, which the session layer produces for a malformed
+    // parameter before any openDAQ call is made).
     ServerDiscoveryEnable,
-    // start_recording and stop_recording: not_found, unsupported, internal.
+    // start_recording and stop_recording: not_found, unsupported, internal
+    // (start_recording also declares invalid_value, again for a malformed
+    // parameter that never reaches openDAQ).
     RecorderControl,
     // begin_batched_property_update: not_found, not_connected.
     BatchedPropertyUpdateBegin,

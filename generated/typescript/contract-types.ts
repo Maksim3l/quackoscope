@@ -250,6 +250,7 @@ export type WireMethodName =
   | "set_component_attribute"
   | "list_server_types"
   | "add_server"
+  | "remove_server"
   | "set_server_discovery_enabled"
   | "start_recording"
   | "stop_recording"
@@ -282,6 +283,7 @@ export const WIRE_METHOD_NAMES: readonly WireMethodName[] = [
   "set_component_attribute",
   "list_server_types",
   "add_server",
+  "remove_server",
   "set_server_discovery_enabled",
   "start_recording",
   "stop_recording",

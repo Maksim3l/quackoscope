@@ -1,7 +1,8 @@
-"""Drives a running Quackoscope host through the eleven contract rows that
-carry attribute.read, attribute.write, server.add, server.discovery,
-recorder.control, property.batched_update, configuration.save and
-configuration.load -- their successes AND the failure each one declares.
+"""Drives a running Quackoscope host through the twelve contract rows that
+carry attribute.read, attribute.write, server.add (list_server_types,
+add_server AND remove_server), server.discovery, recorder.control,
+property.batched_update, configuration.save and configuration.load -- their
+successes AND the failure each one declares.
 
 It speaks the wire itself over a raw socket, reusing the WireClient of
 exercise_seven_operations_over_websocket.py, so nothing about the host is taken
@@ -165,12 +166,49 @@ def main(argv):
         "set_component_attribute(no_such_attribute)",
         "not_found",
     )
-    expect_error(
+    # tags IS WRITABLE, through ITagsPrivate. IComponent has getTags and no
+    # setTags (component.h:164) and ITags itself is read-only (tags.h:39-60), so
+    # setattr on it raises -- but the writer is a separate interface,
+    # ITagsPrivate::add/remove/replace (tags_private.h:34-56), and the openDAQ
+    # Python binding carries it: py_tags_private.cpp:43-69 defines add, remove
+    # and replace, and the generated opendaq.pyi declares class
+    # ITagsPrivate(IBaseObject) with can_cast_from/cast_from at lines 6403-6430.
+    # Enumerated on this machine against openDAQ 3.41.0_bec37b44:
+    #   daq.ITagsPrivate.can_cast_from(device.tags) -> True
+    #   dir(daq.ITagsPrivate) -> add, can_cast_from, cast_from, convert_from,
+    #                            core_type, from_raw_interface, get_raw_interface,
+    #                            remove, replace, to_native_object
+    expect_result(
         client.call(
             "set_component_attribute",
             {"node_id": device_id, "attribute_id": "tags", "value": ["quackoscope"]},
         ),
-        "set_component_attribute(tags)",
+        "set_component_attribute(tags = [quackoscope]) through ITagsPrivate.replace",
+    )
+    tags_after_write = expect_result(
+        client.call("get_component_attributes", {"node_id": device_id}),
+        "get_component_attributes, to read the tags back",
+    )
+    print(
+        "    tags read back as %r, and ComponentAttribute.read_only for that row is %r"
+        % (
+            [a["value"] for a in (tags_after_write or []) if a["id"] == "tags"],
+            [a["read_only"] for a in (tags_after_write or []) if a["id"] == "tags"],
+        )
+    )
+    expect_result(
+        client.call(
+            "set_component_attribute",
+            {"node_id": device_id, "attribute_id": "tags", "value": []},
+        ),
+        "set_component_attribute(tags = []) putting the list back as it was found",
+    )
+    expect_error(
+        client.call(
+            "set_component_attribute",
+            {"node_id": device_id, "attribute_id": "tags", "value": "not-a-list"},
+        ),
+        'set_component_attribute(tags = "not-a-list")',
         "invalid_value",
     )
 
@@ -185,26 +223,33 @@ def main(argv):
             {"node_id": signal_id, "attribute_id": "public", "value": True},
         )
 
-    print("\n### a parameter of the wrong type stays inside each row's declared subset")
+    # error_policy.malformed_parameter_becomes: invalid_value. A parameter that
+    # violates its declared wire type never reaches openDAQ -- a node lookup is
+    # IComponent::findComponent(IString* id, ...) and an integer is not an
+    # IString*, while startRecording, beginUpdate, enableDiscovery and
+    # disableDiscovery take no arguments at all -- so not_found would assert a
+    # lookup that never happened. Each of these five rows now declares
+    # invalid_value for exactly that.
+    print("\n### a parameter of the wrong type is invalid_value on every row that declares it")
     expect_error(
         client.call("get_component_attributes", {"node_id": 17}),
         "get_component_attributes(node_id = 17)",
-        "not_found",
+        "invalid_value",
     )
     expect_error(
         client.call("start_recording", {"node_id": None}),
         "start_recording(node_id = null)",
-        "not_found",
+        "invalid_value",
     )
     expect_error(
         client.call("begin_batched_property_update", {"node_id": []}),
         "begin_batched_property_update(node_id = [])",
-        "not_found",
+        "invalid_value",
     )
     expect_error(
         client.call("set_server_discovery_enabled", {"node_id": 1, "enabled": True}),
         "set_server_discovery_enabled(node_id = 1)",
-        "not_found",
+        "invalid_value",
     )
     expect_error(
         client.call(
@@ -212,6 +257,14 @@ def main(argv):
             {"node_id": "/openDAQDevice/Srv/OpenDAQNativeStreaming", "enabled": "yes"},
         ),
         'set_server_discovery_enabled(enabled = "yes")',
+        "invalid_value",
+    )
+    # remove_server is the one row of the six whose declared subset is
+    # [not_found, unsupported, internal] and so has NO invalid_value to answer
+    # with; not_found is the one of the three that is about the request.
+    expect_error(
+        client.call("remove_server", {"node_id": 17}),
+        "remove_server(node_id = 17)",
         "not_found",
     )
 
@@ -266,6 +319,47 @@ def main(argv):
         "set_server_discovery_enabled(unknown node)",
         "not_found",
     )
+
+    print("\n### server.add -- remove_server, the undo of the add")
+    expect_error(
+        client.call("remove_server", {"node_id": device_id}),
+        "remove_server(a device, which is not a server)",
+        "unsupported",
+    )
+    expect_error(
+        client.call("remove_server", {"node_id": "/openDAQDevice/Srv/NoSuchServer"}),
+        "remove_server(unknown node)",
+        "not_found",
+    )
+    if server_node_id:
+        expect_result(
+            client.call("remove_server", {"node_id": server_node_id}),
+            "remove_server(%s)" % server_node_id,
+        )
+        print(
+            "remove_server took %s down; openDAQ's IDevice::removeServer runs "
+            "ServerImpl::removed, which calls IServer::stop(), so its listening socket is closed"
+            % server_node_id
+        )
+        expect_error(
+            client.call("remove_server", {"node_id": server_node_id}),
+            "remove_server(%s, a second time)" % server_node_id,
+            "not_found",
+        )
+        re_added = expect_result(
+            client.call("add_server", {"type_id": args.server_type_id}),
+            "add_server(%s) again, now that the first one is gone" % args.server_type_id,
+        )
+        if re_added:
+            print(
+                "add_server answered %s a second time, which is what makes the removal a real "
+                "undo rather than a delisting: the type was refused as a duplicate while the "
+                "first server was up" % re_added["id"]
+            )
+            expect_result(
+                client.call("remove_server", {"node_id": re_added["id"]}),
+                "remove_server(%s), leaving the instance as it was found" % re_added["id"],
+            )
 
     print("\n### recorder.control -- start_recording and stop_recording")
     expect_error(

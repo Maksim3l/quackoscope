@@ -46,7 +46,7 @@ pub const MAX_PIXEL_COLUMNS: u32 =
 /// The wire methods this host dispatches. Adding a name here (and the matching
 /// arm in `dispatch`) is what adds its capability to the handshake; removing
 /// one is what turns the capability back into a gap.
-pub const SERVED_WIRE_METHODS: [&str; 26] = [
+pub const SERVED_WIRE_METHODS: [&str; 27] = [
     "scan_available_devices",
     "connect_device",
     "disconnect_device",
@@ -66,6 +66,7 @@ pub const SERVED_WIRE_METHODS: [&str; 26] = [
     "set_component_attribute",
     "list_server_types",
     "add_server",
+    "remove_server",
     "set_server_discovery_enabled",
     "start_recording",
     "stop_recording",
@@ -95,19 +96,6 @@ struct SessionState {
     subscriptions: BTreeMap<u32, Subscription>,
     /// connection string -> the device node id connect_device answered with
     device_node_ids_by_connection_string: BTreeMap<String, String>,
-    /// The node ids add_server answered with on THIS session.
-    ///
-    /// A server is not under any connected device: openDAQ's
-    /// IDevice::onAddServer refuses every device but the root, so add_server
-    /// puts the server under the ROOT INSTANCE, whose id is not a prefix of any
-    /// id connect_device hands out. Without this set the very node add_server
-    /// just returned would be unaddressable from the session that created it,
-    /// and set_server_discovery_enabled could never be called on it.
-    ///
-    /// The rule the rest of this file already follows is unchanged: a session
-    /// addresses what it reached itself. This is the second way to reach
-    /// something, beside connect_device.
-    server_node_ids: BTreeSet<String>,
 }
 
 #[derive(Default)]
@@ -115,6 +103,28 @@ struct Hub {
     sessions: HashMap<u64, SessionState>,
     sessions_holding_device: HashMap<String, i64>,
     next_subscription_id: u32,
+    /// The node ids add_server answered with, for the WHOLE PROCESS and not per
+    /// session.
+    ///
+    /// A server is not under any connected device: openDAQ's
+    /// IDevice::onAddServer refuses every device but the root
+    /// (device_impl.h:1465-1476), so add_server puts the server under the ROOT
+    /// INSTANCE, whose id is not a prefix of any id connect_device hands out.
+    /// Without this set the very node add_server just returned would be
+    /// unaddressable, and set_server_discovery_enabled and remove_server could
+    /// never be called on it.
+    ///
+    /// IT IS INSTANCE-WIDE ON PURPOSE, and it used to be per session, which was
+    /// a permission openDAQ does not have. A server sits in the root instance's
+    /// `servers` folder, which IDevice::getServers() (device.h:294-298) reports
+    /// to every caller; nothing in openDAQ records who added one and nothing
+    /// consults such a record - IDevice::removeServer(IServer*)
+    /// (device.h:300-304 -> device_impl.h:1479-1487) is `this->servers
+    /// .removeItem(server)` with no owner check anywhere on the path. Scoping
+    /// the id to its creator made this host refuse a second connection a
+    /// removal openDAQ performs for anybody, which is exactly the shape of
+    /// invention the device lock ruling forbids.
+    server_node_ids: BTreeSet<String>,
 }
 
 pub struct SessionHub {
@@ -243,31 +253,33 @@ impl SessionHub {
             }
         }
 
-        // A server this session added itself, and anything beneath it.
-        for server_node_id in &state.server_node_ids {
+        // Any server standing in the root instance, and anything beneath it,
+        // whichever session's add_server created it. openDAQ's servers folder
+        // is not scoped to a caller and removeServer carries no owner check, so
+        // this host scopes it to none either.
+        for server_node_id in &hub.server_node_ids {
             if node_id == *server_node_id || node_id.starts_with(&format!("{server_node_id}/")) {
                 return Ok(node_id);
             }
         }
 
-        if state.device_node_ids_by_connection_string.is_empty()
-            && state.server_node_ids.is_empty()
-        {
+        if state.device_node_ids_by_connection_string.is_empty() && hub.server_node_ids.is_empty() {
             return Err(ServiceError::not_connected(format!(
-                "this session has connected no device, so \"{node_id}\" is not addressable; call \
-                 connect_device first"
+                "this session has connected no device and the openDAQ Instance holds no server, so \
+                 \"{node_id}\" is not addressable; call connect_device first"
             )));
         }
 
         let reachable = state
             .device_node_ids_by_connection_string
             .values()
-            .chain(state.server_node_ids.iter())
+            .chain(hub.server_node_ids.iter())
             .cloned()
             .collect::<Vec<_>>()
             .join(", ");
         Err(ServiceError::not_found(format!(
-            "no component with id \"{node_id}\" in this session; it holds {reachable}"
+            "no component with id \"{node_id}\" reachable from this session; it holds the device(s) it \
+             connected and every server standing in the openDAQ Instance: {reachable}"
         )))
     }
 
@@ -340,6 +352,7 @@ impl SessionHub {
             "set_component_attribute" => self.set_component_attribute(connection_id, params),
             "list_server_types" => self.list_server_types(),
             "add_server" => self.add_server(connection_id, params),
+            "remove_server" => self.remove_server(connection_id, params),
             "set_server_discovery_enabled" => {
                 self.set_server_discovery_enabled(connection_id, params)
             }
@@ -502,10 +515,21 @@ impl SessionHub {
         let roots: Vec<String> = if params.get("root_id").and_then(Json::as_str).is_some() {
             vec![self.require_node_reachable_from_session(connection_id, params, "root_id")?]
         } else {
-            // No root_id means "everything this session can see", which is
-            // exactly the devices it connected itself -- never another session's.
+            // No root_id means "everything this session can address": the
+            // devices it connected itself, plus every server standing in the
+            // root instance.
+            //
+            // THE SERVERS ARE HERE BECAUSE openDAQ PUTS THEM THERE. add_server
+            // returns a Node whose kind is `server`, and openDAQ's
+            // IDevice::onAddServer (device_impl.h:1465-1476) files it under the
+            // ROOT DEVICE's servers folder -- never under a connected device --
+            // so a tree rooted at a connected device cannot contain it. Leaving
+            // them out made this host answer add_server with a row that its own
+            // get_component_tree then denied existed, while
+            // IDevice::getServers() (device.h:294-298) reports it to anybody.
             let hub = self.lock_hub();
-            hub.sessions
+            let mut roots: Vec<String> = hub
+                .sessions
                 .get(&connection_id)
                 .map(|state| {
                     state
@@ -514,7 +538,9 @@ impl SessionHub {
                         .cloned()
                         .collect()
                 })
-                .unwrap_or_default()
+                .unwrap_or_default();
+            roots.extend(hub.server_node_ids.iter().cloned());
+            roots
         };
 
         let mut out = Vec::new();
@@ -679,9 +705,18 @@ impl SessionHub {
     }
 
     fn set_device_operation_mode(&self, connection_id: u64, params: &Json) -> ServiceResult<Json> {
-        // errors: [not_found, invalid_value, read_only, unsupported]. There is
-        // deliberately no not_connected here, so the node resolution is
-        // narrowed to the four codes the contract does declare.
+        // errors: [not_found, invalid_value, unsupported]. There is deliberately
+        // no not_connected here, so the node resolution is narrowed to the three
+        // codes the contract does declare.
+        //
+        // read_only WAS in this list and is gone, which is the correction of an
+        // invented refusal. The contract row used to say "read_only: the device
+        // is locked"; openDAQ's GenericDevice::setOperationMode
+        // (device_impl.h:1257-1281) reads onGetAvailableOperationModes, takes
+        // the tree lock guard and writes, and consults no user lock at all. The
+        // lock refuses writes only in the config-protocol server
+        // (config_server_access_control.h:75-81, protectLockedComponent), and
+        // this host is in-process, so no lock refusal can reach this row.
         let node_id = self.resolve_node_within_declared_error_subset(
             connection_id,
             params,
@@ -689,7 +724,6 @@ impl SessionHub {
             &[
                 ErrorCode::NotFound,
                 ErrorCode::InvalidValue,
-                ErrorCode::ReadOnly,
                 ErrorCode::Unsupported,
             ],
         )?;
@@ -862,15 +896,20 @@ impl SessionHub {
     // --- attribute.read ------------------------------------------------------
 
     fn component_attributes(&self, connection_id: u64, params: &Json) -> ServiceResult<Json> {
-        // errors: [not_found, not_connected]. A node_id that is absent or not a
-        // string would be invalid_value, which this row does not declare, so it
-        // is restated as not_found -- the true thing sayable from inside the
-        // subset.
+        // errors: [not_found, not_connected, invalid_value]. invalid_value is
+        // error_policy's malformed_parameter_becomes: a node_id arriving as 17
+        // rather than as a string never reaches
+        // IComponent::findComponent(IString*, IComponent**), so not_found would
+        // assert a lookup that never happened.
         let node_id = self.resolve_node_within_declared_error_subset(
             connection_id,
             params,
             "node_id",
-            &[ErrorCode::NotFound, ErrorCode::NotConnected],
+            &[
+                ErrorCode::NotFound,
+                ErrorCode::NotConnected,
+                ErrorCode::InvalidValue,
+            ],
         )?;
 
         let attributes = self.backend.component_attributes(&node_id)?;
@@ -974,42 +1013,35 @@ impl SessionHub {
 
         // The server is under the ROOT INSTANCE, not under any device this
         // session connected, so it is recorded here or it would not be
-        // addressable from the very session that created it.
-        {
+        // addressable at all. The record is instance-wide, matching openDAQ:
+        // the root device's servers folder is visible to every caller of
+        // IDevice::getServers() and nothing there remembers who added what.
+        let servers_now_standing: Vec<String> = {
             let mut hub = self.lock_hub();
-            match hub.sessions.get_mut(&connection_id) {
-                Some(state) => {
-                    state.server_node_ids.insert(node.id.clone());
-                }
-                None => {
-                    return Err(ServiceError::internal(format!(
-                        "add_server created server \"{}\" but this WebSocket session is already closed, \
-                         so the node id cannot be recorded against it; the server is in the openDAQ \
-                         Instance and this host offers no remove_server row to undo it",
-                        node.id
-                    )))
-                }
-            }
-        }
+            hub.server_node_ids.insert(node.id.clone());
+            hub.server_node_ids.iter().cloned().collect()
+        };
 
         println!(
-            "[service] add_server {type_id} -> node {} (kind {}, name {}); it is addressable from this \
-             session from now on",
-            node.id, node.kind, node.name
+            "[service] add_server {type_id} -> node {} (kind {}, name {}); connection {connection_id} \
+             created it and every session on this host can address it. Servers standing in the openDAQ \
+             Instance now: {}",
+            node.id,
+            node.kind,
+            node.name,
+            servers_now_standing.join(", ")
         );
         Ok(node.to_json())
     }
 
-    // --- server.discovery ----------------------------------------------------
-
-    fn set_server_discovery_enabled(
-        &self,
-        connection_id: u64,
-        params: &Json,
-    ) -> ServiceResult<Json> {
-        // errors: [not_found, unsupported, internal] -- no invalid_value at all,
-        // which is what forces the malformed-parameter branch below to answer
-        // unsupported, exactly as unlock_device's `force` does.
+    /// remove_server, contract errors [not_found, unsupported, internal].
+    ///
+    /// The undo of add_server, and a real one: openDAQ's
+    /// IDevice::removeServer(IServer*) drops the item from the servers folder,
+    /// folder_impl.h:598-605 calls IComponent::removed on it, and
+    /// ServerImpl::removed (server_impl.h:199-202) is `checkErrorInfo(stop());
+    /// Super::removed();` -- the listening socket closes.
+    fn remove_server(&self, connection_id: u64, params: &Json) -> ServiceResult<Json> {
         let declared_errors = [
             ErrorCode::NotFound,
             ErrorCode::Unsupported,
@@ -1022,15 +1054,64 @@ impl SessionHub {
             &declared_errors,
         )?;
 
+        self.backend.remove_server(&node_id)?;
+
+        let servers_still_standing: Vec<String> = {
+            let mut hub = self.lock_hub();
+            hub.server_node_ids.remove(&node_id);
+            hub.server_node_ids.iter().cloned().collect()
+        };
+
+        println!(
+            "[service] remove_server {node_id} from connection {connection_id}: daqDevice_removeServer \
+             took it out of the root instance's servers folder and IServer::stop closed its listening \
+             socket. Servers standing in the openDAQ Instance now: {}",
+            if servers_still_standing.is_empty() {
+                "none".to_string()
+            } else {
+                servers_still_standing.join(", ")
+            }
+        );
+        Ok(Json::Null)
+    }
+
+    // --- server.discovery ----------------------------------------------------
+
+    fn set_server_discovery_enabled(
+        &self,
+        connection_id: u64,
+        params: &Json,
+    ) -> ServiceResult<Json> {
+        // errors: [not_found, unsupported, internal, invalid_value]. The
+        // contract's own note on invalid_value here is error_policy's
+        // malformed_parameter_becomes: `enabled` arriving as the string "yes"
+        // selects neither IServer::enableDiscovery (server.h:66) nor
+        // disableDiscovery (server.h:90), both of which take no parameter, so no
+        // SDK call can be made to raise about it and neither not_found nor
+        // unsupported would be honest -- nothing was looked up, and the server
+        // is perfectly capable of the operation that was mis-typed.
+        let declared_errors = [
+            ErrorCode::NotFound,
+            ErrorCode::Unsupported,
+            ErrorCode::Internal,
+            ErrorCode::InvalidValue,
+        ];
+        let node_id = self.resolve_node_within_declared_error_subset(
+            connection_id,
+            params,
+            "node_id",
+            &declared_errors,
+        )?;
+
         let enabled = match params.get("enabled") {
             Some(Json::Bool(value)) => *value,
             other => {
-                return Err(ServiceError::unsupported(format!(
+                return Err(ServiceError::invalid_value(format!(
                     "params.enabled of set_server_discovery_enabled is declared \
-                     {{type: bool, presence: required}} in contract/contract.yaml; got {}. This \
-                     operation's declared error subset is [not_found, unsupported, internal] and carries \
-                     no invalid_value, so the malformed parameter is refused as unsupported rather than \
-                     with a code the contract does not permit here",
+                     {{type: bool, presence: required}} in contract/contract.yaml; got {}. It is this \
+                     contract's selector between IServer::enableDiscovery (server.h:66) and \
+                     IServer::disableDiscovery (server.h:90), both of which take no parameter, so a \
+                     non-boolean selects neither and no openDAQ call was made",
                     other.unwrap_or(&Json::Null)
                 )))
             }
@@ -1049,7 +1130,7 @@ impl SessionHub {
     // --- recorder.control ----------------------------------------------------
 
     fn start_recording(&self, connection_id: u64, params: &Json) -> ServiceResult<Json> {
-        // errors: [not_found, unsupported, internal].
+        // errors: [not_found, unsupported, internal, invalid_value].
         let node_id = self.resolve_node_within_declared_error_subset(
             connection_id,
             params,
@@ -1058,6 +1139,7 @@ impl SessionHub {
                 ErrorCode::NotFound,
                 ErrorCode::Unsupported,
                 ErrorCode::Internal,
+                ErrorCode::InvalidValue,
             ],
         )?;
         self.backend.start_recording(&node_id)?;
@@ -1099,12 +1181,16 @@ impl SessionHub {
         connection_id: u64,
         params: &Json,
     ) -> ServiceResult<Json> {
-        // errors: [not_found, not_connected].
+        // errors: [not_found, not_connected, invalid_value].
         let node_id = self.resolve_node_within_declared_error_subset(
             connection_id,
             params,
             "node_id",
-            &[ErrorCode::NotFound, ErrorCode::NotConnected],
+            &[
+                ErrorCode::NotFound,
+                ErrorCode::NotConnected,
+                ErrorCode::InvalidValue,
+            ],
         )?;
         self.backend.begin_batched_property_update(&node_id)?;
         println!(
@@ -1304,27 +1390,28 @@ impl ConnectionHandler for SessionHub {
         );
 
         // What teardown does NOT undo, said plainly rather than left to be
-        // discovered. A server this session added stays in the openDAQ Instance
-        // with its listening socket open: contract/contract.yaml declares no
-        // remove_server row -- IDevice::removeServer exists, but the reference's
-        // menu_server_groups offers no removal on any surface, so nothing in
-        // this contract can undo an add_server. And a batch this session opened
-        // with begin_batched_property_update stays open on the component,
-        // because who may end an abandoned batch is the open question the
-        // contract escalates alongside device.lock, and ending it here would be
-        // this host answering it.
-        if !state.server_node_ids.is_empty() {
+        // discovered. A server stays in the openDAQ Instance with its listening
+        // socket open when the session that added it goes away. That is not a
+        // missing row any more -- remove_server exists and any session may send
+        // it -- it is this host declining to invent a lifecycle openDAQ does not
+        // have: nothing in openDAQ ties an IServer to the connection that called
+        // addServer, so nothing here removes one on a disconnect. And a batch
+        // this session opened with begin_batched_property_update stays open on
+        // the component, because who may end an abandoned batch is the open
+        // question the contract escalates alongside device.lock, and ending it
+        // here would be this host answering it.
+        let servers_still_standing: Vec<String> = {
+            let hub = self.lock_hub();
+            hub.server_node_ids.iter().cloned().collect()
+        };
+        if !servers_still_standing.is_empty() {
             println!(
-                "[service] session teardown: {} server(s) this session added stay in the openDAQ \
-                 Instance and keep listening -- {}. The M1 contract has no remove_server row, so \
-                 nothing on this wire can take them down; the process exiting is what closes them",
-                state.server_node_ids.len(),
-                state
-                    .server_node_ids
-                    .iter()
-                    .cloned()
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                "[service] session teardown on connection {connection_id}: {} server(s) stay in the \
+                 openDAQ Instance and keep listening -- {}. Any session may take one down with \
+                 remove_server; this teardown removes none, because openDAQ records no owner for a \
+                 server and this host will not invent one",
+                servers_still_standing.len(),
+                servers_still_standing.join(", ")
             );
         }
     }

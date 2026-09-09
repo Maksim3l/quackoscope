@@ -59,6 +59,14 @@ const std::vector<ContractOperation> kOperationTable = {
     // without ever letting a client create one.
     {"list_server_types", "server.add"},
     {"add_server", "server.add"},
+    // remove_server sits under server.add, not under a capability of its own,
+    // because it is the undo of the addition on the thing that capability
+    // created -- the same shape remove_function_block has under
+    // function_block.add. With ALL-OF semantics that means a host cannot claim
+    // server.add without also serving the removal, which is the point: openDAQ
+    // has IDevice::removeServer (device.h:300-304) and taking a listening
+    // socket down again is not an extra a deployment opts out of.
+    {"remove_server", "server.add"},
     {"set_server_discovery_enabled", "server.discovery"},
     {"start_recording", "recorder.control"},
     {"stop_recording", "recorder.control"},

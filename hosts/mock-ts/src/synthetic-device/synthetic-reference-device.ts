@@ -609,12 +609,29 @@ const SYNTHETIC_COMPONENT_ATTRIBUTES: readonly SyntheticComponentAttribute[] = [
     appliesTo: "every_component",
     readOnlyOnEveryComponent: false,
     read: (_device, state) => [...((state.attributeValues.get("tags") as string[] | undefined) ?? [])],
+    // TAGS IS WRITABLE IN openDAQ, so read_only false here is a fact about the
+    // component and not a convenience. IComponent has getTags and no setTags
+    // (component.h:164) and ITags itself is read-only -- getList, contains,
+    // query (tags.h:39-60) -- but the writer exists one cast away:
+    // ITagsPrivate::add/remove/replace (tags_private.h:34-56), reached from
+    // component.tags, and present in every binding (py_tags_private.cpp:43-69,
+    // C# TagsPrivate.cs:73/:96/:115, C daqTagsPrivate_* in
+    // c/.../tags_private.h:44-46, Rust TagsPrivate in opendaq-0.1.1
+    // src/generated/component.rs:2835+). tags_impl.h:88-150 performs no lock
+    // check, so tags.h:36-37's "can only be modified if the object is not
+    // locked" is documentation of an intent nothing implements. A host that
+    // reports tags read_only is reporting itself, which contract
+    // types.ComponentAttribute.read_only forbids in as many words -- that field
+    // is "openDAQ's answer about the component, never the host's answer about
+    // itself" -- and the honest alternative for a binding that truly could not
+    // reach ITagsPrivate is to gap attribute.write, not to relabel the row.
+    //
     // The reference marks Tags unlocked and then never writes it: its
     // handle_double_click has no list branch, so new_value stays None and the
     // write silently does not happen (generic_attributes_treeview.py:107-110).
-    // That is a fall-through in the reference, not a policy, so this host does
-    // write it -- a string_list attribute that accepts a write is the only way
-    // a client can be developed against one.
+    // That is a fall-through in the reference, not a policy. This host has no
+    // binding to be limited by -- the tag list is a JavaScript array on the
+    // component -- so nothing here stands between the write and the value.
     write: (_device, state, value) => {
       const tags = requireAttributeStringList(state, "tags", value);
       const previous = (state.attributeValues.get("tags") as string[] | undefined) ?? [];
@@ -711,11 +728,26 @@ export class SyntheticReferenceDevice {
   /** The current device operation mode, which every device row reports as
    *  Node.operation_mode and set_device_operation_mode moves. */
   private operationMode: NodeOperationMode = OPERATION_MODE_AT_STARTUP;
-  /** Who holds the device lock, or null when it is unlocked. The token is an
-   *  opaque session key handed down by the service layer; this file never
-   *  learns what a session is, only that two tokens are or are not equal. */
-  private lockHolderToken: string | null = null;
-  private lockHolderDescription: string | null = null;
+  /**
+   * The device lock, mirroring daq::UserLockImpl field for field
+   * (openDAQ/core/opendaq/device/src/user_lock_impl.cpp:15-42, whose one member
+   * is `std::optional<UserPtr> userLock`).
+   *
+   *   deviceLockIsHeld    the optional's has_value(). IDevice::isLocked reads
+   *                       exactly this and nothing else.
+   *   userHoldingTheLock  the optional's value. NULL here is openDAQ's "held by
+   *                       NOBODY", not "unlocked": UserLockImpl::lock turns an
+   *                       anonymous user into nullptr (user_lock_impl.cpp:19-20)
+   *                       and UserLockImpl::unlock then lets ANY caller clear it
+   *                       (:31, whose refusal requires userLock != nullptr).
+   *                       With no AuthenticationProvider configured every
+   *                       openDAQ connection is User("", ""), isAnonymous() is
+   *                       true, and this stays null forever.
+   */
+  private deviceLockIsHeld = false;
+  private userHoldingTheLock: string | null = null;
+  /** Only for the log: which session's request last set the two fields above. */
+  private describedCallerThatTookTheLock: string | null = null;
   /**
    * IPropertyObject's update depth per component id, absent meaning zero.
    *
@@ -1017,10 +1049,17 @@ export class SyntheticReferenceDevice {
       // panel shows `name` and `active` locked while the identical rows on AI0
       // are writable. Without it, ComponentAttribute.read_only would look like
       // a constant of the attribute rather than a fact about the component.
+      //
+      // It is also the only row on which openDAQ's IGNORED path can be seen:
+      // set_component_attribute here SUCCEEDS and changes nothing, because
+      // ComponentImpl::setName and ::setActive return OPENDAQ_IGNORED for a
+      // locked attribute rather than raising (component_impl.h:541-552 and
+      // :365-376).
       lockedAttributeIds: ["name", "active"],
       channelDescription:
         "AnalogInput 3 on the synthetic backplane. Its name and active attributes are in this component's " +
-        "locked_attributes, so set_component_attribute answers read_only for both.",
+        "locked_attributes, so get_component_attributes reports read_only true for both and " +
+        "set_component_attribute on either succeeds and changes nothing -- openDAQ's OPENDAQ_IGNORED, not a refusal.",
     });
 
     // The function blocks fitted at startup are built from the same catalogue
@@ -1223,7 +1262,7 @@ export class SyntheticReferenceDevice {
       ...stored,
       child_ids: [...stored.child_ids],
       property_ids: [...stored.property_ids],
-      locked: this.lockHolderToken !== null,
+      locked: this.deviceLockIsHeld,
       connection_status: isDeviceRow ? "connected" : null,
       operation_mode: isDeviceRow ? this.operationMode : null,
       updating: (this.batchUpdateDepthByNodeId.get(nodeId) ?? 0) > 0,
@@ -1332,13 +1371,56 @@ export class SyntheticReferenceDevice {
    * caller has already checked the lock, because the lock is a fact about a
    * session and this file knows nothing about sessions.
    */
+  /**
+   * WHAT openDAQ DOES WITH A MODE IT DOES NOT OFFER, stated because this host
+   * does something else and the difference must not be hidden.
+   *
+   * GenericDevice::setOperationMode opens with
+   *
+   *     if (this->onGetAvailableOperationModes().count(modeType) == 0)
+   *         return OPENDAQ_IGNORED;                    device_impl.h:1259-1260
+   *
+   * and OPENDAQ_IGNORED is 0x00000006u (errors.h:38), which OPENDAQ_FAILED's
+   * `(x) & 0x80000000u` (errors.h:28) does not match. It is a SUCCESS. openDAQ
+   * accepts the call, changes nothing, and tells the caller nothing went wrong.
+   *
+   * It is worse than that for a string, which is what crosses this wire.
+   * OperationModeTypeFromString (component_factory.h:55-64) maps "Idle",
+   * "Operation" and "SafeOperation" and returns OperationModeType::Unknown for
+   * EVERYTHING ELSE -- so "banana" becomes Unknown, Unknown is not in the
+   * default available set {SafeOperation} (device_impl.h:1187-1190), and the
+   * call returns IGNORED. An SDK host that goes through that pair therefore
+   * answers SUCCESS to a garbage mode name and leaves the device where it was.
+   *
+   * THIS HOST ANSWERS invalid_value INSTEAD, and that is the contract's
+   * instruction, not this host's opinion: set_device_operation_mode declares
+   * errors [not_found, invalid_value, unsupported] and its comment reads
+   * "invalid_value: a mode name outside Node.operation_mode's values, or one
+   * the device did not list as available". Both halves of that sentence
+   * describe cases openDAQ answers success to. The divergence is real, it is
+   * the contract's and not this host's to settle, and it is reported upward
+   * rather than papered over here.
+   *
+   * The mock's own reach: OFFERED_OPERATION_MODES is idle, operation,
+   * safe_operation, and contract types.NodeOperationMode also carries
+   * "unknown", so mode "unknown" is a value of the wire enum that this device
+   * does not offer -- the exact case device_impl.h:1259 answers IGNORED to, and
+   * this host answers invalid_value to.
+   */
   setOperationMode(nodeId: string, mode: string): NodeOperationMode {
     this.requireDeviceRow(nodeId, "set_device_operation_mode");
     if (!OFFERED_OPERATION_MODES.includes(mode as NodeOperationMode)) {
       throw new ServiceRefusal(
         "invalid_value",
         `"${mode}" is not a mode this device offers; get_device_operation_modes on "${nodeId}" answers ` +
-          `${this.describeOfferedOperationModes()}. The device is in "${this.operationMode}" and stays there.`,
+          `${this.describeOfferedOperationModes()}. The device is in "${this.operationMode}" and stays there. ` +
+          "NOTE, because a snippet shown beside this must not lie: openDAQ itself does not refuse here. " +
+          "GenericDevice::setOperationMode returns OPENDAQ_IGNORED for a mode outside " +
+          "onGetAvailableOperationModes (device_impl.h:1259-1260), and OPENDAQ_IGNORED is 0x00000006u " +
+          "(errors.h:38), a SUCCESS -- and OperationModeTypeFromString (component_factory.h:55-64) turns any " +
+          "unrecognised string into OperationModeType::Unknown first, so openDAQ would accept this call and " +
+          "silently change nothing. invalid_value is what contract/contract.yaml's set_device_operation_mode row " +
+          "declares for it; the disagreement with the SDK belongs to that row, not to this host",
       );
     }
     const previous = this.operationMode;
@@ -1351,67 +1433,111 @@ export class SyntheticReferenceDevice {
   }
 
   // --- device lock ---------------------------------------------------------
+  //
+  // Every line below is daq::UserLockImpl, translated. openDAQ's IDevice::lock,
+  // ::unlock and ::isLocked take NO user argument (device.h:318, :324, :330) and
+  // the public forms are literally `return this->lock(nullptr)` and
+  // `return this->unlock(nullptr)` (device_impl.h:1040-1048). The user only
+  // appears on IDevicePrivate, and the config-protocol server fills it in from
+  // the connection: `device.asPtr<IDevicePrivate>().lock(context.user)`
+  // (config_server_device.h:78). With no AuthenticationProvider configured that
+  // user is the shared anonymous User("", "") that
+  // authentication_provider_impl.cpp:23,56 hands to every connection.
+  //
+  // THERE IS NO SESSION IN ANY OF IT. This host used to record a holding
+  // session and refuse the next one; openDAQ has no such rule, and inventing it
+  // made four hosts that do exactly what the SDK does look broken.
 
   isLocked(): boolean {
-    return this.lockHolderToken !== null;
+    return this.deviceLockIsHeld;
   }
 
-  /** null when the caller may write, or the refusal detail when it may not. */
-  lockRefusalFacing(sessionToken: string): string | null {
-    if (this.lockHolderToken === null || this.lockHolderToken === sessionToken) return null;
-    return `the device "${DEVICE_NODE_ID}" is locked by ${this.lockHolderDescription}, which is not this session`;
+  /** user_impl.cpp:42-48 -- isAnonymous is username == "" && passwordHash == "".
+   *  This host has no passwords, so an empty username is the whole test. */
+  private static anonymousCollapsesToNobody(userName: string): string | null {
+    return userName === "" ? null : userName;
   }
 
-  lockDevice(nodeId: string, sessionToken: string, sessionDescription: string): void {
+  describeLockForTheLog(): string {
+    if (!this.deviceLockIsHeld) return `"${DEVICE_NODE_ID}" is not locked`;
+    return this.userHoldingTheLock === null
+      ? `"${DEVICE_NODE_ID}" is locked and the lock is held by NOBODY (openDAQ's nullptr holder, which any caller may clear), taken by ${this.describedCallerThatTookTheLock}`
+      : `"${DEVICE_NODE_ID}" is locked by the named openDAQ user "${this.userHoldingTheLock}", taken by ${this.describedCallerThatTookTheLock}`;
+  }
+
+  /**
+   * UserLockImpl::lock (user_lock_impl.cpp:15-27). The refusal is
+   * OPENDAQ_ERR_DEVICE_LOCKED, which reaches a caller as DeviceLockedException,
+   * and it fires ONLY when the optional already holds a user that is not this
+   * one. An anonymous caller becomes nullptr first, so an anonymous lock over
+   * an anonymous lock is nullptr != nullptr, which is false: it succeeds.
+   */
+  lockDeviceAsUser(nodeId: string, userName: string, describedCaller: string): void {
     this.requireDeviceRow(nodeId, "lock_device");
-    if (this.lockHolderToken !== null && this.lockHolderToken !== sessionToken) {
+    const user = SyntheticReferenceDevice.anonymousCollapsesToNobody(userName);
+    if (this.deviceLockIsHeld && this.userHoldingTheLock !== user) {
       throw new ServiceRefusal(
         "read_only",
-        `"${nodeId}" is already locked by ${this.lockHolderDescription}; openDAQ permits an unlock only by the holder, ` +
-          "so this session can neither take the lock nor drop it. unlock_device with force true is the way past it.",
+        `"${nodeId}" is already locked by the named openDAQ user "${this.userHoldingTheLock}" and this request came ` +
+          `from "${user}", so UserLockImpl::lock returns OPENDAQ_ERR_DEVICE_LOCKED (errors.h:128, DeviceLockedException). ` +
+          "This refusal needs TWO DIFFERENT NAMED USERS: with no AuthenticationProvider configured every openDAQ " +
+          "connection is the anonymous User(\"\", \"\"), which user_lock_impl.cpp:19-20 turns into nullptr, and this " +
+          "branch is then unreachable.",
       );
     }
-    const wasAlreadyHeldHere = this.lockHolderToken === sessionToken;
-    this.lockHolderToken = sessionToken;
-    this.lockHolderDescription = sessionDescription;
+    const wasAlreadyHeld = this.deviceLockIsHeld;
+    this.deviceLockIsHeld = true;
+    this.userHoldingTheLock = user;
+    this.describedCallerThatTookTheLock = describedCaller;
     console.log(
-      `[device] lock_device ${nodeId}: the lock is ${wasAlreadyHeldHere ? "still" : "now"} held by ${sessionDescription}; ` +
-        `all ${this.components.size} rows under it report locked true`,
+      `[device] lock_device ${nodeId} by ${describedCaller} as openDAQ user ${user === null ? '"" (anonymous, collapsed to nullptr)' : `"${user}"`}: ` +
+        `the lock was ${wasAlreadyHeld ? "already held and stays held" : "taken"}, held by ${user === null ? "NOBODY, so any caller may clear it" : `"${user}", so only that user may clear it`}; ` +
+        `all ${this.components.size} rows report locked true`,
     );
   }
 
-  unlockDevice(nodeId: string, sessionToken: string, sessionDescription: string, force: boolean): void {
+  /**
+   * UserLockImpl::unlock (user_lock_impl.cpp:29-36) and, when force is true,
+   * IDevicePrivate::forceUnlock (user_lock_impl.cpp:38-42), which is an
+   * unconditional reset and, per user_lock.h:55-58, "will always succeed,
+   * regardless of which user initially locked the object".
+   *
+   * The plain unlock refuses with OPENDAQ_ERR_ACCESSDENIED -- a DIFFERENT code
+   * from lock's -- and only when a NAMED user holds it: the guard is
+   * `userLock.has_value() && userLock != nullptr && userLock != user`. Unlocking
+   * something that was never locked is not an error there and is not one here.
+   */
+  unlockDeviceAsUser(nodeId: string, userName: string, describedCaller: string, force: boolean): void {
     this.requireDeviceRow(nodeId, "unlock_device");
-    if (this.lockHolderToken === null) {
-      console.log(`[device] unlock_device ${nodeId}: it was not locked, so nothing changed`);
+    const user = SyntheticReferenceDevice.anonymousCollapsesToNobody(userName);
+    if (force) {
+      const whatItCleared = this.describeLockForTheLog();
+      this.deviceLockIsHeld = false;
+      this.userHoldingTheLock = null;
+      this.describedCallerThatTookTheLock = null;
+      console.log(
+        `[device] unlock_device ${nodeId} force true by ${describedCaller}: IDevicePrivate::forceUnlock resets the ` +
+          `lock unconditionally, so ${whatItCleared} -> not locked; all ${this.components.size} rows report locked false`,
+      );
       return;
     }
-    if (this.lockHolderToken !== sessionToken && !force) {
+    if (this.deviceLockIsHeld && this.userHoldingTheLock !== null && this.userHoldingTheLock !== user) {
       throw new ServiceRefusal(
         "read_only",
-        `"${nodeId}" is locked by ${this.lockHolderDescription}, not by this session, and openDAQ's IDevice.unlock() ` +
-          "refuses an unlock by anyone else. Send unlock_device again with force true to take it anyway.",
+        `"${nodeId}" is locked by the named openDAQ user "${this.userHoldingTheLock}" and this request came from ` +
+          `"${user}", so UserLockImpl::unlock returns OPENDAQ_ERR_ACCESSDENIED (errors.h:78, AccessDeniedException). ` +
+          "Send unlock_device again with force true, which is IDevicePrivate::forceUnlock and always succeeds. " +
+          "With no AuthenticationProvider configured this branch is unreachable: the holder is then nullptr and " +
+          "user_lock_impl.cpp:31 lets any caller clear it.",
       );
     }
-    const takenFrom = this.lockHolderDescription;
-    const wasForced = this.lockHolderToken !== sessionToken;
-    this.lockHolderToken = null;
-    this.lockHolderDescription = null;
+    const whatItCleared = this.describeLockForTheLog();
+    this.deviceLockIsHeld = false;
+    this.userHoldingTheLock = null;
+    this.describedCallerThatTookTheLock = null;
     console.log(
-      `[device] unlock_device ${nodeId}: the lock held by ${takenFrom} was ${wasForced ? "FORCED open" : "released"} by ` +
-        `${sessionDescription}; all ${this.components.size} rows under it report locked false`,
-    );
-  }
-
-  /** Drops the lock when the session that took it goes away. Does nothing if
-   *  that session was not the holder. */
-  releaseLockHeldBy(sessionToken: string, sessionDescription: string): void {
-    if (this.lockHolderToken !== sessionToken) return;
-    this.lockHolderToken = null;
-    this.lockHolderDescription = null;
-    console.log(
-      `[device] the device lock held by ${sessionDescription} was released because that session closed; ` +
-        `"${DEVICE_NODE_ID}" and every row under it report locked false again`,
+      `[device] unlock_device ${nodeId} by ${describedCaller} as openDAQ user ${user === null ? '"" (anonymous, collapsed to nullptr)' : `"${user}"`}: ` +
+        `${whatItCleared} -> not locked; all ${this.components.size} rows report locked false`,
     );
   }
 
@@ -1859,19 +1985,44 @@ export class SyntheticReferenceDevice {
    * Writes one attribute and returns a sentence saying what it did, which the
    * service layer logs.
    *
-   * THE DEVICE LOCK IS NOT CONSULTED HERE, deliberately, and it is the one
-   * thing about this row this host will not decide on its own.
-   * set_property_value and set_device_operation_mode both refuse read_only
-   * while another session holds the lock. contract.yaml's error note for
-   * set_component_attribute names exactly two sources for read_only -- the
-   * reference's hardcoded per-attribute Locked flag and
-   * IComponent.locked_attributes -- and the device lock is neither. Answering
-   * read_only because of the lock would assert that openDAQ locked the
-   * attribute, which is a cause this host has not established, and
-   * ComponentAttribute.read_only's own comment forbids exactly that. The
-   * consequence, stated rather than hidden: on this host a locked device's
-   * attributes are writable while its properties are not. That is reported
-   * upward as an open question, not settled here.
+   * THE DEVICE LOCK IS NOT CONSULTED HERE, and that is now settled rather than
+   * open: openDAQ's core does not consult it either.
+   * GenericPropertyObjectImpl::setPropertyValue and
+   * ComponentImpl::setName/setDescription/setActive/setVisible read no lock at
+   * all. The only place a lock refuses a write in the whole SDK is
+   * ConfigServerAccessControl::protectLockedComponent
+   * (config_server_access_control.h:75-81), called from config_server_component.h
+   * at :78 setPropertyValue, :298 setAttributeValue and :317 update -- inside the
+   * NATIVE CONFIG PROTOCOL SERVER. An in-process device.setPropertyValue on a
+   * locked device succeeds. This host synthesises the device in this process, so
+   * it is the in-process case and it refuses nothing.
+   *
+   * AND NEITHER IS IComponent.locked_attributes, which this host used to refuse
+   * read_only for and no longer does. A locked attribute in openDAQ does not
+   * raise: ComponentImpl::setName (component_impl.h:541-552),
+   * ::setDescription (:592-603), ::setActive (:365-376) and ::setVisible
+   * (:645-661) each log "<Attribute> of {} is locked" at info level and then
+   * `return OPENDAQ_IGNORED`. OPENDAQ_IGNORED is 0x00000006u (errors.h:38) and
+   * OPENDAQ_FAILED is (x) & 0x80000000u (errors.h:28), so it is a SUCCESS code:
+   * `component.name = "x"` on a locked component in any binding returns
+   * normally and the name is simply unchanged. There is no exception for a host
+   * to translate, and manufacturing read_only out of its absence would be this
+   * host answering about openDAQ what openDAQ did not say. So the write below
+   * is ACCEPTED, nothing is stored, and the sentence returned names the value
+   * that is still there -- read the attribute back and you get the old one.
+   *
+   * ComponentAttribute.read_only STAYS TRUE for such an attribute, and that is
+   * not a contradiction: read_only is a label about the component (contract
+   * types.ComponentAttribute.read_only, "openDAQ's answer about the component"),
+   * and getComponentAttributes above still folds lockedAttributeIds into it,
+   * exactly as generic_attributes_treeview.py:168-178 folds locked_attributes
+   * in. The label says the write will not take; the wire code says openDAQ did
+   * not refuse it. Both are true and openDAQ says both.
+   *
+   * The one read_only refusal left below is the FIRST of contract.yaml's two
+   * sources: the reference's hardcoded per-attribute Locked flag, on the
+   * attributes that have no openDAQ setter at all (global_id, local_id,
+   * streamed, last_value, the domain and related signal ids).
    */
   setComponentAttribute(nodeId: string, attributeId: string, value: unknown): string {
     const state = this.requireComponent(nodeId);
@@ -1893,13 +2044,21 @@ export class SyntheticReferenceDevice {
       );
     }
     if (state.lockedAttributeIds.has(attributeId)) {
-      throw new ServiceRefusal(
-        "read_only",
-        `attribute "${attributeId}" is in the locked_attributes of "${nodeId}" -- this component's own set, not a ` +
-          `blanket rule -- so the write was refused and nothing changed. That set is ` +
-          `{${[...state.lockedAttributeIds].join(", ")}}; the same attribute on another component of the same kind ` +
-          "is writable.",
-      );
+      // OPENDAQ_IGNORED, spelled out. This is a SUCCESS: nothing is written,
+      // nothing is raised, and the caller gets void back.
+      const stillHolds = definition.read(this, state) ?? null;
+      const ignored =
+        `attribute "${attributeId}" is in the locked_attributes of "${nodeId}" -- this component's own set ` +
+        `{${[...state.lockedAttributeIds].join(", ")}}, not a blanket rule -- so the submitted ` +
+        `${JSON.stringify(value)} WAS IGNORED and "${attributeId}" still holds ${JSON.stringify(stillHolds)}. ` +
+        "This is not a refusal and this host does not report one: ComponentImpl's setter for a locked attribute " +
+        'logs "<Attribute> of {} is locked" and returns OPENDAQ_IGNORED (component_impl.h:541-552 setName, ' +
+        ":592-603 setDescription, :365-376 setActive, :645-661 setVisible), which is 0x00000006u (errors.h:38) and " +
+        "therefore a success code, so no openDAQ binding raises here. get_component_attributes still reports " +
+        `read_only true for "${attributeId}" on "${nodeId}", which is the label, not the wire code. The same ` +
+        "attribute on another component of the same kind is written normally.";
+      console.log(`[device] set_component_attribute ${nodeId}.${attributeId}: ${ignored}`);
+      return ignored;
     }
     const whatChanged = definition.write(this, state, value);
     console.log(`[device] set_component_attribute ${nodeId}.${attributeId}: ${whatChanged}`);
@@ -1962,6 +2121,45 @@ export class SyntheticReferenceDevice {
         `advertises nothing; its discovery flag starts false and only set_server_discovery_enabled moves it.`,
     );
     return node;
+  }
+
+  /**
+   * IDevice::removeServer(IServer*) -- device.h:300-304, implemented at
+   * device_impl.h:1479-1487 as onRemoveServer, the exact mirror of onAddServer.
+   * folder_impl.h:598-605 removes the item, which calls ServerImpl::removed
+   * (server_impl.h:199-202) -- `checkErrorInfo(stop()); Super::removed();` -- so
+   * a real server's listening socket is actually closed. These synthetic servers
+   * bind no socket, so there is nothing here to close and nothing that can throw
+   * the `internal` this row declares for a stop() failure.
+   *
+   * onRemoveServer's own guard is `if (!this->isRootDevice) throw
+   * NotFoundException("Device does not allow adding/removing servers.")`. The
+   * one device on this host IS the root device, so that branch cannot fire here;
+   * the unsupported below is the other half of the row's unsupported, a node
+   * that exists and is not a server.
+   */
+  removeServer(nodeId: string): void {
+    const state = this.requireComponent(nodeId);
+    if (state.node.kind !== "server") {
+      throw new ServiceRefusal(
+        "unsupported",
+        `"${nodeId}" is a ${state.node.kind}, not a server; remove_server takes the node id add_server answered with, ` +
+          `and this device's server rows live under "${SERVER_FOLDER_ID}"`,
+      );
+    }
+    const removedIds = this.subtreeNodeIdsDeepestFirst(nodeId);
+    for (const removedId of removedIds) {
+      this.components.delete(removedId);
+      this.discoveryEnabledByServerNodeId.delete(removedId);
+      this.emit({ event: "component_removed", payload: { node_id: removedId } });
+    }
+    const parent = this.components.get(state.node.parent_id ?? "");
+    if (parent) parent.node.child_ids = parent.node.child_ids.filter((childId) => childId !== nodeId);
+    console.log(
+      `[device] remove_server took ${removedIds.length} component(s) out of the tree: ${removedIds.join(", ")}. ` +
+        "This server bound no socket, so nothing was closed; on a real openDAQ device folder_impl.h's removal calls " +
+        "ServerImpl::removed, which calls IServer::stop and closes the listening socket.",
+    );
   }
 
   private publishSyntheticServer(typeId: string, whenPhrase: string): Node {

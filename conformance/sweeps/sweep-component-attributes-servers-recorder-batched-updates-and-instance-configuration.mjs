@@ -1,7 +1,7 @@
-// Sweep 5: the eleven operations contract.yaml grew for the last reference
+// Sweep 5: the twelve operations contract.yaml grew for the last reference
 // panels - get_component_attributes, set_component_attribute, list_server_types,
-// add_server, set_server_discovery_enabled, start_recording, stop_recording,
-// begin_batched_property_update, end_batched_property_update,
+// add_server, remove_server, set_server_discovery_enabled, start_recording,
+// stop_recording, begin_batched_property_update, end_batched_property_update,
 // save_instance_configuration_to_string and load_instance_configuration_from_string.
 //
 // Same shape as sweeps 2 and 3, and the same first question: did the handshake
@@ -22,39 +22,46 @@
 // WHY THESE ELEVEN NEED A FILE. Four reasons, and the first two are the reason
 // this file exists rather than eleven more paragraphs in sweep 2.
 //
-// A SUCCESS PATH THIS SUITE WILL NOT DRIVE, AND IT IS add_server. Adding a
-// server BINDS A REAL LISTENING SOCKET inside the host process, on a port number
-// that comes out of the server type's own configuration and that this project
-// does not own: driving it against the four SDK hosts has been observed to bind
-// 0.0.0.0:7420 (OpenDAQNativeStreaming) on cpp and both 7414 and 7420 on rust.
-// AND THERE IS NO remove_server ROW IN contract.yaml. Nothing in the closed
-// operation table can take that socket down again: remove_function_block is
-// scoped to a function block (its node_id "references Node.id" but the row is
-// one of the three function_block.add operations), disconnect_device tears down
-// a DEVICE the session connected, and IServer::stop is bound to no row at all.
-// So a sweep that called add_server would leak one listening socket per run, per
-// host, on ports held by other things - and the second run would then meet
-// `internal`, which contract.yaml names for exactly this ("a port already
-// bound"), from a socket the first run left.
+// A SERVER IS ADDED AND THEN TAKEN DOWN AGAIN, AND THAT IS NEW. This sweep used
+// to refuse to drive add_server's success path, and its reason was correct at the
+// time: adding a server BINDS A REAL LISTENING SOCKET inside the host process, on
+// a port number that comes out of the server type's own configuration and that
+// this project does not own - driving it against the SDK hosts was observed to
+// bind 0.0.0.0:7420 (OpenDAQNativeStreaming) on cpp and both 7414 and 7420 on
+// rust - AND THERE WAS NO remove_server ROW IN contract.yaml, so nothing in the
+// closed operation table could take that socket down again.
 //
-// The three honest options were: drive the failure paths only and record the
-// success path as undriven with the reason; propose a remove_server row and
-// stop; or find that openDAQ can remove a server through a row that already
-// exists. The third is not available - it was looked for and the operation table
-// has no row that names a server node except set_server_discovery_enabled, which
-// only moves a flag. The first is taken, and the second is REPORTED rather than
-// used as a stop: contract.yaml needs a remove_server row, and the argument is
-// not only this sweep's convenience - the add-server card grid can create a
-// server and the client has no control that undoes it, so a user who adds one by
-// mistake is in the same position this sweep is.
+// THE ROW NOW EXISTS, and the refusal expires with the reason for it.
+// contract.yaml operations[remove_server] is IDevice::removeServer(IServer*) -
+// "device.h:300-304 ... which device_impl.h:1014-1026 wraps to onRemoveServer
+// (:1479-1487), the exact mirror of onAddServer (:1465-1476)" - and the contract
+// states, in its own words, that the socket really closes: "THE SOCKET ACTUALLY
+// CLOSES, which is what makes this a real undo rather than a delisting.
+// folder_impl.h:598-605 removes the item, which calls IComponent::removed, and
+// ServerImpl::removed (server_impl.h:199-202) is `checkErrorInfo(stop());
+// Super::removed();` - IServer::stop, whose own doc (server.h:55) is 'Stops the
+// server. This is called when we remove the server from the Instance or Instance
+// is closing.'"
 //
-// The precedent is already set in this suite, by load_module_from_host_path in
-// sweep 3: a success path that is PERMANENT for the host process is driven
-// through its failure paths and recorded, in the report, as not driven and why.
-// A leaked listening socket is the worse of the two, because it is permanent on
-// a port number rather than only inside one process. Recording it costs a
-// printed reason, which is what the coverage guard charges for the one honest
-// way to leave a row uncovered - see require-every-contract-operation-to-be-driven.mjs.
+// So the lifecycle is driven whole: list_server_types, then add_server on a type
+// that list actually returned, then - because a server row is the only thing
+// set_server_discovery_enabled can act on and most hosts publish none at startup -
+// the discovery pair against the row that was just created, then remove_server,
+// and then a read-back that proves the row is gone and a second remove_server
+// that must answer not_found. The removal is not conditional on anything above it
+// succeeding: if this sweep created a server it takes it down, and if the removal
+// is refused it says so in the loudest terms it has, because the thing left
+// behind is a listening socket and not a row in a report.
+//
+// WHY IT IS SAFE TO BIND ONE AT ALL. add_server takes only type_id - the contract
+// carries no config parameter, because AddServerDialog "calls
+// self.context.instance.add_server(server_type_id, config) on the INSTANCE,
+// always" and this contract does not model the config - so the port is whatever
+// the server type defaults to, and it can already be held. contract.yaml names
+// `internal` for exactly that ("a port already bound, a permission refused by the
+// operating system"), so a refusal on those grounds is inside the row and is
+// recorded as what it is rather than failed. What is NOT tolerated is a server
+// this sweep created and could not remove.
 //
 // A CONFIGURATION LOAD THIS SWEEP CAN AFFORD. The same question is asked of
 // load_instance_configuration_from_string, which "REPLACES the configuration of
@@ -87,7 +94,9 @@
 //       nothing can be restored. The sweep drives false and then true and leaves
 //       discovery ENABLED, which is the state contract.yaml says a server row is
 //       created in (the reference calls enable_discovery straight after
-//       add_server), and it prints that it did.
+//       add_server), and it prints that it did. When the row it drove is the one
+//       add_server created, remove_server takes that row away afterwards and the
+//       question of what was left disappears with it.
 //   start_recording / stop_recording  are restored from Node.recording, which
 //       IS readable, so the recorder is left in the state it was found in.
 // Everything else - the attributes, the batched property write, the instance
@@ -540,13 +549,23 @@ export async function sweepComponentAttributesServersRecorderBatchedUpdatesAndIn
   }
 
   // =========================================================================
-  // server.add: list_server_types, and add_server through its failure paths
+  // server.add: list_server_types, add_server and remove_server
   // =========================================================================
-  console.log("\nserver.add: list_server_types, add_server (failure paths only - see this file's header)");
+  console.log("\nserver.add: list_server_types, add_server, remove_server - the whole lifecycle, see this file's header");
+  // The server this sweep creates, held across the discovery section below and
+  // taken down after it. null means nothing was created and there is nothing to
+  // take down.
+  let theServerThisSweepAdded = null;
   if (!claimed("server.add")) {
     await driveGappedOperation(ledger, contract, session, operationOf("list_server_types"), discovered, gapsByCapability);
     await driveGappedOperation(ledger, contract, session, operationOf("add_server"), discovered, gapsByCapability, {
       type_id: CONFORMANCE_UNKNOWN_SERVER_TYPE_ID,
+    });
+    // The unknown node id, never a real server row: a host that declared this
+    // capability a gap and serves the call anyway must not be handed the id of a
+    // server this sweep did not create and cannot put back.
+    await driveGappedOperation(ledger, contract, session, operationOf("remove_server"), discovered, gapsByCapability, {
+      node_id: CONFORMANCE_UNKNOWN_NODE_ID,
     });
   } else {
     const response = await session.request("list_server_types", {});
@@ -630,24 +649,151 @@ export async function sweepComponentAttributesServersRecorderBatchedUpdatesAndIn
       (judged) => judged.isError && ["not_connected", "unsupported"].includes(judged.code),
     );
 
-    // --- and the success path, which this suite refuses to drive ------------
+    // --- remove_server, the two refusals that create and destroy nothing ----
+    await refuseWithOneOf(ledger, contract, session, {
+      wireMethod: "remove_server",
+      params: { node_id: CONFORMANCE_UNKNOWN_NODE_ID },
+      title: `remove_server on the unknown node "${CONFORMANCE_UNKNOWN_NODE_ID}" is refused with not_found`,
+      contractCitation:
+        `contract.yaml operations[remove_server].errors = [${operationOf("remove_server").errors.join(", ")}]; "not_found: node_id names no component"`,
+      acceptableCodes: ["not_found"],
+    });
+    if (aNodeThatIsNotAServer === null) {
+      ledger.recordNotProvokable({
+        capability: "server.add",
+        wireMethod: "remove_server",
+        title: 'the "unsupported" error code of remove_server could not be provoked',
+        contractCitation: `contract.yaml operations[remove_server].errors = [${operationOf("remove_server").errors.join(", ")}]`,
+        reason: "every node in the tree this host returned is of kind server, so there is no existing non-server row to aim a removal at",
+      });
+    } else {
+      await refuseWithOneOf(ledger, contract, session, {
+        wireMethod: "remove_server",
+        params: { node_id: aNodeThatIsNotAServer.id },
+        title: `remove_server on ${aNodeThatIsNotAServer.id}, a node of kind ${aNodeThatIsNotAServer.kind} and not a server, is refused with unsupported`,
+        contractCitation:
+          `contract.yaml operations[remove_server].errors = [${operationOf("remove_server").errors.join(", ")}]; ` +
+          '"unsupported: the component exists and is not a server ... It is unsupported rather than not_found because the node was found; what is ' +
+          'missing is the ability"',
+        acceptableCodes: ["unsupported"],
+      });
+    }
+
+    // --- add_server's SUCCESS path, which is drivable now that a server can be
+    //     taken down again ---------------------------------------------------
+    //
+    // Every type list_server_types returned is tried in turn, newest refusal
+    // printed each time, until one server is created. That is not thoroughness
+    // for its own sake: add_server carries no config parameter, so each type
+    // binds whatever port it defaults to, and contract.yaml names `internal` for
+    // "a port already bound". One type being unavailable on this machine at this
+    // moment must not silently turn the success path back into an undriven one.
+    const addAttempts = [];
+    for (const serverType of serverTypes) {
+      if (typeof serverType?.id !== "string") continue;
+      const addResponse = await session.request("add_server", { type_id: serverType.id });
+      const judgedAdd = judgeResponseEnvelope(ledger, contract, {
+        response: addResponse,
+        wireMethod: "add_server",
+        capability: "server.add",
+        capabilityIsClaimed: true,
+        describedAs: `type_id "${serverType.id}"`,
+      });
+      addAttempts.push({ typeId: serverType.id, judged: judgedAdd });
+      console.log(
+        `add_server "${serverType.id}" -> ${judgedAdd.isError ? `${judgedAdd.code}: ${String(judgedAdd.detail).slice(0, 200)}` : `created ${JSON.stringify(judgedAdd.result?.id)} (kind ${JSON.stringify(judgedAdd.result?.kind)})`}`,
+      );
+      if (!judgedAdd.isError) {
+        theServerThisSweepAdded = { typeId: serverType.id, node: judgedAdd.result };
+        break;
+      }
+    }
+
+    if (serverTypes.length === 0) {
+      ledger.recordNotProvokable({
+        capability: "server.add",
+        wireMethod: "add_server",
+        title: "the success path of add_server was not driven",
+        contractCitation:
+          'contract.yaml operations[add_server].params type_id: "One of the ComponentTypeInfo.id values list_server_types returned"',
+        reason:
+          "list_server_types answered with no server type at all, so there is no type id this host has said it will accept, and the only " +
+          "add_server this sweep could send would be one it already knows must be refused",
+      });
+    } else if (theServerThisSweepAdded === null) {
+      ledger.recordNotProvokable({
+        capability: "server.add",
+        wireMethod: "add_server",
+        title: "the success path of add_server was not driven: every type this host offered refused the addition",
+        contractCitation:
+          `contract.yaml operations[add_server].errors = [${operationOf("add_server").errors.join(", ")}]; ` +
+          '"internal: adding a server opens a listening socket in the host process, and that fails for reasons that are not about type_id at all - ' +
+          'a port already bound, a permission refused by the operating system"',
+        reason:
+          `all ${addAttempts.length} type(s) list_server_types returned were tried and each was refused: ` +
+          `${addAttempts.map((attempt) => `${attempt.typeId} -> ${attempt.judged.code}: ${String(attempt.judged.detail).slice(0, 120)}`).join(" | ")}. ` +
+          "Each refusal was judged against the row's own error subset above, so this is a fact about this machine's free ports and this host's " +
+          "server types rather than an unasked row",
+      });
+    } else {
+      const createdNode = theServerThisSweepAdded.node;
+      const violations = findRecordViolations(createdNode, "Node", contract, "add_server result");
+      ledger.recordClaimedCapabilityAssertion({
+        capability: "server.add",
+        wireMethod: "add_server",
+        title: `add_server "${theServerThisSweepAdded.typeId}" returns a contract-shaped Node of kind "server"`,
+        contractCitation:
+          'contract.yaml operations[add_server].returns = Node - "The record of the thing it created, which is the shape connect_device, ' +
+          'add_function_block and load_module_from_host_path already set. Its kind is `server`, which is the value NodeKind grew for this row."; ' +
+          "types.Node id/name/kind/child_ids/property_ids required, kind an enum over [device, channel, function_block, signal, folder, server]",
+        expected: 'a Node record whose kind is "server"',
+        actual:
+          violations.length === 0
+            ? `Node ${JSON.stringify(createdNode.id)}, name ${JSON.stringify(createdNode.name)}, kind ${JSON.stringify(createdNode.kind)}, parent ${JSON.stringify(createdNode.parent_id ?? null)}`
+            : violations.slice(0, 8).join(" | "),
+        held: violations.length === 0 && createdNode?.kind === "server",
+      });
+
+      if (claimed("tree.read")) {
+        const treeAfterTheAdd = await session.request("get_component_tree", {});
+        const rowAfterTheAdd = Array.isArray(treeAfterTheAdd.result)
+          ? treeAfterTheAdd.result.find((node) => node.id === createdNode.id)
+          : null;
+        ledger.recordClaimedCapabilityAssertion({
+          capability: "server.add",
+          wireMethod: "add_server",
+          title: `the server add_server created, ${createdNode.id}, is in the component tree afterwards`,
+          contractCitation:
+            'contract.yaml types.Node.kind carries `server` because without it "the client cannot tell a server row from a folder row"; add_server ' +
+            "returns the Node it created, so a row the tree does not carry is a card the add-server grid could draw and the tree could not",
+          expected: `get_component_tree carries ${createdNode.id} with kind "server"`,
+          actual:
+            rowAfterTheAdd === null || rowAfterTheAdd === undefined
+              ? `${createdNode.id} is not in the tree that came back: ${JSON.stringify(treeAfterTheAdd.error ?? (Array.isArray(treeAfterTheAdd.result) ? `${treeAfterTheAdd.result.length} row(s)` : treeAfterTheAdd.result))?.slice(0, 200)}`
+              : `${rowAfterTheAdd.id}, kind ${JSON.stringify(rowAfterTheAdd.kind)}`,
+          held: rowAfterTheAdd !== null && rowAfterTheAdd !== undefined && rowAfterTheAdd.kind === "server",
+        });
+      }
+
+      console.log(
+        `add_server "${theServerThisSweepAdded.typeId}" created ${createdNode.id}, and on a host holding a real openDAQ Instance that server is now ` +
+          "HOLDING A LISTENING SOCKET on whatever port its type defaults to - nothing on this wire reports the port, so this sweep cannot print it. " +
+          `${createdNode.id} is removed with remove_server after the discovery section below, and contract.yaml operations[remove_server] is why that ` +
+          "closes the socket rather than only delisting the row: ServerImpl::removed (server_impl.h:199-202) is `checkErrorInfo(stop()); Super::removed();`.",
+      );
+    }
+
     ledger.recordNotProvokable({
       capability: "server.add",
       wireMethod: "add_server",
-      title: "the success path of add_server was not driven, and neither was the invalid_value an instance-refused addition produces",
+      title: 'the "invalid_value" error code of add_server was not provoked',
       contractCitation:
-        'contract.yaml operations[add_server].errors: "internal: adding a server OPENS A LISTENING SOCKET in the host process, and that fails for reasons that are not about type_id at all - a port already bound, a permission refused by the operating system"; returns = Node, kind `server`. The operation table is closed (section 5) and carries no remove_server row.',
+        `contract.yaml operations[add_server].errors = [${operationOf("add_server").errors.join(", ")}]; ` +
+        '"invalid_value: the type exists and the instance refused this addition"',
       reason:
-        "a successful add_server binds a real listening socket inside the host, on a port that comes from the server type's own " +
-        "configuration and that this project does not own - observed as 0.0.0.0:7420 (OpenDAQNativeStreaming) on the C++ host and " +
-        "both 7414 and 7420 on the Rust host - AND THERE IS NO ROW IN contract.yaml THAT CAN TAKE IT DOWN AGAIN. remove_function_block " +
-        "is one of the three function_block.add operations and is scoped to a function block; disconnect_device tears down a device this " +
-        "session connected; set_server_discovery_enabled only moves a flag; IServer::stop is bound to no row. So driving it would leak one " +
-        "listening socket per run per host, and the next run would meet `internal` - which this row names for exactly that, \"a port already " +
-        "bound\" - from a socket this run left behind. This is the same shape as load_module_from_host_path in sweep 3, whose success path is " +
-        "permanent for the host process and is recorded here rather than driven; a bound port is the worse of the two, because it is permanent " +
-        "on a number rather than only inside one process. THE FINDING THIS RECORDS IS ABOUT THE CONTRACT: contract.yaml needs a remove_server " +
-        "row, and not only so that this suite can drive add_server - the add-server card grid creates a server that no control in the client can undo.",
+        "add_server takes one parameter and it is a type id, so the only well-formed requests a wire client can send are a type the host listed " +
+        "and a type it did not; the first is the success path driven above and the second is the unsupported path driven above it. An instance " +
+        "that accepts the type and then refuses the addition is a state inside the host that no input on this row can shape",
     });
   }
 
@@ -655,10 +801,14 @@ export async function sweepComponentAttributesServersRecorderBatchedUpdatesAndIn
   // server.discovery: set_server_discovery_enabled
   // =========================================================================
   console.log("\nserver.discovery: set_server_discovery_enabled");
+  // The row this section acts on: one the host published at startup if it has
+  // one, and otherwise the row add_server created above. Most hosts publish
+  // none, which is why this section used to have nothing to drive at all.
+  const theServerRowDiscoveryIsDrivenOn = aServerNode ?? theServerThisSweepAdded?.node ?? null;
   if (!claimed("server.discovery")) {
     await driveGappedOperation(ledger, contract, session, operationOf("set_server_discovery_enabled"), discovered, gapsByCapability);
   } else {
-    if (aServerNode === null) {
+    if (theServerRowDiscoveryIsDrivenOn === null) {
       ledger.recordNotProvokable({
         capability: "server.discovery",
         wireMethod: "set_server_discovery_enabled",
@@ -666,23 +816,27 @@ export async function sweepComponentAttributesServersRecorderBatchedUpdatesAndIn
         contractCitation:
           'contract.yaml operations[set_server_discovery_enabled].params node_id, references Node.id; types.Node.kind carries `server` because "the client cannot tell a server row from a folder row" without it',
         reason:
-          "this host's component tree carried no node of kind server, and the only row that creates one is add_server, whose success path " +
-          "this sweep refuses to drive because it binds a listening socket no row of this contract can take down",
+          "this host's component tree carried no node of kind server, and add_server created none either - every server type this host listed " +
+          "refused the addition, which the server.add section above records type by type",
       });
     } else {
+      console.log(
+        `the server row this section drives is ${theServerRowDiscoveryIsDrivenOn.id}, ` +
+          `${theServerRowDiscoveryIsDrivenOn === theServerThisSweepAdded?.node ? `created moments ago by add_server "${theServerThisSweepAdded.typeId}" and removed again below` : "published by this host at startup and left in place"}`,
+      );
       for (const enabled of [false, true]) {
-        const response = await session.request("set_server_discovery_enabled", { node_id: aServerNode.id, enabled });
+        const response = await session.request("set_server_discovery_enabled", { node_id: theServerRowDiscoveryIsDrivenOn.id, enabled });
         const judged = judgeResponseEnvelope(ledger, contract, {
           response,
           wireMethod: "set_server_discovery_enabled",
           capability: "server.discovery",
           capabilityIsClaimed: true,
-          describedAs: `${aServerNode.id} enabled=${enabled}`,
+          describedAs: `${theServerRowDiscoveryIsDrivenOn.id} enabled=${enabled}`,
         });
         ledger.recordClaimedCapabilityAssertion({
           capability: "server.discovery",
           wireMethod: "set_server_discovery_enabled",
-          title: `set_server_discovery_enabled ${aServerNode.id} enabled=${enabled} is accepted and returns void`,
+          title: `set_server_discovery_enabled ${theServerRowDiscoveryIsDrivenOn.id} enabled=${enabled} is accepted and returns void`,
           contractCitation:
             'contract.yaml operations[set_server_discovery_enabled]: "ONE ROW WITH A BOOLEAN, NOT TWO ROWS ... the row menu still draws two items, each sending this method with a different `enabled`"; returns = void',
           expected: "a result envelope carrying null",
@@ -691,18 +845,18 @@ export async function sweepComponentAttributesServersRecorderBatchedUpdatesAndIn
         });
       }
       console.log(
-        `set_server_discovery_enabled was driven on ${aServerNode.id} with false and then true, and this sweep LEAVES DISCOVERY ENABLED there. ` +
+        `set_server_discovery_enabled was driven on ${theServerRowDiscoveryIsDrivenOn.id} with false and then true, and this sweep LEAVES DISCOVERY ENABLED there. ` +
           "It cannot restore what it cannot read: contract.yaml says of this row \"THERE IS NO GETTER AND THERE CANNOT BE ONE\", having " +
           "enumerated the Python binding's IServer surface and openDAQ's own server.h and found no discovery-state member in either. " +
           "true is the value left because contract.yaml records that the reference calls enable_discovery immediately after add_server, so it " +
           "is the state a server row is created in, and because silencing a server that other clients scan for is a larger change than advertising one.",
       );
       ledger.recordUnconstrained({
-        title: `what discovery state ${aServerNode.id} was in before this sweep touched it, and what it is left in`,
+        title: `what discovery state ${theServerRowDiscoveryIsDrivenOn.id} was in before this sweep touched it, and what it is left in`,
         contractCitation:
           'contract.yaml operations[set_server_discovery_enabled]: "THERE IS NO GETTER AND THERE CANNOT BE ONE ... So this state cannot be a Node field the way `active` and `locked` are: no host can fill it."',
         reason: "the contract fixes the setter and states that the state behind it is unreadable, so a sweep cannot restore what it found and cannot assert what it left",
-        observation: `this sweep sent enabled=false and then enabled=true to ${aServerNode.id}; it is left with discovery enabled, and no operation of this contract can confirm that`,
+        observation: `this sweep sent enabled=false and then enabled=true to ${theServerRowDiscoveryIsDrivenOn.id}; it is left with discovery enabled, and no operation of this contract can confirm that`,
       });
 
       // unsupported: a node that exists and is not a server.
@@ -741,6 +895,99 @@ export async function sweepComponentAttributesServersRecorderBatchedUpdatesAndIn
       title: 'the "internal" error code of set_server_discovery_enabled was not provoked',
       contractCitation: `contract.yaml operations[set_server_discovery_enabled].errors = [${operationOf("set_server_discovery_enabled").errors.join(", ")}]; "internal: mDNS advertising failed"`,
       reason: "a failed mDNS advertisement is a fact about the host's network stack; no well-formed request can shape one, and nothing on the wire can take mDNS away from a healthy host",
+    });
+  }
+
+  // =========================================================================
+  // server.add, the other half: the server this sweep added is taken down
+  // =========================================================================
+  //
+  // THIS RUNS WHATEVER HAPPENED ABOVE. Everything before it can be recorded and
+  // moved past; a listening socket cannot. If add_server created a server, it is
+  // removed here, and a removal that is refused is said out loud in the log as
+  // well as in the ledger, because what is then left behind is a bound port
+  // inside a host process and not a cell in a table.
+  if (theServerThisSweepAdded !== null) {
+    const createdNode = theServerThisSweepAdded.node;
+    console.log(
+      `\nserver.add: taking down ${createdNode.id}, the server add_server created from type "${theServerThisSweepAdded.typeId}" earlier in this sweep`,
+    );
+    const removeResponse = await session.request("remove_server", { node_id: createdNode.id });
+    const judgedRemove = judgeResponseEnvelope(ledger, contract, {
+      response: removeResponse,
+      wireMethod: "remove_server",
+      capability: "server.add",
+      capabilityIsClaimed: true,
+      describedAs: `${createdNode.id}, created by this sweep`,
+    });
+    ledger.recordClaimedCapabilityAssertion({
+      capability: "server.add",
+      wireMethod: "remove_server",
+      title: `remove_server ${createdNode.id}, the server this sweep added, is accepted and returns void`,
+      contractCitation:
+        'contract.yaml operations[remove_server].returns = void; the row is IDevice::removeServer(IServer*) - "device.h:300-304, Removes the server ' +
+        'provided as argument - which device_impl.h:1014-1026 wraps to onRemoveServer (:1479-1487), the exact mirror of onAddServer (:1465-1476)". ' +
+        '"THE SOCKET ACTUALLY CLOSES ... ServerImpl::removed (server_impl.h:199-202) is `checkErrorInfo(stop()); Super::removed();` - IServer::stop, ' +
+        "whose own doc (server.h:55) is \"Stops the server. This is called when we remove the server from the Instance or Instance is closing.\"\"",
+      expected: "a result envelope carrying null, and with it the listening socket add_server opened",
+      actual: judgedRemove.isError
+        ? `error ${judgedRemove.code}: ${judgedRemove.detail} - THE SERVER THIS SWEEP CREATED IS STILL IN THE HOST, and so is its listening socket`
+        : `result ${JSON.stringify(judgedRemove.result)}`,
+      held: !judgedRemove.isError && (judgedRemove.result === null || judgedRemove.result === undefined),
+    });
+    if (judgedRemove.isError) {
+      console.log(
+        `THE SERVER THIS SWEEP ADDED COULD NOT BE REMOVED. remove_server ${createdNode.id} was refused with ` +
+          `${judgedRemove.code}: ${judgedRemove.detail}. The host still holds the server add_server created from type ` +
+          `"${theServerThisSweepAdded.typeId}", and with it whatever port that server type binds. Stop this host process to release it.`,
+      );
+    } else {
+      console.log(`remove_server ${createdNode.id} was accepted; the socket add_server opened is closed with it.`);
+    }
+
+    if (claimed("tree.read")) {
+      const treeAfterTheRemoval = await session.request("get_component_tree", {});
+      const rowsAfterTheRemoval = Array.isArray(treeAfterTheRemoval.result) ? treeAfterTheRemoval.result : [];
+      const rowStillThere = rowsAfterTheRemoval.find((node) => node.id === createdNode.id) ?? null;
+      ledger.recordClaimedCapabilityAssertion({
+        capability: "server.add",
+        wireMethod: "remove_server",
+        title: `${createdNode.id} is gone from the component tree after remove_server`,
+        contractCitation:
+          'contract.yaml operations[remove_server]: "`this->servers.removeItem(server)`" via folder_impl.h:598-605, which "removes the item, which ' +
+          'calls IComponent::removed". A row that survives its own removal is a card the client would keep drawing for a server that is not there.',
+        expected: `get_component_tree carries no node with id ${createdNode.id}`,
+        actual:
+          rowStillThere === null
+            ? `${rowsAfterTheRemoval.length} row(s) came back and none of them is ${createdNode.id}`
+            : `${createdNode.id} is STILL IN THE TREE, kind ${JSON.stringify(rowStillThere.kind)}`,
+        held: rowStillThere === null,
+      });
+    }
+
+    // The same removal again: the node is gone, so the row's own not_found is
+    // the answer, and this is the one place the suite can ask it of an id that
+    // WAS real rather than one that never was.
+    await refuseWithOneOf(ledger, contract, session, {
+      wireMethod: "remove_server",
+      params: { node_id: createdNode.id },
+      title: `remove_server ${createdNode.id} a second time, after it has been removed, is refused with not_found`,
+      contractCitation:
+        `contract.yaml operations[remove_server].errors = [${operationOf("remove_server").errors.join(", ")}]; "not_found: node_id names no component". ` +
+        "This id named a component one request ago, so a host that still answers a result here has not removed anything.",
+      acceptableCodes: ["not_found"],
+    });
+
+    ledger.recordNotProvokable({
+      capability: "server.add",
+      wireMethod: "remove_server",
+      title: 'the "internal" error code of remove_server was not provoked',
+      contractCitation:
+        `contract.yaml operations[remove_server].errors = [${operationOf("remove_server").errors.join(", ")}]; ` +
+        '"internal: stop() threw while closing the listening socket, which is native text for error.detail"',
+      reason:
+        "IServer::stop throwing on the way down is a fault inside the host's own socket teardown; no parameter of this row reaches it, and a " +
+        "wire client cannot make a healthy server fail to close",
     });
   }
 

@@ -218,7 +218,7 @@ export class QuackoscopeWireClient {
     await this.callAndAwaitResult("remove_function_block", params);
   }
 
-  /** capability streaming.decimated, kind action. Errors: not_found, not_connected. */
+  /** capability streaming.decimated, kind action. Errors: not_found, not_connected, invalid_value. */
   async subscribe_signal(signal_id: string, pixel_columns: number): Promise<string> {
     const params: Record<string, unknown> = {};
     params["signal_id"] = signal_id;
@@ -255,7 +255,7 @@ export class QuackoscopeWireClient {
     return (await this.callAndAwaitResult("get_device_operation_modes", params)) as string[];
   }
 
-  /** capability device.mode, kind setter. Errors: not_found, invalid_value, read_only, unsupported. */
+  /** capability device.mode, kind setter. Errors: not_found, invalid_value, unsupported. */
   async set_device_operation_mode(node_id: string, mode: string): Promise<void> {
     const params: Record<string, unknown> = {};
     params["node_id"] = node_id;
@@ -293,7 +293,7 @@ export class QuackoscopeWireClient {
     return (await this.callAndAwaitResult("load_module_from_host_path", params)) as ModuleInfo;
   }
 
-  /** capability attribute.read, kind getter. Errors: not_found, not_connected. */
+  /** capability attribute.read, kind getter. Errors: not_found, not_connected, invalid_value. */
   async get_component_attributes(node_id: string): Promise<ComponentAttribute[]> {
     const params: Record<string, unknown> = {};
     params["node_id"] = node_id;
@@ -322,7 +322,14 @@ export class QuackoscopeWireClient {
     return (await this.callAndAwaitResult("add_server", params)) as Node;
   }
 
-  /** capability server.discovery, kind setter. Errors: not_found, unsupported, internal. */
+  /** capability server.add, kind action. Errors: not_found, unsupported, internal. */
+  async remove_server(node_id: string): Promise<void> {
+    const params: Record<string, unknown> = {};
+    params["node_id"] = node_id;
+    await this.callAndAwaitResult("remove_server", params);
+  }
+
+  /** capability server.discovery, kind setter. Errors: not_found, unsupported, internal, invalid_value. */
   async set_server_discovery_enabled(node_id: string, enabled: boolean): Promise<void> {
     const params: Record<string, unknown> = {};
     params["node_id"] = node_id;
@@ -330,7 +337,7 @@ export class QuackoscopeWireClient {
     await this.callAndAwaitResult("set_server_discovery_enabled", params);
   }
 
-  /** capability recorder.control, kind action. Errors: not_found, unsupported, internal. */
+  /** capability recorder.control, kind action. Errors: not_found, unsupported, internal, invalid_value. */
   async start_recording(node_id: string): Promise<void> {
     const params: Record<string, unknown> = {};
     params["node_id"] = node_id;
@@ -344,7 +351,7 @@ export class QuackoscopeWireClient {
     await this.callAndAwaitResult("stop_recording", params);
   }
 
-  /** capability property.batched_update, kind action. Errors: not_found, not_connected. */
+  /** capability property.batched_update, kind action. Errors: not_found, not_connected, invalid_value. */
   async begin_batched_property_update(node_id: string): Promise<void> {
     const params: Record<string, unknown> = {};
     params["node_id"] = node_id;

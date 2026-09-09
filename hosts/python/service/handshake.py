@@ -134,11 +134,13 @@ CAPABILITY_IDS_BY_WIRE_METHOD = {
     # editors be disabled from the gap instead.
     "get_component_attributes": ("attribute.read",),
     "set_component_attribute": ("attribute.write",),
-    # list_server_types draws the add-server card grid and add_server is the
-    # commit on a card, which is the same shape function_block.add already has:
-    # one capability over the pair.
+    # list_server_types draws the add-server card grid, add_server is the commit
+    # on a card, and remove_server is the undo of that commit on the thing this
+    # capability created -- which is the same shape function_block.add already
+    # has: one capability over the list, the add and the removal.
     "list_server_types": ("server.add",),
     "add_server": ("server.add",),
+    "remove_server": ("server.add",),
     # server.discovery and not server.add: the discovery items act on a server
     # row this session may not have created, and a host that publishes servers
     # from its own configuration can call enableDiscovery without letting a
@@ -166,8 +168,8 @@ def _verify_operation_table_against_generated_contract():
     """Stops the host if the hand-written table above and the generated
     contract disagree about the wire methods or the capability ids. Neither
     count is written down here: both are read off the generated file, so the
-    contract growing from 19 operations to 30 and from 12 capabilities to 20
-    changed nothing in this function."""
+    contract growing from 19 operations to 30 to 31 (remove_server) and from 12
+    capabilities to 20 changed nothing in this function."""
     for wire_method, capability_ids in CAPABILITY_IDS_BY_WIRE_METHOD.items():
         if wire_method not in WIRE_METHOD_NAMES:
             raise SystemExit(

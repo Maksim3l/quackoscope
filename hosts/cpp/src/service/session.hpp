@@ -119,6 +119,7 @@ private:
     Json setComponentAttribute(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
     Json listServerTypes(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
     Json addServer(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
+    Json removeServer(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
     Json setServerDiscoveryEnabled(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
     Json startRecording(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);
     Json stopRecording(const transport::ConnectionPtr& connection, const SessionStatePtr& state, const Json& params);

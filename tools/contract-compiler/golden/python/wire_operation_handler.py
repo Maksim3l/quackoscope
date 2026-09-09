@@ -118,7 +118,7 @@ class WireOperationHandler(Protocol):
     def subscribe_signal(self, signal_id: str, pixel_columns: int) -> str:
         """wire method "subscribe_signal", capability streaming.decimated, kind action.
 
-        Declared errors: not_found, not_connected. Signal one by
+        Declared errors: not_found, not_connected, invalid_value. Signal one by
         raising WireCallFailed.
         """
         ...
@@ -156,7 +156,7 @@ class WireOperationHandler(Protocol):
     def set_device_operation_mode(self, node_id: str, mode: str) -> None:
         """wire method "set_device_operation_mode", capability device.mode, kind setter.
 
-        Declared errors: not_found, invalid_value, read_only, unsupported. Signal one by
+        Declared errors: not_found, invalid_value, unsupported. Signal one by
         raising WireCallFailed.
         """
         ...
@@ -196,7 +196,7 @@ class WireOperationHandler(Protocol):
     def get_component_attributes(self, node_id: str) -> list[ComponentAttribute]:
         """wire method "get_component_attributes", capability attribute.read, kind getter.
 
-        Declared errors: not_found, not_connected. Signal one by
+        Declared errors: not_found, not_connected, invalid_value. Signal one by
         raising WireCallFailed.
         """
         ...
@@ -225,10 +225,18 @@ class WireOperationHandler(Protocol):
         """
         ...
 
+    def remove_server(self, node_id: str) -> None:
+        """wire method "remove_server", capability server.add, kind action.
+
+        Declared errors: not_found, unsupported, internal. Signal one by
+        raising WireCallFailed.
+        """
+        ...
+
     def set_server_discovery_enabled(self, node_id: str, enabled: bool) -> None:
         """wire method "set_server_discovery_enabled", capability server.discovery, kind setter.
 
-        Declared errors: not_found, unsupported, internal. Signal one by
+        Declared errors: not_found, unsupported, internal, invalid_value. Signal one by
         raising WireCallFailed.
         """
         ...
@@ -236,7 +244,7 @@ class WireOperationHandler(Protocol):
     def start_recording(self, node_id: str) -> None:
         """wire method "start_recording", capability recorder.control, kind action.
 
-        Declared errors: not_found, unsupported, internal. Signal one by
+        Declared errors: not_found, unsupported, internal, invalid_value. Signal one by
         raising WireCallFailed.
         """
         ...
@@ -252,7 +260,7 @@ class WireOperationHandler(Protocol):
     def begin_batched_property_update(self, node_id: str) -> None:
         """wire method "begin_batched_property_update", capability property.batched_update, kind action.
 
-        Declared errors: not_found, not_connected. Signal one by
+        Declared errors: not_found, not_connected, invalid_value. Signal one by
         raising WireCallFailed.
         """
         ...

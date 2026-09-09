@@ -10,7 +10,7 @@
     "host": "the handler has not been written yet"
   },
   "capability_count": 20,
-  "wire_method_count": 30,
+  "wire_method_count": 31,
   "capabilities": [
     {
       "id": "device.scan",
@@ -156,10 +156,12 @@
       "id": "server.add",
       "wire_methods": [
         "list_server_types",
-        "add_server"
+        "add_server",
+        "remove_server"
       ],
       "kinds": [
         "getter",
+        "action",
         "action"
       ]
     },

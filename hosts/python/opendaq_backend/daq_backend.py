@@ -109,19 +109,28 @@ _CONNECTION_STATUS_KEY = "ConnectionStatus"
 # through narrow_to_declared_error_subset against the list here.
 _DECLARED_ERRORS = {
     "get_device_operation_modes": (NOT_FOUND, NOT_CONNECTED, UNSUPPORTED),
-    "set_device_operation_mode": (NOT_FOUND, INVALID_VALUE, READ_ONLY, UNSUPPORTED),
+    # NO read_only. It used to be here, because the contract used to read
+    # "read_only: the device is locked". openDAQ does not do that:
+    # GenericDevice::setOperationMode (device_impl.h:1257-1281) consults no lock
+    # at all, and the device lock refuses writes only in the config-protocol
+    # server (config_server_access_control.h:75-81), which this in-process host
+    # is never on. Verified on openDAQ 3.41.0_bec37b44 on this machine:
+    # daqref://device0 was locked and `device.operation_mode = Idle` then
+    # succeeded and read back 1.
+    "set_device_operation_mode": (NOT_FOUND, INVALID_VALUE, UNSUPPORTED),
     "lock_device": (NOT_FOUND, READ_ONLY, UNSUPPORTED),
     "unlock_device": (NOT_FOUND, READ_ONLY, UNSUPPORTED),
     "list_loaded_modules": (NOT_CONNECTED, INTERNAL),
     "load_module_from_host_path": (NOT_FOUND, NOT_CONNECTED, INVALID_VALUE, INTERNAL),
-    "get_component_attributes": (NOT_FOUND, NOT_CONNECTED),
+    "get_component_attributes": (NOT_FOUND, NOT_CONNECTED, INVALID_VALUE),
     "set_component_attribute": (NOT_FOUND, READ_ONLY, INVALID_VALUE),
     "list_server_types": (NOT_CONNECTED,),
     "add_server": (NOT_CONNECTED, UNSUPPORTED, INVALID_VALUE, INTERNAL),
-    "set_server_discovery_enabled": (NOT_FOUND, UNSUPPORTED, INTERNAL),
-    "start_recording": (NOT_FOUND, UNSUPPORTED, INTERNAL),
+    "remove_server": (NOT_FOUND, UNSUPPORTED, INTERNAL),
+    "set_server_discovery_enabled": (NOT_FOUND, UNSUPPORTED, INTERNAL, INVALID_VALUE),
+    "start_recording": (NOT_FOUND, UNSUPPORTED, INTERNAL, INVALID_VALUE),
     "stop_recording": (NOT_FOUND, UNSUPPORTED, INTERNAL),
-    "begin_batched_property_update": (NOT_FOUND, NOT_CONNECTED),
+    "begin_batched_property_update": (NOT_FOUND, NOT_CONNECTED, INVALID_VALUE),
     "end_batched_property_update": (NOT_FOUND, NOT_CONNECTED, INVALID_VALUE),
     "save_instance_configuration_to_string": (NOT_CONNECTED, INTERNAL),
     "load_instance_configuration_from_string": (NOT_CONNECTED, INVALID_VALUE, INTERNAL),
@@ -495,6 +504,44 @@ class DaqBackend:
         """What the SDK that actually loaded reports about itself."""
         return str(self._instance.info.sdk_version)
 
+    def instance_server_folder_node_id(self):
+        """The global id of the openDAQ Instance's Servers folder, or None if
+        this instance carries none.
+
+        A SERVER BELONGS TO NO SESSION, which this host already acts on in
+        add_server (IDevice::addServer is called on the INSTANCE, because
+        device_impl.h:1465-1476 refuses every other parent), in remove_server
+        and in set_server_discovery_enabled. So a server node never lands under
+        any connected device: it lands here, at <instance root>/Srv/<type id>,
+        and a session that could see only its own devices could not see the
+        server it had just created. This is the id that puts that branch of
+        openDAQ's one tree back in view.
+
+        Read off the SDK -- IFolder.get_item("Srv") on the instance -- never
+        spelled out as a string, so the day openDAQ renames the folder this
+        answers the new name or None instead of a stale guess.
+        """
+        daq = self._daq
+        try:
+            folder = self._as_folder(self._instance)
+            if folder is None or not folder.has_item("Srv"):
+                print(
+                    "[opendaq] the openDAQ Instance %s carries no item named Srv, so this host "
+                    "reports no servers folder in the component tree"
+                    % str(self._instance.global_id),
+                    flush=True,
+                )
+                return None
+            return str(daq.IComponent.cast_from(folder.get_item("Srv")).global_id)
+        except Exception as e:
+            print(
+                "[opendaq] the servers folder of instance %s could not be read (%s: %s), so the "
+                "component tree carries no server rows this time"
+                % (str(self._instance.global_id), type(e).__name__, e),
+                flush=True,
+            )
+            return None
+
     # --- component resolution (plumbing, not a snippet) -------------------
 
     def _resolve_component(self, node_id):
@@ -556,10 +603,11 @@ class DaqBackend:
         daq = self._daq
         # quack-snippet shared=server-of-component
         # enableDiscovery and disableDiscovery are declared on IServer and
-        # nowhere else, so a component has to be taken through its IServer facet
-        # before either can be called. Asking with can_cast_from first avoids the
-        # "Invalid cast" the cast itself would raise on a component that is not
-        # a server.
+        # nowhere else, and IDevice::removeServer takes an IServer* argument
+        # (device.h:300-304), so a component has to be taken through its IServer
+        # facet before any of the three can be reached. Asking with can_cast_from
+        # first avoids the "Invalid cast" the cast itself would raise on a
+        # component that is not a server.
         is_server = daq.IServer.can_cast_from(component)
         server = daq.IServer.cast_from(component) if is_server else None
         # quack-snippet end
@@ -1428,12 +1476,37 @@ class DaqBackend:
                 % (mode, ", ".join(sorted(_OPENDAQ_OPERATION_MODE_NAME_BY_WIRE))),
             )
 
+        # OPENDAQ ITSELF ACCEPTS AN UNAVAILABLE MODE AND DOES NOTHING, so this
+        # refusal is the CONTRACT'S rule and not openDAQ's, and it is kept
+        # outside the quack-snippet region below for exactly that reason -- the
+        # snippet must show only calls that produce what the user saw.
+        #
+        # GenericDevice::setOperationMode (device_impl.h:1258-1259) returns
+        # OPENDAQ_IGNORED when the requested mode is not in
+        # onGetAvailableOperationModes, and OPENDAQ_IGNORED is 0x00000006u
+        # (errors.h:38) against OPENDAQ_FAILED = (x) & 0x80000000u (errors.h:28),
+        # so it is a SUCCESS and no binding raises. Confirmed on openDAQ
+        # 3.41.0_bec37b44 on this machine: daqref://device0 answers
+        # available_operation_modes [1, 2, 3] (Idle, Operation, SafeOperation),
+        # and `device.operation_mode = OperationModeType.Unknown` (0) raised
+        # nothing and left operation_mode reading 2.
+        #
+        # contract/contract.yaml operations[set_device_operation_mode] declares
+        # invalid_value as "a mode name outside Node.operation_mode's values, OR
+        # ONE THE DEVICE DID NOT LIST AS AVAILABLE", so this host answers what
+        # the contract asks for and says here, in full, that openDAQ would have
+        # answered a silent success instead. That divergence is a live open
+        # question for whoever owns the contract; it is not this host quietly
+        # deciding one.
         available = self.get_device_operation_modes(node_id)
         if mode not in available:
             raise ServiceError(
                 INVALID_VALUE,
                 'device "%s" does not offer operation mode "%s"; '
-                "get_device_operation_modes answers %s for it"
+                "get_device_operation_modes answers %s for it. openDAQ itself would ACCEPT this "
+                "write and silently do nothing -- GenericDevice::setOperationMode "
+                "(device_impl.h:1258-1259) returns OPENDAQ_IGNORED, which is a success -- so this "
+                "invalid_value is contract/contract.yaml's rule for the row, not openDAQ's"
                 % (node_id, mode, ", ".join(available) or "an empty list"),
             )
 
@@ -1442,13 +1515,20 @@ class DaqBackend:
             # quack-snippet capability=device.mode uses=device-of-component,operation-mode-names step=2
             # There is no set_operation_mode and no setDeviceOperationMode: in
             # the Python bindings the mode is a SETTABLE PROPERTY on the device,
-            # assigned an OperationModeType member. Whatever refusal openDAQ
-            # makes here is the only source of this operation's read_only --
-            # this host adds no refusal of its own, and on openDAQ
-            # 3.41.0_bec37b44 a locally locked device does not refuse the write
-            # at all, which was checked by locking daqref://device0 and writing
-            # the mode anyway. The lock state a client greys the control on is
-            # Node.locked.
+            # assigned an OperationModeType member. This one assignment is the
+            # whole operation.
+            #
+            # THE DEVICE LOCK IS NOT CONSULTED HERE, and this host does not
+            # consult it either. GenericDevice::setOperationMode
+            # (device_impl.h:1257-1281) checks onGetAvailableOperationModes,
+            # takes the tree lock guard and writes -- there is no lock test in
+            # it. The user lock refuses writes only in the config-protocol
+            # server, ConfigServerAccessControl::protectLockedComponent
+            # (config_server_access_control.h:75-81), and this host holds an
+            # in-process Instance, so that path is never on. Checked on openDAQ
+            # 3.41.0_bec37b44 by locking daqref://device0 and writing the mode
+            # anyway: it succeeded. Node.locked is a LABEL for the client, never
+            # a refusal from here.
             device.operation_mode = getattr(self._daq.OperationModeType, member_name)
             # quack-snippet end
         except ServiceError:
@@ -1475,9 +1555,26 @@ class DaqBackend:
 
         try:
             # quack-snippet capability=device.lock uses=device-of-component step=1
-            # One call on the device. openDAQ records WHO holds the lock, and
-            # only that user may unlock it again; with no authentication
-            # provider configured every caller is the same anonymous user.
+            # One call on the device, and it takes no argument:
+            # device_impl.h:1040-1044 implements the public IDevice::lock() as
+            # literally `return this->lock(nullptr);`. The user-taking form is on
+            # IDevicePrivate (device_private.h:39-42) and over the wire the user
+            # comes from the CONNECTION (config_server_device.h:78 calls
+            # lock(context.user)), never from the caller.
+            #
+            # WITH NO AUTHENTICATION CONFIGURED THE LOCK IS HELD BY NOBODY, so
+            # this call never refuses here and this host synthesises no refusal
+            # of its own. UserLockImpl::lock (user_lock_impl.cpp:15-27) collapses
+            # an ANONYMOUS user to nullptr before storing it, and every
+            # connection is User("", "") because AuthenticationProvider()
+            # defaults to allowAnonymous = true
+            # (authentication_provider_factory.h:31-35). It returns
+            # OPENDAQ_ERR_DEVICE_LOCKED in exactly one case,
+            # `userLock.has_value() && userLock != userPtr`
+            # (user_lock_impl.cpp:21-22) -- a DIFFERENT NAMED user -- so a second
+            # lock of an anonymously-locked device compares nullptr against
+            # nullptr and succeeds. Confirmed on this machine: two sockets each
+            # locked daqref://device0 and both succeeded.
             device.lock()
             # quack-snippet end
         except ServiceError:
@@ -1501,14 +1598,24 @@ class DaqBackend:
         if not force:
             try:
                 # quack-snippet capability=device.lock uses=device-of-component step=2
-                # The plain unlock. openDAQ's own header says only the user who
-                # locked the device may unlock it, and that refusal is what
-                # read_only carries back -- the exact signal a client needs to
-                # offer the forced unlock. It was NOT reachable from here: this
-                # host builds its Instance with no authentication provider, so
-                # every caller is the one anonymous user, and unlock() on
-                # daqref://device0 succeeded in every state it was tried in,
-                # including on a device that was not locked.
+                # The plain unlock, and it takes no argument either
+                # (device_impl.h:1046-1048 is `return this->unlock(nullptr);`).
+                #
+                # ANY CALLER CLEARS AN ANONYMOUSLY-TAKEN LOCK, which is the only
+                # kind this application can take. UserLockImpl::unlock
+                # (user_lock_impl.cpp:29-36) returns OPENDAQ_ERR_ACCESSDENIED
+                # only when `userLock.has_value() && userLock != nullptr &&
+                # userLock != user`; the `!= nullptr` term is what lets a
+                # different caller clear it. openDAQ's own test says so:
+                # LockUnlockAnonymous (test_device.cpp:399-430) locks anonymously
+                # and then asserts that unlock(jure) and unlock(tomaz), two
+                # DIFFERENT users, each succeed.
+                #
+                # So read_only is unreachable on this row here and this host does
+                # not invent it to keep a second session out. Confirmed on
+                # openDAQ 3.41.0_bec37b44: unlock() on daqref://device0 succeeded
+                # in every state it was tried in -- from a second socket, and on
+                # a device that was not locked at all.
                 device.unlock()
                 # quack-snippet end
             except ServiceError:
@@ -1862,7 +1969,12 @@ class DaqBackend:
             connected_signal = holder.signal
             return ("" if connected_signal is None else str(connected_signal.global_id)), "string"
         if wire_id == "tags":
-            # ITags is an object; the strings are on its .list.
+            # ITags is an object, not a list: IComponent has getTags and no
+            # setTags (component.h:164), and the strings are on ITags.getList
+            # (tags.h:39-60). The WRITER is a different interface again --
+            # ITagsPrivate::add/remove/replace (tags_private.h:34-56), reached by
+            # a cast from component.tags -- which is what set_component_attribute
+            # uses below.
             return [str(tag) for tag in holder.tags.list], "string_list"
         raw = getattr(holder, binding_name)
         # quack-snippet end
@@ -2027,31 +2139,29 @@ class DaqBackend:
             before = "(unreadable before the write)"
 
         try:
-            # quack-snippet capability=attribute.write uses=component-attribute-rows step=1
-            # An attribute is written with setattr on the interface that declares
-            # it -- IComponent for name, description, active, visible and tags,
-            # ISignal or IInputPort for public -- never through
-            # set_property_value. That is exactly what the reference does:
-            # setattr(node, attribute, new_value),
-            # generic_attributes_treeview.py:110.
-            setattr(holder, binding_name, converted)
-            # quack-snippet end
-        except AttributeError as e:
-            # Enumerated, not guessed: the generated opendaq.pyi declares
-            # IComponent.tags at line 903 as a bare "@property tags" with no
-            # "@tags.setter" beneath it, so the binding has no writer for it at
-            # all. set_component_attribute declares [not_found, read_only,
-            # invalid_value]; read_only would be a claim that openDAQ locked the
-            # attribute, which is a cause nothing established, so this is
-            # reported as invalid_value with the whole reason in the detail.
-            raise ServiceError(
-                INVALID_VALUE,
-                'the openDAQ Python binding has no setter for attribute "%s" on "%s": setattr '
-                "raised AttributeError %s. The generated opendaq.pyi declares it as a get-only "
-                "property, and openDAQ's own IComponent.locked_attributes reads [%s] for this "
-                "component, so this is the binding's shape and not a lock openDAQ applied"
-                % (wire_id, node_id, e, ", ".join(locked_labels) or "nothing"),
-            )
+            if wire_id == "tags":
+                # quack-snippet capability=attribute.write uses=component-attribute-rows step=2
+                # TAGS IS THE ONE ATTRIBUTE THAT IS NOT A setattr, because
+                # IComponent has getTags and no setTags (component.h:164) and
+                # ITags itself is read-only -- getList, contains, query
+                # (tags.h:39-60). The writer is a SEPARATE INTERFACE,
+                # ITagsPrivate::add/remove/replace (tags_private.h:34-56),
+                # reached by casting the ITags object the component hands back.
+                # replace() sets the whole list, which is what a wire value of
+                # type string_list means.
+                tags_private = self._daq.ITagsPrivate.cast_from(holder.tags)
+                tags_private.replace(converted)
+                # quack-snippet end
+            else:
+                # quack-snippet capability=attribute.write uses=component-attribute-rows step=1
+                # Every attribute except tags is written with setattr on the
+                # interface that declares it -- IComponent for name, description,
+                # active and visible, ISignal or IInputPort for public -- never
+                # through set_property_value. That is exactly what the reference
+                # does: setattr(node, attribute, new_value),
+                # generic_attributes_treeview.py:110.
+                setattr(holder, binding_name, converted)
+                # quack-snippet end
         except ServiceError:
             raise
         except Exception as e:
@@ -2065,10 +2175,15 @@ class DaqBackend:
             )
         except Exception as e:
             after = "(unreadable after the write: %s)" % e
+        call_made = (
+            "ITagsPrivate.cast_from(%s.tags).replace(%r)" % (type(holder).__name__, converted)
+            if wire_id == "tags"
+            else 'setattr(%s, "%s", %r)' % (type(holder).__name__, binding_name, converted)
+        )
         print(
-            '[opendaq] set_component_attribute(%s, %s) called setattr(%s, "%s", %r); the '
-            "attribute read %r before the write and %r after it"
-            % (node_id, wire_id, type(holder).__name__, binding_name, converted, before, after),
+            "[opendaq] set_component_attribute(%s, %s) called %s; the attribute read %r before "
+            "the write and %r after it"
+            % (node_id, wire_id, call_made, before, after),
             flush=True,
         )
 
@@ -2163,19 +2278,73 @@ class DaqBackend:
 
         node = self._build_node(self._daq.IComponent.cast_from(server))
         print(
-            '[opendaq] add_server("%s") added server %s named "%s", kind %s, IServer.id = %s. '
-            "There is no remove_server row in this contract, so it stays on this instance for the "
-            "life of the process"
+            '[opendaq] add_server("%s") added server %s named "%s", kind %s, IServer.id = %s; '
+            "IInstance.servers now holds %d server(s): %s. remove_server takes it back down again"
             % (
                 type_id,
                 node.id,
                 node.name,
                 node.kind,
                 str(self._daq.IServer.cast_from(server).id),
+                len(list(self._instance.servers)),
+                ", ".join(str(s.global_id) for s in self._instance.servers) or "none",
             ),
             flush=True,
         )
         return node
+
+    # --- remove_server -------------------------------------------------------
+
+    def remove_server(self, node_id):
+        component = self._resolve_component(node_id)
+        server = self._as_server(component, node_id, "remove_server")
+        servers_before = [str(s.global_id) for s in self._instance.servers]
+
+        try:
+            # quack-snippet capability=server.add uses=instance-with-module-path,server-of-component step=3
+            # removeServer is declared on IDevice (device.h:300-304) and, like
+            # addServer, the reference target is the INSTANCE: onRemoveServer
+            # (device_impl.h:1479-1487) is the exact mirror of onAddServer, with
+            # the same root-device restriction, and IInstance forwards it
+            # (instance_impl.cpp:271-274 is `return rootDevice->removeServer(server);`).
+            # It takes the IServer object, so the wire's node_id is resolved to a
+            # component and taken through its IServer facet first.
+            #
+            # THE SOCKET ACTUALLY CLOSES. folder_impl.h:598-605 removes the item,
+            # which calls IComponent::removed, and ServerImpl::removed
+            # (server_impl.h:199-202) is `checkErrorInfo(stop()); Super::removed();`
+            # -- IServer::stop, whose own doc (server.h:55) is "Stops the server.
+            # This is called when we remove the server from the Instance or
+            # Instance is closing."
+            self._instance.remove_server(server)
+            # quack-snippet end
+        except ServiceError:
+            raise
+        except Exception as e:
+            error = self._translated_within_declared_subset(e, "remove_server", INTERNAL)
+            print(
+                "[opendaq] remove_server(%s) failed: openDAQ raised %s \"%s\", reported on the "
+                "wire as %s" % (node_id, type(e).__name__, e, error.code),
+                flush=True,
+            )
+            raise error
+
+        servers_after = [str(s.global_id) for s in self._instance.servers]
+        print(
+            "[opendaq] remove_server(%s) called IInstance.remove_server on the IServer facet of "
+            "that component (IServer.id = %s); IInstance.servers held %d before the call (%s) and "
+            "holds %d after it (%s), and ServerImpl::removed called IServer::stop() on the way "
+            "out, so its listening socket is closed"
+            % (
+                node_id,
+                str(server.id),
+                len(servers_before),
+                ", ".join(servers_before) or "none",
+                len(servers_after),
+                ", ".join(servers_after) or "none",
+            ),
+            flush=True,
+        )
 
     # --- set_server_discovery_enabled ---------------------------------------
 

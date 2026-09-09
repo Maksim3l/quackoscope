@@ -1452,6 +1452,20 @@ fn component_attribute_rows(
             // a separate interface the tags object has to be queried
             // for, so whether this component's tags can be written at
             // all is established by that query rather than assumed.
+            //
+            // TAGS IS WRITABLE, and that was established by enumerating
+            // the surface rather than assumed either way. In the
+            // vendored opendaq 0.1.1 at src/generated/component.rs,
+            // `impl Tags` declares contains(), new(), list() and
+            // query() -- four members, none of which writes -- while
+            // `impl TagsPrivate` at line 2835 declares
+            // `pub fn add(&self, name: &str) -> Result<()>` (:2845),
+            // `pub fn remove(&self, name: &str) -> Result<()>` (:2861)
+            // and `pub fn replace(&self, tags: &[&str]) -> Result<()>`
+            // (:2874). The cast below succeeds on every component this
+            // host has met against the manifest's openDAQ build, so
+            // this row is reported read_only false and
+            // set_component_attribute writes it through replace().
             let listed = tag_object.list();
             let writable = tag_object.as_base_object().try_cast::<TagsPrivate>();
             // quack-snippet end
@@ -2088,51 +2102,101 @@ impl DaqBackendTrait for DaqBackend {
     // --- set_device_operation_mode -----------------------------------------
 
     fn set_device_operation_mode(&self, node_id: &str, mode: &str) -> ServiceResult<()> {
-        let device = self.resolve_device(node_id)?; // shared region device-facet-of-component
+        let written = (|| -> ServiceResult<()> {
+            let device = self.resolve_device(node_id)?; // shared region device-facet-of-component
 
-        let requested = operation_mode_from_wire_name(mode).ok_or_else(|| {
-            ServiceError::invalid_value(format!(
-                "\"{mode}\" is not one of the operation modes contract types.Node.operation_mode \
-                 carries (unknown, idle, operation, safe_operation)"
-            ))
-        })?; // shared region operation-mode-names
+            let requested = operation_mode_from_wire_name(mode).ok_or_else(|| {
+                ServiceError::invalid_value(format!(
+                    "\"{mode}\" is not one of the operation modes contract types.Node.operation_mode \
+                     carries (unknown, idle, operation, safe_operation)"
+                ))
+            })?; // shared region operation-mode-names
 
-        // The contract's own reading of invalid_value for this row is "a mode
-        // the device did not list as available", so the available list is read
-        // first rather than letting openDAQ answer with a status code that does
-        // not distinguish that case from a locked device.
-        let available = self.device_operation_modes(node_id)?;
-        if !available.iter().any(|listed| listed == mode) {
-            return Err(ServiceError::invalid_value(format!(
-                "device \"{node_id}\" does not list \"{mode}\" among its available operation modes; \
-                 daqDevice_getAvailableOperationModes reported {}",
-                if available.is_empty() {
-                    "an empty list".to_string()
-                } else {
-                    available.join(", ")
+            // THE ONE PLACE THIS HOST DOES NOT MIRROR openDAQ, said out loud
+            // rather than buried, because it is a live question and not a
+            // settled one. GenericDevice::setOperationMode (device_impl.h:1257-1259)
+            // opens with
+            //     if (this->onGetAvailableOperationModes().count(modeType) == 0)
+            //         return OPENDAQ_IGNORED;
+            // and OPENDAQ_IGNORED has the failure bit CLEAR: openDAQ ACCEPTS a
+            // mode the device does not offer, changes nothing, and reports
+            // success. contract/contract.yaml's row says the opposite in as many
+            // words -- "invalid_value: a mode name outside Node.operation_mode's
+            // values, OR ONE THE DEVICE DID NOT LIST AS AVAILABLE" -- so this
+            // host reads the available list first and refuses, which is what the
+            // contract asks for and is NOT what the SDK does. A silent no-op
+            // reported as success is the worse of the two answers for a teaching
+            // tool, but the disagreement is real and is escalated rather than
+            // decided here.
+            let available = self.device_operation_modes(node_id)?;
+            if !available.iter().any(|listed| listed == mode) {
+                return Err(ServiceError::invalid_value(format!(
+                    "device \"{node_id}\" does not list \"{mode}\" among its available operation modes; \
+                     daqDevice_getAvailableOperationModes reported {}. openDAQ itself would answer \
+                     OPENDAQ_IGNORED here -- a SUCCESS that changes nothing (device_impl.h:1258-1259) -- \
+                     and this refusal is contract/contract.yaml's rule for this row, not the SDK's",
+                    if available.is_empty() {
+                        "an empty list".to_string()
+                    } else {
+                        available.join(", ")
+                    }
+                )));
+            }
+
+            // quack-snippet capability=device.mode uses=device-facet-of-component,operation-mode-names step=3
+            // setOperationMode changes THIS device only. openDAQ also declares
+            // setOperationModeRecursive(), which carries the same mode into every
+            // sub-device; the contract's row is the single-device one, so this is
+            // the non-recursive call and the recursion is a client's decision.
+            //
+            // NO LOCK IS CONSULTED, here or in openDAQ. GenericDevice::setOperationMode
+            // (device_impl.h:1257-1281) checks onGetAvailableOperationModes,
+            // takes the tree lock guard and writes; it never reads the user
+            // lock. The device lock refuses writes only in the config-protocol
+            // server (config_server_access_control.h:75-81,
+            // protectLockedComponent), and this host holds an in-process
+            // Instance, so a locked device changes mode here exactly as an
+            // unlocked one does.
+            let written = device.set_operation_mode(requested);
+            // quack-snippet end
+
+            written.map_err(|e| translate_general(&e))?;
+
+            println!(
+                "[opendaq] set_device_operation_mode {node_id} = {mode} \
+                 (daqDevice_setOperationMode with OperationModeType::{requested:?} = {}); \
+                 daqDevice_isLocked reports {} and made no difference to it",
+                requested as u32,
+                match device.is_locked() {
+                    Ok(state) => state.to_string(),
+                    Err(ref e) => format!("<unreadable: {e}>"),
                 }
-            )));
-        }
+            );
+            Ok(())
+        })();
 
-        // quack-snippet capability=device.mode uses=device-facet-of-component,operation-mode-names step=3
-        // setOperationMode changes THIS device only. openDAQ also declares
-        // setOperationModeRecursive(), which carries the same mode into every
-        // sub-device; the contract's row is the single-device one, so this is
-        // the non-recursive call and the recursion is a client's decision.
-        let written = device.set_operation_mode(requested);
-        // quack-snippet end
-
-        // A locked device refuses the write with OPENDAQ_ERR_DEVICE_LOCKED,
-        // which the closed-set table maps to read_only -- the code contract
-        // section 5 names for exactly this refusal.
-        written.map_err(|e| translate_general(&e))?;
-
-        println!(
-            "[opendaq] set_device_operation_mode {node_id} = {mode} \
-             (daqDevice_setOperationMode with OperationModeType::{requested:?} = {})",
-            requested as u32
-        );
-        Ok(())
+        // contract errors: [not_found, invalid_value, unsupported] -- and that
+        // subset carries neither internal nor read_only, so an out-of-subset
+        // code is restated as unsupported, the one word in the subset that can
+        // truthfully say "this host could not carry the operation out".
+        //
+        // read_only is what USED TO leave here, and its going is the correction
+        // of an invented refusal: translate_general maps OPENDAQ_ERR_DEVICE_LOCKED
+        // and OPENDAQ_ERR_ACCESSDENIED to read_only, and this handler used to
+        // hand either straight to the wire under a comment claiming "a locked
+        // device refuses the write with OPENDAQ_ERR_DEVICE_LOCKED". It does not:
+        // GenericDevice::setOperationMode (device_impl.h:1257-1281) never reads
+        // the user lock, and no in-process call can produce that code here.
+        written.map_err(|e| match e.code {
+            ErrorCode::NotFound | ErrorCode::InvalidValue | ErrorCode::Unsupported => e,
+            other => ServiceError::unsupported(format!(
+                "{} -- restated as unsupported because contract/contract.yaml declares the error subset \
+                 [not_found, invalid_value, unsupported] for set_device_operation_mode, which does not \
+                 carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
     }
 
     // --- lock_device --------------------------------------------------------
@@ -2141,10 +2205,28 @@ impl DaqBackendTrait for DaqBackend {
         let device = self.resolve_device(node_id)?; // shared region device-facet-of-component
 
         // quack-snippet capability=device.lock uses=device-facet-of-component step=1
-        // IDevice.lock() takes no arguments: it locks for whichever user the
-        // session authenticated as, and openDAQ then permits an unlock only by
-        // that same user. The two-argument form, IDevicePrivate.lock(user),
-        // names a user explicitly and is not what a client calls.
+        // IDevice.lock() takes no arguments (device.h:318) and
+        // device_impl.h:1040-1044 implements it as literally
+        // `return this->lock(nullptr);`. The user-taking form is on
+        // IDevicePrivate (device_private.h:39-42) and over the wire the user
+        // comes from the CONNECTION, never from the caller.
+        //
+        // WITH NO AUTHENTICATION CONFIGURED -- which is this host's
+        // configuration -- THE LOCK IS HELD BY NOBODY. UserLockImpl::lock
+        // (user_lock_impl.cpp:15-27) turns an anonymous user into nullptr
+        // before storing it, and refuses only when
+        // `userLock.has_value() && userLock != userPtr`, so a second lock of an
+        // anonymously-locked device compares nullptr against nullptr and
+        // succeeds. openDAQ's own LockUnlockAnonymous test
+        // (core/opendaq/device/tests/test_device.cpp:399-430) asserts exactly
+        // that. This host therefore synthesises no refusal of its own: a second
+        // connection taking a held lock is openDAQ's behaviour.
+        //
+        // AND THE LOCK REFUSES NO WRITE IN THIS PROCESS. It is enforced only in
+        // the config-protocol server (config_server_access_control.h:75-81,
+        // protectLockedComponent); GenericPropertyObjectImpl::setPropertyValue
+        // and GenericDevice::setOperationMode consult it nowhere, so every other
+        // handler in this file goes on working on a locked device.
         let locked = device.lock();
         // quack-snippet end
 
@@ -2205,10 +2287,19 @@ impl DaqBackendTrait for DaqBackend {
         }
 
         // quack-snippet capability=device.lock uses=device-facet-of-component step=2
-        // IDevice.unlock() refuses with OPENDAQ_ERR_ACCESSDENIED when another
-        // user holds the lock -- device.h says only the user who locked it may
-        // unlock it. The closed-set table maps that to read_only, which is the
-        // exact signal a client turns into the force-unlock control.
+        // IDevice.unlock() takes no arguments (device.h:324) and
+        // device_impl.h:1046-1048 is `return this->unlock(nullptr);`.
+        //
+        // WHO MAY UNLOCK: UserLockImpl::unlock (user_lock_impl.cpp:29-36)
+        // refuses with OPENDAQ_ERR_ACCESSDENIED only when
+        // `userLock.has_value() && userLock != nullptr && userLock != user`.
+        // The `!= nullptr` term is the whole story for this host: with no
+        // authentication configured every connection is the anonymous
+        // User("", ""), lock() stored nullptr, and so ANY caller clears it --
+        // openDAQ's LockUnlockAnonymous test (test_device.cpp:399-430) locks
+        // anonymously and then asserts that two DIFFERENT users each unlock it.
+        // The refusal is unreachable here and this host does not invent it to
+        // keep a second session out.
         let unlocked = device.unlock();
         // quack-snippet end
 
@@ -2390,12 +2481,13 @@ impl DaqBackendTrait for DaqBackend {
             Ok(rows)
         })();
 
-        // contract errors: [not_found, not_connected] and nothing else.
+        // contract errors: [not_found, not_connected, invalid_value].
         read.map_err(|e| match e.code {
-            ErrorCode::NotFound | ErrorCode::NotConnected => e,
+            ErrorCode::NotFound | ErrorCode::NotConnected | ErrorCode::InvalidValue => e,
             other => ServiceError::not_found(format!(
                 "{} -- restated as not_found because contract/contract.yaml declares the error subset \
-                 [not_found, not_connected] for get_component_attributes, which does not carry {}",
+                 [not_found, not_connected, invalid_value] for get_component_attributes, which does not \
+                 carry {}",
                 e.detail,
                 other.to_wire()
             )),
@@ -2735,8 +2827,8 @@ impl DaqBackendTrait for DaqBackend {
 
             println!(
                 "[opendaq] add_server {type_id}: daqDevice_addServer on the root instance created {} \
-                 (name {}, kind {}). It is listening from now on and every session can see it; the M1 \
-                 contract declares no remove_server row, so nothing on this wire takes it down again",
+                 (name {}, kind {}). It is listening from now on and every session can see it; \
+                 remove_server on that same node id is what takes it down again",
                 node.id, node.name, node.kind
             );
             Ok(node)
@@ -2752,6 +2844,69 @@ impl DaqBackendTrait for DaqBackend {
                 "{} -- restated as internal because contract/contract.yaml declares the error subset \
                  [not_connected, unsupported, invalid_value, internal] for add_server, which does not \
                  carry {}",
+                e.detail,
+                other.to_wire()
+            )),
+        })
+    }
+
+    // --- remove_server ----------------------------------------------------------
+
+    fn remove_server(&self, node_id: &str) -> ServiceResult<()> {
+        let removed = (|| -> ServiceResult<()> {
+            let component = self.resolve(node_id)?;
+            let name = component.name().unwrap_or_else(|_| node_id.to_string());
+            let server = server_facet_of(&component).ok_or_else(|| {
+                // shared region server-of-component
+                ServiceError::unsupported(format!(
+                    "component \"{node_id}\" is a {}, not a server; it carries no openDAQ IServer \
+                     interface, so daqDevice_removeServer has nothing to be handed",
+                    kind_of(&component)
+                ))
+            })?;
+
+            // quack-snippet capability=server.add uses=server-of-component,instance-with-module-path step=5
+            // The undo of addServer, and the exact mirror of it:
+            // IDevice::removeServer(IServer*) at device.h:300-304, wrapped by
+            // device_impl.h:1014-1026 onto onRemoveServer (:1479-1487), which is
+            // `this->servers.removeItem(server)`. It is called ON THE INSTANCE
+            // for the same reason addServer is -- onRemoveServer throws
+            // "Device does not allow adding/removing servers." for every device
+            // but the root (device_impl.h:1484).
+            //
+            // THE SOCKET ACTUALLY CLOSES. Removing the item calls
+            // IComponent::removed, and ServerImpl::removed (server_impl.h:199-202)
+            // is `checkErrorInfo(stop()); Super::removed();` -- IServer::stop,
+            // whose own doc (server.h:55) is "Stops the server. This is called
+            // when we remove the server from the Instance or Instance is
+            // closing." So this is a real undo and not a delisting.
+            //
+            // NO OWNER IS CONSULTED anywhere on that path. openDAQ records
+            // nothing about which connection called addServer, so this host
+            // refuses no caller: any session may remove any standing server.
+            let result = self.instance.remove_server(&server);
+            // quack-snippet end
+
+            result.map_err(|e| translate_general(&e))?;
+
+            let servers_left = match self.instance.servers() {
+                Ok(list) => list.len().to_string(),
+                Err(ref e) => format!("<unreadable: {e}>"),
+            };
+            println!(
+                "[opendaq] remove_server {node_id} (name {name}): daqDevice_removeServer on the root \
+                 instance returned success and IServer::stop closed its listening socket; \
+                 daqDevice_getServers now reports {servers_left} server(s)"
+            );
+            Ok(())
+        })();
+
+        // contract errors: [not_found, unsupported, internal].
+        removed.map_err(|e| match e.code {
+            ErrorCode::NotFound | ErrorCode::Unsupported | ErrorCode::Internal => e,
+            other => ServiceError::internal(format!(
+                "{} -- restated as internal because contract/contract.yaml declares the error subset \
+                 [not_found, unsupported, internal] for remove_server, which does not carry {}",
                 e.detail,
                 other.to_wire()
             )),
@@ -2806,13 +2961,16 @@ impl DaqBackendTrait for DaqBackend {
             Ok(())
         })();
 
-        // contract errors: [not_found, unsupported, internal].
+        // contract errors: [not_found, unsupported, internal, invalid_value].
         written.map_err(|e| match e.code {
-            ErrorCode::NotFound | ErrorCode::Unsupported | ErrorCode::Internal => e,
+            ErrorCode::NotFound
+            | ErrorCode::Unsupported
+            | ErrorCode::Internal
+            | ErrorCode::InvalidValue => e,
             other => ServiceError::internal(format!(
                 "{} -- restated as internal because contract/contract.yaml declares the error subset \
-                 [not_found, unsupported, internal] for set_server_discovery_enabled, which does not \
-                 carry {}",
+                 [not_found, unsupported, internal, invalid_value] for set_server_discovery_enabled, \
+                 which does not carry {}",
                 e.detail,
                 other.to_wire()
             )),
@@ -2873,12 +3031,13 @@ impl DaqBackendTrait for DaqBackend {
             Ok(())
         })();
 
-        // contract errors: [not_found, not_connected].
+        // contract errors: [not_found, not_connected, invalid_value].
         opened.map_err(|e| match e.code {
-            ErrorCode::NotFound | ErrorCode::NotConnected => e,
+            ErrorCode::NotFound | ErrorCode::NotConnected | ErrorCode::InvalidValue => e,
             other => ServiceError::not_found(format!(
                 "{} -- restated as not_found because contract/contract.yaml declares the error subset \
-                 [not_found, not_connected] for begin_batched_property_update, which does not carry {}",
+                 [not_found, not_connected, invalid_value] for begin_batched_property_update, which \
+                 does not carry {}",
                 e.detail,
                 other.to_wire()
             )),

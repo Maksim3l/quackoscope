@@ -1,6 +1,6 @@
 // quackoscope-host-mock -- service layer.
 //
-// Twenty-eight of the contract's thirty operations, the five events and the
+// Twenty-nine of the contract's thirty-one operations, the five events and the
 // closed error set. The two not answered here are read_samples_raw and
 // load_module_from_host_path, and GAP_KIND_AND_REASON_BY_CAPABILITY below says
 // why for each. This file knows nothing about sockets: it is handed an object
@@ -35,10 +35,24 @@ export interface SessionSocket {
 
 interface SessionState {
   socket: SessionSocket;
-  /** The device lock is held by a SESSION, and two sessions can share a peer
-   *  address, so the lock is keyed on this rather than on describedPeer. */
+  /** For the log only. Two sessions can share a peer address, so this
+   *  distinguishes them; NOTHING branches on it. The device lock in particular
+   *  does not: openDAQ has no session concept for a lock. */
   sessionKey: string;
   describedSession: string;
+  /**
+   * The openDAQ user this socket counts as, which is the only thing
+   * IDevicePrivate::lock and ::unlock are ever given
+   * (config_server_device.h:78 passes `context.user`).
+   *
+   * "" IS THE DEFAULT AND IS THE CORRECT ONE: with no AuthenticationProvider
+   * configured, authentication_provider_impl.cpp:23,56 hands every connection
+   * the same anonymous User("", ""), and user_lock_impl.cpp:19-20 collapses
+   * that to nullptr. Only --give-every-socket-its-own-named-opendaq-user makes
+   * these differ, and that flag says in its own name that it is configuring an
+   * authentication provider this app does not have.
+   */
+  openDaqUserName: string;
   /** connection_string -> device node id, exactly the C++ host's session scoping. */
   deviceNodeIdsByConnectionString: Map<string, string>;
   subscriptions: Map<number, { signalId: string; pixelColumns: number }>;
@@ -69,6 +83,7 @@ export const SERVED_WIRE_METHODS: readonly WireMethodName[] = [
   "set_component_attribute",
   "list_server_types",
   "add_server",
+  "remove_server",
   "set_server_discovery_enabled",
   "start_recording",
   "stop_recording",
@@ -189,26 +204,137 @@ export function printHandshakeItWillSend(): void {
   );
 }
 
+/**
+ * The two openDAQ mechanisms this host can be asked to switch on, neither of
+ * which openDAQ performs in the configuration this app actually runs. Both
+ * default to false, and with both false this host's device lock is
+ * daq::UserLockImpl driven by the anonymous user, which is what an in-process
+ * openDAQ host with no authentication does.
+ *
+ * NEITHER IS AN INVENTION OF THIS HOST. Each names one real openDAQ code path
+ * and turns exactly that path on, so a snippet shown beside it still describes
+ * calls that produce what was seen. What they change is openDAQ's
+ * CONFIGURATION, not its semantics.
+ */
+export interface OpenDaqMechanismsToSwitchOn {
+  /**
+   * Give every socket its own named openDAQ user instead of the anonymous one,
+   * as an AuthenticationProvider(allowAnonymous = false) with one account per
+   * client would. This is the ONLY way the named-user branches of
+   * user_lock_impl.cpp become reachable: lock by a second user then answers
+   * OPENDAQ_ERR_DEVICE_LOCKED and unlock by a second user answers
+   * OPENDAQ_ERR_ACCESSDENIED, which is the refusal the reference GUI reacts to
+   * by offering the forced unlock (gui_demo.py:1394-1407).
+   */
+  giveEverySocketItsOwnNamedOpenDaqUser: boolean;
+  /**
+   * Refuse exactly the three writes ConfigServerAccessControl::protectLockedComponent
+   * refuses (config_server_access_control.h:75-81) when they arrive over the
+   * NATIVE CONFIG PROTOCOL, and no others:
+   *
+   *   set_property_value                     config_server_component.h:78
+   *   set_component_attribute                config_server_component.h:298
+   *   load_instance_configuration_from_string  config_server_component.h:319 (Update)
+   *
+   * NOT set_device_operation_mode: ConfigServerDevice::setOperationMode
+   * (config_server_device.h:289-297) carries protectObject and no
+   * protectLockedComponent, so even the config-protocol server lets a locked
+   * device change mode. This host refused it until the audit that wrote this
+   * comment, which was a rule openDAQ has in neither of its two forms.
+   *
+   * Note what protectLockedComponent checks: `device.isLocked()` and nothing
+   * else -- it takes no user, so the session that holds the lock is refused
+   * too. openDAQ's core refuses none of these, so an in-process host must not,
+   * and with this false none of them is refused here either.
+   */
+  refuseWritesToALockedDeviceAsTheConfigProtocolServerDoes: boolean;
+}
+
+export const NO_OPENDAQ_MECHANISMS_SWITCHED_ON: OpenDaqMechanismsToSwitchOn = {
+  giveEverySocketItsOwnNamedOpenDaqUser: false,
+  refuseWritesToALockedDeviceAsTheConfigProtocolServerDoes: false,
+};
+
+/** Says, at startup, exactly which device lock this process will serve and
+ *  which openDAQ source the answer comes from. Printed on every start, in both
+ *  configurations, because a lock that behaves differently without saying so is
+ *  the defect this whole change exists to remove. */
+export function printTheDeviceLockItWillServe(switchedOn: OpenDaqMechanismsToSwitchOn): void {
+  console.log(
+    "[lock] the device lock is daq::UserLockImpl (openDAQ core/opendaq/device/src/user_lock_impl.cpp), translated: " +
+      "lock() and unlock() take no session, because openDAQ has no session concept for a lock",
+  );
+  if (switchedOn.giveEverySocketItsOwnNamedOpenDaqUser) {
+    console.log(
+      '[lock] --give-every-socket-its-own-named-opendaq-user is ON: socket N locks as the named user "quackoscope-session-N", ' +
+        "as an AuthenticationProvider(allowAnonymous = false) with one account per client would. A second user's " +
+        "lock_device is then refused read_only (OPENDAQ_ERR_DEVICE_LOCKED) and its unlock_device read_only " +
+        "(OPENDAQ_ERR_ACCESSDENIED); unlock_device force true still succeeds, because that is IDevicePrivate::forceUnlock. " +
+        "THE APP DOES NOT RUN THIS WAY: quackoscope configures no authentication provider.",
+    );
+  } else {
+    console.log(
+      '[lock] every socket locks as the anonymous openDAQ User("", ""), which is what every connection gets when no ' +
+        "AuthenticationProvider is configured (authentication_provider_impl.cpp:23,56). user_lock_impl.cpp:19-20 " +
+        "collapses that to nullptr, so the lock is HELD BY NOBODY: a second socket's lock_device succeeds, and its " +
+        "unlock_device succeeds, exactly as openDAQ's own LockUnlockAnonymous test asserts (test_device.cpp:399-430). " +
+        "Start with --give-every-socket-its-own-named-opendaq-user to reach the named-user refusals instead.",
+    );
+  }
+  if (switchedOn.refuseWritesToALockedDeviceAsTheConfigProtocolServerDoes) {
+    console.log(
+      "[lock] --refuse-writes-to-a-locked-device-as-the-config-protocol-server-does is ON: exactly three operations " +
+        "are refused while the device is locked -- set_property_value (config_server_component.h:78), " +
+        "set_component_attribute (:298) and load_instance_configuration_from_string (:319, the Update RPC) -- because " +
+        "those are the three that carry ConfigServerAccessControl::protectLockedComponent " +
+        "(config_server_access_control.h:75-81). set_device_operation_mode is NOT among them: " +
+        "ConfigServerDevice::setOperationMode (config_server_device.h:289-297) carries protectObject and no " +
+        "protectLockedComponent, so even the config-protocol server lets a locked device change mode. That check " +
+        "takes no user, so the session holding the lock is refused too. THE APP DOES NOT RUN THIS WAY: quackoscope's " +
+        "hosts hold an in-process Instance and never cross the native config protocol.",
+    );
+  } else {
+    console.log(
+      "[lock] a locked device refuses NO write here: openDAQ's core consults no lock anywhere " +
+        "(GenericPropertyObjectImpl::setPropertyValue and ComponentImpl::setName/setActive/setVisible read none), and " +
+        "an in-process device.setPropertyValue on a locked device succeeds. Start with " +
+        "--refuse-writes-to-a-locked-device-as-the-config-protocol-server-does to switch the config-protocol server's " +
+        "guard on instead.",
+    );
+  }
+}
+
 export class SessionHub {
   private device: SyntheticReferenceDevice;
   private sessions = new Map<SessionSocket, SessionState>();
   private nextSubscriptionId = 1;
   private nextSessionOrdinal = 1;
+  private readonly switchedOn: OpenDaqMechanismsToSwitchOn;
 
-  constructor(device: SyntheticReferenceDevice) {
+  constructor(device: SyntheticReferenceDevice, switchedOn: OpenDaqMechanismsToSwitchOn = NO_OPENDAQ_MECHANISMS_SWITCHED_ON) {
     this.device = device;
+    this.switchedOn = switchedOn;
     this.device.setEventSink((event) => this.publish(event));
   }
 
   openSession(socket: SessionSocket): void {
     const sessionKey = `session-${this.nextSessionOrdinal++}`;
+    const openDaqUserName = this.switchedOn.giveEverySocketItsOwnNamedOpenDaqUser ? `quackoscope-${sessionKey}` : "";
     this.sessions.set(socket, {
       socket,
       sessionKey,
       describedSession: `${sessionKey} at ${socket.describedPeer}`,
+      openDaqUserName,
       deviceNodeIdsByConnectionString: new Map(),
       subscriptions: new Map(),
     });
+    console.log(
+      `[service] ${sessionKey} counts as openDAQ user ` +
+        (openDaqUserName === ""
+          ? '"" -- the anonymous User("", "") every connection gets when no AuthenticationProvider is configured, ' +
+            "which user_lock_impl.cpp:19-20 collapses to nullptr"
+          : `"${openDaqUserName}", because --give-every-socket-its-own-named-opendaq-user is on`),
+    );
     socket.sendText(handshakeMessage());
     console.log(
       `[service] session opened for ${socket.describedPeer}; handshake sent (protocol_version ${PROTOCOL_VERSION}, implementation ${HOST_IMPLEMENTATION_NAME} ${HOST_IMPLEMENTATION_VERSION}); ${this.sessions.size} session(s) live`,
@@ -219,11 +345,16 @@ export class SessionHub {
     const state = this.sessions.get(socket);
     if (!state) return;
     for (const subscriptionId of state.subscriptions.keys()) this.device.stopFrameDelivery(subscriptionId);
-    // A lock outlives the request that took it, but not the session that holds
-    // it: a socket that goes away leaving the device locked would leave every
-    // other session facing read_only with no holder left to unlock it.
-    const heldTheLock = this.device.lockRefusalFacing(state.sessionKey) === null && this.device.isLocked();
-    if (heldTheLock) this.device.releaseLockHeldBy(state.sessionKey, state.describedSession);
+    // THE LOCK IS NOT RELEASED HERE, and this host used to release it. openDAQ
+    // does not: the lock is a field on the device's UserLock, nothing in
+    // config_protocol_server.cpp unhooks it when a connection drops, and grep
+    // over the SDK finds forceUnlock called from exactly one place -- the
+    // "ForceUnlock" RPC a client asks for on purpose. A lock therefore outlives
+    // the socket that took it, and the next session finds the device locked.
+    // That is not a trap: with no authentication configured the holder is
+    // nullptr, so the next session's own unlock_device clears it
+    // (user_lock_impl.cpp:31).
+    const lockSurvives = this.device.isLocked();
     this.sessions.delete(socket);
     // An open batched update is NOT ended here, and that is a decision this
     // host declines to make rather than one it makes quietly. contract.yaml's
@@ -236,7 +367,7 @@ export class SessionHub {
     const openBatchNodeIds = this.device.nodeIdsInsideAnOpenBatch();
     console.log(
       `[service] session closed for ${socket.describedPeer}: ${state.subscriptions.size} subscription(s) and ${state.deviceNodeIdsByConnectionString.size} device holding(s) dropped` +
-        `${heldTheLock ? `, and the device lock ${state.describedSession} held was released` : ""}; ${this.sessions.size} session(s) still live`,
+        `${lockSurvives ? `, and the device lock was LEFT IN PLACE as openDAQ leaves it -- ${this.device.describeLockForTheLog()}` : ""}; ${this.sessions.size} session(s) still live`,
     );
     if (openBatchNodeIds.length > 0) {
       console.log(
@@ -313,6 +444,8 @@ export class SessionHub {
         return this.listServerTypes(state);
       case "add_server":
         return this.addServer(state, params);
+      case "remove_server":
+        return this.removeServer(state, params);
       case "set_server_discovery_enabled":
         return this.setServerDiscoveryEnabled(state, params);
       case "start_recording":
@@ -488,23 +621,39 @@ export class SessionHub {
     return flattened;
   }
 
+  /**
+   * ConfigServerAccessControl::protectLockedComponent, and only when this host
+   * was told to be a config-protocol server. Returns null when the write may
+   * proceed, or the refusal detail when it may not.
+   *
+   * With the flag off -- the default, and the configuration every SDK host in
+   * this repo runs in -- this returns null on a locked device too, because
+   * openDAQ's core refuses nothing: GenericPropertyObjectImpl::setPropertyValue
+   * consults no lock, and an in-process device.setPropertyValue("X", 3) on a
+   * locked device succeeds. A host that refused here would show a lock doing
+   * something no openDAQ call in the snippet beside it performs.
+   */
+  private refusalForAWriteToALockedDevice(what: string): string | null {
+    if (!this.switchedOn.refuseWritesToALockedDeviceAsTheConfigProtocolServerDoes) return null;
+    if (!this.device.isLocked()) return null;
+    return (
+      `${this.device.describeLockForTheLog()}, and this host was started with ` +
+      "--refuse-writes-to-a-locked-device-as-the-config-protocol-server-does, so " +
+      `${what} takes the path config_server_component.h sends every native-config-protocol request down: ` +
+      "ConfigServerAccessControl::protectLockedComponent (config_server_access_control.h:75-81) throws " +
+      "DeviceLockedException. That function reads device.isLocked() and takes no user, so the session holding the " +
+      "lock is refused as well. WITHOUT that flag openDAQ refuses none of this in process, and neither does this host"
+    );
+  }
+
   private setPropertyValue(state: SessionState, params: Record<string, unknown>): null {
     this.requireDeviceInSession(state);
     if (!("value" in params)) throw new ServiceRefusal("invalid_value", "params.value is required");
     const nodeId = this.requireNodeReachableFromSession(state, params, "node_id");
     const propertyId = requireStringParam(params, "property_id");
-    // A lock that stopped nothing would be a fake lock. contract.yaml says so
-    // in as many words on set_device_operation_mode: read_only is "the closed
-    // error set's expression of 'openDAQ refused the write because the
-    // component is protected', the same code set_property_value already uses
-    // for a locked target".
-    const lockRefusal = this.device.lockRefusalFacing(state.sessionKey);
+    const lockRefusal = this.refusalForAWriteToALockedDevice(`the write of ${JSON.stringify(params.value)} to ${nodeId}.${propertyId}`);
     if (lockRefusal !== null) {
-      throw new ServiceRefusal(
-        "read_only",
-        `${lockRefusal}, so the write of ${JSON.stringify(params.value)} to ${nodeId}.${propertyId} was refused and ` +
-          "nothing was stored. unlock_device on the device row first, with force true if the lock is not this session's.",
-      );
+      throw new ServiceRefusal("read_only", `${lockRefusal}. Nothing was stored; unlock_device on the device row first.`);
     }
     const { stored, appliedNow } = this.device.setPropertyValue(nodeId, propertyId, params.value);
     const coercion =
@@ -603,20 +752,30 @@ export class SessionHub {
 
   private setDeviceOperationMode(state: SessionState, params: Record<string, unknown>): null {
     this.requireNodeIdNamesSomethingOrNotFound(params, "set_device_operation_mode");
-    // errors [not_found, invalid_value, read_only, unsupported]: not_connected
-    // is NOT on this operation's list, so a session holding no device is
-    // refused not_found, the same rule add_function_block follows.
+    // errors [not_found, invalid_value, unsupported]: not_connected is NOT on
+    // this operation's list, so a session holding no device is refused
+    // not_found, the same rule add_function_block follows.
+    //
+    // THE DEVICE LOCK IS NOT CONSULTED HERE AT ALL, not even behind
+    // --refuse-writes-to-a-locked-device-as-the-config-protocol-server-does,
+    // and this host used to consult it twice over. Two separate openDAQ facts
+    // say not to. (1) Core: GenericDevice::setOperationMode
+    // (device_impl.h:1257-1281) reads onGetAvailableOperationModes, takes the
+    // tree lock guard and writes -- it consults no user lock. (2) The config
+    // protocol server, which is the ONE place in openDAQ a lock refuses
+    // anything, does not guard this call either:
+    // ConfigServerDevice::setOperationMode (config_server_device.h:289-297) is
+    // `protectObject(device, context.user, Permission::Write)` and then
+    // `device.setOperationMode(...)`, with NO protectLockedComponent, unlike
+    // ConfigServerComponent::setPropertyValue (:78), ::setAttributeValue (:298)
+    // and ::update (:319), which all carry it. So there is no configuration of
+    // openDAQ, in-process or over the wire, in which a locked device refuses an
+    // operation-mode change -- which is why contract.yaml's row no longer
+    // carries read_only, and why refusalForAWriteToALockedDevice is not called
+    // from here.
     const nodeId = this.requireNodeReachableOrNotFound(state, params, "node_id");
     const mode = requireStringParam(params, "mode");
     this.device.requireDeviceRow(nodeId, "set_device_operation_mode");
-    const lockRefusal = this.device.lockRefusalFacing(state.sessionKey);
-    if (lockRefusal !== null) {
-      throw new ServiceRefusal(
-        "read_only",
-        `${lockRefusal}, so its operation mode cannot be moved to "${mode}"; it stays in ` +
-          `"${this.device.currentOperationMode()}". unlock_device first.`,
-      );
-    }
     const nowInForce = this.device.setOperationMode(nodeId, mode);
     console.log(
       `[service] set_device_operation_mode ${nodeId} = "${nowInForce}" for ${state.describedSession}; re-read the tree to ` +
@@ -629,10 +788,16 @@ export class SessionHub {
     this.requireNodeIdNamesSomethingOrNotFound(params, "lock_device");
     // errors [not_found, read_only, unsupported].
     const nodeId = this.requireNodeReachableOrNotFound(state, params, "node_id");
-    this.device.lockDevice(nodeId, state.sessionKey, state.describedSession);
+    this.device.lockDeviceAsUser(nodeId, state.openDaqUserName, state.describedSession);
     console.log(
-      `[service] lock_device ${nodeId} held by ${state.describedSession}; every row of that subtree now reports ` +
-        "Node.locked true, and a property write or a mode change from another session is refused read_only",
+      `[service] lock_device ${nodeId} for ${state.describedSession}: ${this.device.describeLockForTheLog()}. Every row ` +
+        "of that subtree now reports Node.locked true. " +
+        (this.switchedOn.refuseWritesToALockedDeviceAsTheConfigProtocolServerDoes
+          ? "--refuse-writes-to-a-locked-device-as-the-config-protocol-server-does is on, so set_property_value, " +
+            "set_component_attribute and load_instance_configuration_from_string are now refused, THIS SESSION " +
+            "INCLUDED. set_device_operation_mode is not: the config-protocol server does not guard it either"
+          : "Writes are NOT refused, from this session or any other: openDAQ's core consults no lock, and " +
+            "protectLockedComponent lives only in the native config-protocol server"),
     );
     return null;
   }
@@ -644,10 +809,10 @@ export class SessionHub {
     // invalid_value is not on this operation's list.
     const nodeId = this.requireNodeReachableOrNotFound(state, params, "node_id");
     const force = params.force === true;
-    this.device.unlockDevice(nodeId, state.sessionKey, state.describedSession, force);
+    this.device.unlockDeviceAsUser(nodeId, state.openDaqUserName, state.describedSession, force);
     console.log(
-      `[service] unlock_device ${nodeId} by ${state.describedSession} (force ${force}); the device now reports ` +
-        `Node.locked ${this.device.isLocked()}`,
+      `[service] unlock_device ${nodeId} by ${state.describedSession} (force ${force}, which is ` +
+        `${force ? "IDevicePrivate::forceUnlock" : "IDevice::unlock"}); the device now reports Node.locked ${this.device.isLocked()}`,
     );
     return null;
   }
@@ -702,9 +867,14 @@ export class SessionHub {
     if (!("value" in params)) throw new ServiceRefusal("invalid_value", "params.value is required");
     const nodeId = this.requireNodeReachableOrNotFound(state, params, "node_id");
     const attributeId = requireStringParam(params, "attribute_id");
-    // The device lock is deliberately NOT consulted -- see
-    // SyntheticReferenceDevice.setComponentAttribute, which states why and
-    // states the consequence.
+    // config_server_component.h:298 guards setAttributeValue with the same
+    // protectLockedComponent call it guards setPropertyValue with, so the two
+    // rows answer alike: nothing by default, both refused when this host was
+    // told to be a config-protocol server.
+    const lockRefusal = this.refusalForAWriteToALockedDevice(`the write of ${JSON.stringify(params.value)} to the attribute ${nodeId}.${attributeId}`);
+    if (lockRefusal !== null) {
+      throw new ServiceRefusal("read_only", `${lockRefusal}. Nothing was changed; unlock_device on the device row first.`);
+    }
     const whatChanged = this.device.setComponentAttribute(nodeId, attributeId, params.value);
     console.log(`[service] set_component_attribute ${nodeId}.${attributeId} for ${state.describedSession}: ${whatChanged}`);
     return null;
@@ -741,6 +911,22 @@ export class SessionHub {
         "opened: the only listening port in this process is the one this WebSocket arrived on.",
     );
     return node;
+  }
+
+  /**
+   * errors [not_found, unsupported, internal]. not_connected is NOT on the
+   * list, so a session holding no device is refused not_found -- the same rule
+   * remove_function_block follows.
+   */
+  private removeServer(state: SessionState, params: Record<string, unknown>): null {
+    this.requireNodeIdNamesSomethingOrNotFound(params, "remove_server");
+    const nodeId = this.requireNodeReachableOrNotFound(state, params, "node_id");
+    this.device.removeServer(nodeId);
+    console.log(
+      `[service] remove_server ${nodeId} for ${state.describedSession}; component_removed was published to ` +
+        `${this.sessions.size} session(s)`,
+    );
+    return null;
   }
 
   /**
@@ -871,13 +1057,14 @@ export class SessionHub {
   private loadInstanceConfigurationFromString(state: SessionState, params: Record<string, unknown>): null {
     this.requireDeviceInSession(state);
     const configuration = requireStringParam(params, "configuration");
-    const lockRefusal = this.device.lockRefusalFacing(state.sessionKey);
+    const lockRefusal = this.refusalForAWriteToALockedDevice(
+      `loading a ${configuration.length}-character configuration, which is the Update RPC -- ` +
+        "ConfigServerComponent::update at config_server_component.h:317, whose first line, :319, is the guard",
+    );
     if (lockRefusal !== null) {
       throw new ServiceRefusal(
         "internal",
-        `${lockRefusal}, and a configuration load writes every component under it, so the ${configuration.length}-` +
-          "character configuration was refused before anything was applied and the device is unchanged. " +
-          "unlock_device on the device row first, with force true if the lock is not this session's.",
+        `${lockRefusal}. The check ran before anything was applied, so the device is unchanged; unlock_device first.`,
       );
     }
     const whatHappened = this.device.loadInstanceConfigurationFromString(configuration);

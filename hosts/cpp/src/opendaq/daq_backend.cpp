@@ -1873,32 +1873,22 @@ void DaqBackend::setDeviceOperationMode(const std::string& nodeId, const std::st
                            "\"" + mode + "\" is not an operation mode name; contract Node.operation_mode has " +
                                everyOperationModeWireName());
 
-    bool locked = false;
-    try
-    {
-        // quack-snippet capability=device.mode uses=device-of-component step=2
-        // A locked device must refuse the write, and openDAQ's
-        // setOperationMode does not consult the lock at all -- so the flag is
-        // read first, exactly the way set_property_value reads getReadOnly()
-        // before writing. read_only is the closed error set's word for
-        // "openDAQ will not let this be changed while the target is protected".
-        locked = static_cast<bool>(device.isLocked());
-        // quack-snippet end
-    }
-    catch (const DaqException& e)
-    {
-        throw translate(e);
-    }
-
-    if (locked)
-        throw ServiceError(ErrorCode::ReadOnly,
-                           "device \"" + nodeId + "\" is locked, so its operation mode cannot be set to \"" + mode +
-                               "\"; unlock_device first");
-
+    // NO LOCK IS CONSULTED HERE, and the absence is the point. This host used
+    // to read device.isLocked() and refuse a locked device with read_only.
+    // openDAQ does not do that: GenericDevice::setOperationMode
+    // (device_impl.h:1256-1281) checks onGetAvailableOperationModes, takes the
+    // tree lock guard and writes, and it never looks at the user lock. The user
+    // lock refuses writes in ONE place only, the config-protocol server's
+    // ConfigServerAccessControl::protectLockedComponent
+    // (config_server_access_control.h:75-81); this host holds an IN-PROCESS
+    // Instance, so that path is not on this call at all. The guard was a rule
+    // quackoscope invented, and the snippet a quack showed for it named
+    // setOperationMode -- a call that would have written the mode -- beside a
+    // refusal openDAQ never produced.
     std::vector<OperationModeType> available;
     try
     {
-        // quack-snippet capability=device.mode uses=device-available-operation-modes step=3
+        // quack-snippet capability=device.mode uses=device-available-operation-modes step=2
         // The same list the getter answers with, read again here for a
         // different purpose: to judge the requested mode before writing it.
         available = availableOperationModes(device);
@@ -1909,20 +1899,47 @@ void DaqBackend::setDeviceOperationMode(const std::string& nodeId, const std::st
         throw translate(e);
     }
 
+    // AN OPEN QUESTION, STATED RATHER THAN DECIDED. openDAQ ACCEPTS a mode it
+    // does not offer: GenericDevice::setOperationMode (device_impl.h:1257-1259)
+    // is `if (this->onGetAvailableOperationModes().count(modeType) == 0) return
+    // OPENDAQ_IGNORED;`, and OPENDAQ_IGNORED is 0x00000006u (errors.h:38) while
+    // OPENDAQ_FAILED is (x) & 0x80000000u (errors.h:28) -- so it is a SUCCESS.
+    // The SDK's honest answer to an out-of-range mode is therefore "ok, and
+    // nothing changed", and a host that answers invalid_value is refusing where
+    // openDAQ did not.
+    //
+    // This host refuses anyway, and does so because
+    // contract/contract.yaml operations[set_device_operation_mode] names
+    // exactly this case -- "invalid_value: a mode name outside
+    // Node.operation_mode's values, OR ONE THE DEVICE DID NOT LIST AS
+    // AVAILABLE" -- and because a silent no-op leaves the caller unable to tell
+    // that its write did nothing. Which of the two is right is not this host's
+    // to settle quietly: it is escalated, the same way the batched-update
+    // session question is, and it is reported in the log line below so that a
+    // reader of this host's output can see the divergence rather than infer it.
     if (std::find(available.begin(), available.end(), requested) == available.end())
     {
         std::string offered;
         for (const auto candidate : available)
             offered += (offered.empty() ? "" : ", ") + std::string(operationModeWireName(candidate));
+        std::cout << "[service] set_device_operation_mode " << nodeId << " -> " << mode
+                  << ": that mode is not in this device's onGetAvailableOperationModes, which openDAQ answers with "
+                  << "OPENDAQ_IGNORED (0x00000006, a SUCCESS) and no change; quackoscope-host-cpp refuses it as "
+                  << "invalid_value instead, because contract/contract.yaml operations[set_device_operation_mode] "
+                  << "names \"one the device did not list as available\" as invalid_value. The device offers "
+                  << (offered.empty() ? std::string("no mode at all") : offered) << std::endl;
         throw ServiceError(ErrorCode::InvalidValue,
                            "device \"" + nodeId + "\" does not offer operation mode \"" + mode +
                                "\"; get_device_operation_modes answers " +
-                               (offered.empty() ? std::string("no mode at all") : offered));
+                               (offered.empty() ? std::string("no mode at all") : offered) +
+                               ". openDAQ itself would answer OPENDAQ_IGNORED here, a success code that changes "
+                               "nothing (device_impl.h:1257-1259); this refusal is the contract's rule, not "
+                               "openDAQ's");
     }
 
     try
     {
-        // quack-snippet capability=device.mode uses=operation-mode-names step=4
+        // quack-snippet capability=device.mode uses=operation-mode-names step=3
         // setOperationMode answers OPENDAQ_IGNORED -- a SUCCESS code, not an
         // error -- for a mode the device does not offer, so the write would
         // silently do nothing and the caller would never learn. That is why the
@@ -1961,13 +1978,24 @@ void DaqBackend::lockDevice(const std::string& nodeId)
     try
     {
         // quack-snippet capability=device.lock uses=device-of-component step=1
-        // IDevice::lock() takes no user. openDAQ's other overload,
-        // IDevicePrivate::lock(IUser*), records who locked it and permits only
-        // that user to unlock; this host builds a local Instance with no
-        // authentication, so the lock is anonymous and any later caller may
-        // undo it. A device already locked by a DIFFERENT user answers
-        // OPENDAQ_ERR_DEVICE_LOCKED, which this host's closed-set mapping turns
-        // into read_only -- the refusal the contract names for this row.
+        // IDevice::lock() takes no user (device.h:318), and
+        // GenericDevice::lock() (device_impl.h:1040-1043) is literally
+        // `return this->lock(nullptr);`. The user-taking form is on
+        // IDevicePrivate (device_private.h:39-42) and over the wire the user
+        // comes from the CONNECTION, not from the caller
+        // (config_server_device.h:78 calls lock(context.user)).
+        //
+        // SO THIS LOCK IS HELD BY NOBODY, and that is openDAQ's answer, not a
+        // shortcut. UserLockImpl::lock (user_lock_impl.cpp:15-27) collapses an
+        // anonymous user to nullptr and refuses only when
+        // `userLock.has_value() && userLock != userPtr` -- a DIFFERENT NAMED
+        // user. This host builds a local Instance with no authentication
+        // configured, so every lock stores nullptr, a second lock compares
+        // nullptr against nullptr and succeeds, and OPENDAQ_ERR_DEVICE_LOCKED
+        // (errors.h:128) is unreachable here. This host does not synthesise it:
+        // there is no session bookkeeping on this call, and the only way
+        // read_only can leave this handler is openDAQ actually returning that
+        // code.
         device.lock();
         // quack-snippet end
     }
@@ -2013,12 +2041,21 @@ void DaqBackend::unlockDevice(const std::string& nodeId, bool force)
         else
         {
             // quack-snippet capability=device.lock uses=device-of-component step=2
-            // IDevice::unlock() answers OPENDAQ_ERR_ACCESSDENIED when another
-            // user holds the lock, and that becomes read_only. That refusal is
-            // precisely the signal a client turns into the offer to force, so
-            // force is a parameter of this same row rather than a row of its
-            // own. A device locked anonymously, as this host locks it, unlocks
-            // here without any force at all.
+            // IDevice::unlock() takes no user either (device.h:324;
+            // device_impl.h:1045-1049 is `return this->unlock(nullptr);`), and
+            // UserLockImpl::unlock (user_lock_impl.cpp:29-36) refuses only when
+            // `userLock.has_value() && userLock != nullptr && userLock != user`.
+            // THE `!= nullptr` TERM IS WHY ANY CALLER CLEARS AN
+            // ANONYMOUSLY-TAKEN LOCK, which is the only kind this host can
+            // take -- openDAQ's own test says so, LockUnlockAnonymous
+            // (test_device.cpp:399-430) locks anonymously and then asserts that
+            // two DIFFERENT users each unlock it successfully.
+            //
+            // So a second socket releasing a lock the first socket took is
+            // openDAQ's behaviour, and this host adds nothing to keep it out:
+            // OPENDAQ_ERR_ACCESSDENIED (errors.h:78), which the closed-set
+            // mapping turns into read_only, is a code only a named-user
+            // deployment can reach, and this handler never manufactures it.
             device.unlock();
             // quack-snippet end
         }
@@ -2382,9 +2419,21 @@ void DaqBackend::setComponentAttribute(const std::string& nodeId,
         }
         else
         {
-            throw ServiceError(ErrorCode::ReadOnly,
+            // UNREACHABLE, and deliberately NOT read_only. Every row this host
+            // reports without a setter branch is built with hasAWriter false,
+            // so it carries read_only true and is refused above. If this arm is
+            // ever reached it means this host reported a row as writable and
+            // then had nowhere to write it -- a defect in quackoscope-host-cpp,
+            // not a statement about the component. contract
+            // types.ComponentAttribute.read_only forbids saying otherwise: it
+            // "is openDAQ's answer about the component, never the host's answer
+            // about itself", and a host with no writer declares a capability
+            // gap instead. invalid_value is the one code of this row's subset
+            // that blames neither openDAQ nor a missing node.
+            throw ServiceError(ErrorCode::InvalidValue,
                                "attribute \"" + attributeId + "\" of component \"" + nodeId +
-                                   "\" has no setter in quackoscope-host-cpp");
+                                   "\" was reported as writable by this host and then reached no setter; that is a "
+                                   "defect in quackoscope-host-cpp and not a refusal by openDAQ");
         }
         // quack-snippet end
     }
@@ -2489,6 +2538,92 @@ service::Node DaqBackend::addServer(const std::string& typeId)
     std::cout << "[service] add_server " << typeId << " -> node " << node.id << " (name " << node.name << ", kind "
               << node.kind << ")" << std::endl;
     return node;
+}
+
+// --- remove_server ----------------------------------------------------------
+
+void DaqBackend::removeServer(const std::string& nodeId)
+{
+    const auto component = impl_->resolve(nodeId);
+
+    const auto server = serverOrNull(component);  // shared region server-of-component
+    if (!server.assigned())
+        throw ServiceError(ErrorCode::Unsupported,
+                           "component \"" + nodeId + "\" is a " + kindOf(component) +
+                               ", not a server, so remove_server has nothing to take down");
+
+    const std::string serverIdBeforeRemoval = toStd(server.getId());
+
+    try
+    {
+        // quack-snippet capability=server.add uses=instance-with-module-path,server-of-component step=3
+        // The mirror of addServer, and the reason add_server is not one-way.
+        // IInstance::removeServer forwards straight to the root device --
+        // instance_impl.cpp:271-274 is `return rootDevice->removeServer(server);`
+        // -- and GenericDevice::onRemoveServer (device_impl.h:1479-1487) is the
+        // exact mirror of onAddServer: the same root-device restriction, then
+        // `this->servers.removeItem(server)`.
+        //
+        // THE LISTENING SOCKET ACTUALLY CLOSES. Removing the item from the "Srv"
+        // folder calls IComponent::removed on it, and ServerImpl::removed
+        // (server_impl.h:199-202) is `checkErrorInfo(stop()); Super::removed();`
+        // -- IServer::stop, whose own doc (server.h:55) is "Stops the server.
+        // This is called when we remove the server from the Instance or
+        // Instance is closing." So this is an undo, not a delisting.
+        impl_->instance.removeServer(server);
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw ServiceError(service::mapNativeErrorCode(static_cast<std::uint32_t>(e.getErrCode()),
+                                                       MapContext::ServerRemove),
+                           e.getErrorMessage());
+    }
+
+    std::cout << "[service] remove_server " << nodeId << " (IServer::getId() " << serverIdBeforeRemoval
+              << "): openDAQ's IInstance::removeServer returned without error, so the server was removed from the "
+              << "root device's Srv folder and IServer::stop() was called on it by ServerImpl::removed()"
+              << std::endl;
+}
+
+// --- the server rows of get_component_tree ----------------------------------
+
+std::vector<service::Node> DaqBackend::listInstanceServerNodes()
+{
+    ListPtr<IServer> servers;
+    try
+    {
+        // quack-snippet capability=tree.read uses=instance-with-module-path step=2
+        // WHERE A SERVER LIVES. IDevice::onAddServer refuses every device but
+        // the root (device_impl.h:1470-1472, "Device does not allow
+        // adding/removing servers."), so every server openDAQ holds is parented
+        // under the INSTANCE root device's "Srv" folder and reached with
+        // IDevice::getServers() -- never under a device a client connected.
+        // That is why a tree read has to ask for them separately, and why
+        // add_server takes no parent_id.
+        servers = impl_->instance.getRootDevice().getServers();
+        // quack-snippet end
+    }
+    catch (const DaqException& e)
+    {
+        throw translate(e);
+    }
+
+    std::vector<service::Node> out;
+    for (const auto& server : servers)
+    {
+        if (!server.assigned())
+            continue;
+
+        const std::string serverNodeId = toStd(server.template asPtr<IComponent>().getGlobalId());
+        for (auto& node : getComponentTree(std::optional<std::string>(serverNodeId)))
+            out.push_back(std::move(node));
+    }
+
+    std::cout << "[service] get_component_tree: the openDAQ Instance root device holds " << servers.getCount()
+              << " server(s), reported as " << out.size() << " node row(s) including their Sig and FB folders"
+              << std::endl;
+    return out;
 }
 
 // --- set_server_discovery_enabled -------------------------------------------

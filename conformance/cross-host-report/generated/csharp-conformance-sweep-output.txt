@@ -1,24 +1,24 @@
 quackoscope wire conformance suite
-  target url          ws://127.0.0.1:8143/ws   (port 8143)
+  target url          ws://127.0.0.1:8223/ws   (port 8223)
   contract            C:\Users\opendaq\Projects\quackoscope\contract\contract.yaml
   manifest            C:\Users\opendaq\Projects\quackoscope\manifest.json
   connection_string   daqref://device0  (default; a scan result replaces it if the host serves device.scan)
   request timeout     10000 ms
-  contract read       quackoscope-wire-contract protocol_version 1.0: 20 baseline capabilities, 30 operations, 7 error codes, 5 events, 8 types
+  contract read       quackoscope-wire-contract protocol_version 1.0: 20 baseline capabilities, 31 operations, 7 error codes, 5 events, 8 types
   baseline            device.scan, device.connect, tree.read, property.read, property.write, function_block.add, streaming.decimated, streaming.raw, device.mode, device.lock, module.read, module.load, attribute.read, attribute.write, server.add, server.discovery, recorder.control, property.batched_update, configuration.save, configuration.load
   manifest sdk        version 3.41.0_bec37b44, commit bec37b4430ca6d92592547ffc84900438040ab22
 
-opening one WebSocket to ws://127.0.0.1:8143/ws and waiting for message ordinal 1...
-message ordinal 1 arrived, 2248 bytes:
-{"protocol_version":"1.0","implementation":{"name":"quackoscope-host-csharp","version":"0.1.0"},"sdk":{"version":"3.41.0_bec37b44","commit":"bec37b4430ca6d92592547ffc84900438040ab22"},"capabilities":["device.connect","tree.read","property.read","property.write","streaming.decimated","device.mode","device.lock","module.read","module.load","attribute.read","attribute.write","server.add","server.discovery","recorder.control","property.batched_update","configuration.save","configuration.load"],"gaps":[{"capability":"device.scan","kind":"host","reason":"scan_available_devices has no handler in quackoscope-host-csharp; currently not available. This is unwritten host code and not a binding limit, and the binding surface was enumerated to say so: System.Reflection over openDAQ.Net, Version=3.41.0.0 (openDAQ.Net.dll from the install tree the csproj references) lists, on Daq.Core.OpenDAQ.Device, the declared instance property \u0022IListObject\u00601 AvailableDevices { get; }\u0022 with its accessor get_AvailableDevices(), alongside AvailableDeviceTypes and Info, which is everything scan_available_devices needs to fill the contract\u0027s DeviceInfo record"},{"capability":"function_block.add","kind":"host","reason":"list_function_block_types, add_function_block and remove_function_block have no handler in quackoscope-host-csharp; currently not available. This is unwritten host code and not a binding limit, and the binding surface was enumerated to say so: System.Reflection over openDAQ.Net, Version=3.41.0.0 lists, declared on Daq.Core.OpenDAQ.Device, \u0022IDictObject\u00602 AvailableFunctionBlockTypes { get; }\u0022, \u0022FunctionBlock AddFunctionBlock(String typeId, PropertyObject config)\u0022 and \u0022Void RemoveFunctionBlock(FunctionBlock functionBlock)\u0022 -- one member per operation"},{"capability":"streaming.raw","kind":"host","reason":"read_samples_raw has no handler in quackoscope-host-csharp; currently not available. The StreamReader plumbing it needs is now written and serving streaming.decimated; what is missing is the request-scoped read path, because read_samples_raw returns one binary frame per request rather than a standing subscription"}],"limits":{"max_subscriptions":64,"max_frame_bytes":262144}}
+opening one WebSocket to ws://127.0.0.1:8223/ws and waiting for message ordinal 1...
+message ordinal 1 arrived, 5079 bytes:
+{"protocol_version":"1.0","implementation":{"name":"quackoscope-host-csharp","version":"0.1.0"},"sdk":{"version":"3.41.0_bec37b44","commit":"bec37b4430ca6d92592547ffc84900438040ab22"},"capabilities":["device.connect","tree.read","property.read","property.write","streaming.decimated","device.mode","device.lock","module.read","module.load","attribute.read","server.add","server.discovery","recorder.control","property.batched_update","configuration.save","configuration.load"],"gaps":[{"capability":"device.scan","kind":"host","reason":"scan_available_devices has no handler in quackoscope-host-csharp; currently not available. This is unwritten host code and not a binding limit, and the binding surface was enumerated to say so: System.Reflection over openDAQ.Net, Version=3.41.0.0 (openDAQ.Net.dll from the install tree the csproj references) lists, on Daq.Core.OpenDAQ.Device, the declared instance property \u0022IListObject\u00601 AvailableDevices { get; }\u0022 with its accessor get_AvailableDevices(), alongside AvailableDeviceTypes and Info, which is everything scan_available_devices needs to fill the contract\u0027s DeviceInfo record"},{"capability":"function_block.add","kind":"host","reason":"list_function_block_types, add_function_block and remove_function_block have no handler in quackoscope-host-csharp; currently not available. This is unwritten host code and not a binding limit, and the binding surface was enumerated to say so: System.Reflection over openDAQ.Net, Version=3.41.0.0 lists, declared on Daq.Core.OpenDAQ.Device, \u0022IDictObject\u00602 AvailableFunctionBlockTypes { get; }\u0022, \u0022FunctionBlock AddFunctionBlock(String typeId, PropertyObject config)\u0022 and \u0022Void RemoveFunctionBlock(FunctionBlock functionBlock)\u0022 -- one member per operation"},{"capability":"streaming.raw","kind":"host","reason":"read_samples_raw has no handler in quackoscope-host-csharp; currently not available. The StreamReader plumbing it needs is now written and serving streaming.decimated; what is missing is the request-scoped read path, because read_samples_raw returns one binary frame per request rather than a standing subscription"},{"capability":"attribute.write","kind":"binding","reason":"set_component_attribute has no handler in quackoscope-host-csharp because openDAQ\u0027s .NET binding cannot write the full attribute set the contract\u0027s row covers, and the missing piece is \u0060tags\u0060. openDAQ makes tags writable through ITagsPrivate::add/remove/replace (tags_private.h:34-56), cast from component.tags, which is exactly how hosts/cpp and hosts/rust write it. openDAQ\u0027s .NET binding deliberately does not ship that interface: RTGen generates build/bindings/CSharp/core/opendaq/component/TagsPrivate.cs (stamped \u0022CSharpGenerator v1.0.0 on 21.08.2026 16:20:09\u0022, declaring Add(string), Remove(string) and Replace(IListObject\u003CStringObject\u003E)), and then bindings/dotnet/openDAQ.Net/openDAQ.Net/openDAQ.Net.csproj compiles the RTGen output with Exclude=\u0022$(_RTGenOutputPath)\\**\\*Private.cs\u0022 under the comment \u0022exclude files which are meant to be SDK private\u0022. The assembly is not stale: openDAQ.Net.dll in the install tree is stamped 21.08.2026 16:26, SIX MINUTES AFTER TagsPrivate.cs was generated, and it carries Device.RemoveServer, which the same generation run produced. Enumerated with System.Reflection.MetadataLoadContext over openDAQ.Net, Version=3.41.0.0: 213 exported public types, of which the number whose name ends in \u0022Private\u0022 is ZERO; Daq.Core.OpenDAQ.Tags declares exactly \u0022Boolean Contains(String)\u0022, \u0022Boolean Query(String)\u0022, \u0022IListObject\u00601[StringObject] get_List()\u0022 and the List property, so no Add, Remove, Replace, Set or Clear; Daq.Core.OpenDAQ.Component declares get_Tags() and no set_Tags; and BaseObject.Cast\u003CT\u003E() and QueryInterface\u003CT\u003E() are generic over a type the assembly must contain, so neither reaches an absent interface. The alternative was to report ComponentAttribute.read_only true on the tags row, and contract types.ComponentAttribute.read_only forbids exactly that -- read_only is \u0022openDAQ\u0027s answer about the component, never the host\u0027s answer about itself\u0022, and openDAQ does not lock tags: tags is not in COMPONENT_AVAILABLE_ATTRIBUTES (component_impl.h:59, signal_impl.h:53, input_port_impl.h:47) and tags_impl.h:88-150 performs no lock check. get_component_attributes therefore reports the tags row with read_only false, and this gap is where the host\u0027s own inability is stated. The other four writable attributes -- name, description, active, visible, all of which the binding DOES expose as set_Name, set_Description, set_Active, set_Visible on Daq.Core.OpenDAQ.Component, plus Public on Signal and InputPort -- are gapped with them, because contract section 4 defines attribute.write AS its whole operation and a capability declared on part of a row would leave the rest stated nowhere."}],"limits":{"max_subscriptions":64,"max_frame_bytes":262144}}
 
 --- sweep 1: the handshake, against contract 1.6 -----------------------------
-declared capabilities (17 of 20): device.connect, tree.read, property.read, property.write, streaming.decimated, device.mode, device.lock, module.read, module.load, attribute.read, attribute.write, server.add, server.discovery, recorder.control, property.batched_update, configuration.save, configuration.load
-computed gaps         (3): device.scan, function_block.add, streaming.raw
+declared capabilities (16 of 20): device.connect, tree.read, property.read, property.write, streaming.decimated, device.mode, device.lock, module.read, module.load, attribute.read, server.add, server.discovery, recorder.control, property.batched_update, configuration.save, configuration.load
+computed gaps         (4): device.scan, function_block.add, streaming.raw, attribute.write
   HELD                  message ordinal 1 on the session is a parseable JSON object
                          contract: contract.yaml handshake (contract 1.6): direction server_to_client, ordinal 1
                          expected: the server speaks first, with one JSON object
-                         actual:   object, 2248 bytes
+                         actual:   object, 5079 bytes
   HELD                  message ordinal 1 is the handshake and not a result, error or event envelope
                          contract: contract.yaml handshake (contract 1.6); contract.yaml envelopes discriminators has_key_result / has_key_error / has_key_event
                          expected: no id, result, error or event key on the first message
@@ -66,11 +66,11 @@ computed gaps         (3): device.scan, function_block.add, streaming.raw
   HELD                  handshake.capabilities is an array of strings
                          contract: contract.yaml handshake (contract 1.6): fields.capabilities is an array of string, references capabilities.id
                          expected: an array whose every element is a string
-                         actual:   ["device.connect","tree.read","property.read","property.write","streaming.decimated","device.mode","device.lock","module.read","module.load","attribute.read","attribute.write","server.add","server.discovery","recorder.control","property.batched_update","configuration.save","configuration.load"]
+                         actual:   ["device.connect","tree.read","property.read","property.write","streaming.decimated","device.mode","device.lock","module.read","module.load","attribute.read","server.add","server.discovery","recorder.control","property.batched_update","configuration.save","configuration.load"]
   HELD                  every entry of handshake.capabilities is one of the contract's baseline capability ids
                          contract: contract.yaml handshake (contract 1.6): fields.capabilities.references = capabilities.id; the baseline read from contract.yaml is [device.scan, device.connect, tree.read, property.read, property.write, function_block.add, streaming.decimated, streaming.raw, device.mode, device.lock, module.read, module.load, attribute.read, attribute.write, server.add, server.discovery, recorder.control, property.batched_update, configuration.save, configuration.load]
                          expected: every entry drawn from the 20 baseline ids
-                         actual:   all 17 entries are baseline capability ids
+                         actual:   all 16 entries are baseline capability ids
   HELD                  handshake.capabilities lists no id twice
                          contract: contract.yaml handshake (contract 1.6): fields.capabilities references capabilities.id, which is a set
                          expected: no duplicate ids
@@ -78,15 +78,15 @@ computed gaps         (3): device.scan, function_block.add, streaming.raw
   HELD                  handshake.gaps is an array of Gap records
                          contract: contract.yaml handshake (contract 1.6): fields.gaps is an array of Gap; contract.yaml types.Gap fields capability/kind/reason
                          expected: an array of {capability, kind, reason}
-                         actual:   [{"capability":"device.scan","kind":"host","reason":"scan_available_devices has no handler in quackoscope-host-csharp; currently not available. This is unwritten host code and not a binding limit, and the binding surface was enumerated to say so: System.Reflection over openDAQ.Net, Version=3.41.0.0 (openDAQ.Net.dll from the install tree the csproj references) lists, on Daq.Core.OpenDAQ.Device, the declared instance property \"IListObject`1 AvailableDevices { get; }\" with its accessor get_AvailableDevices(), alongside AvailableDeviceTypes and Info, which is everything scan_available_devices needs to fill the contract's DeviceInfo record"},{"capability":"function_block.add","kind":"host","reason":"list_function_block_types, add_function_block and remove_function_block have no handler in quackoscope-host-csharp; currently not available. This is unwritten host code and not a binding limit, and the binding surface was enumerated to say so: System.Reflection over openDAQ.Net, Version=3.41.0.0 lists, declared on Daq.Core.OpenDAQ.Device, \"IDictObject`2 AvailableFunctionBlockTypes { get; }\", \"FunctionBlock AddFunctionBlock(String typeId, PropertyObject config)\" and \"Void RemoveFunctionBlock(FunctionBlock functionBlock)\" -- one member per operation"},{"capability":"streaming.raw","kind":"host","reason":"read_samples_raw has no handler in quackoscope-host-csharp; currently not available. The StreamReader plumbing it needs is now written and serving streaming.decimated; what is missing is the request-scoped read path, because read_samples_raw returns one binary frame per request rather than a standing subscription"}]
+                         actual:   [{"capability":"device.scan","kind":"host","reason":"scan_available_devices has no handler in quackoscope-host-csharp; currently not available. This is unwritten host code and not a binding limit, and the binding surface was enumerated to say so: System.Reflection over openDAQ.Net, Version=3.41.0.0 (openDAQ.Net.dll from the install tree the csproj references) lists, on Daq.Core.OpenDAQ.Device, the declared instance property \"IListObject`1 AvailableDevices { get; }\" with its accessor get_AvailableDevices(), alongside AvailableDeviceTypes and Info, which is everything scan_available_devices needs to fill the contract's DeviceInfo record"},{"capability":"function_block.add","kind":"host","reason":"list_function_block_types, add_function_block and remove_function_block have no handler in quackoscope-host-csharp; currently not available. This is unwritten host code and not a binding limit, and the binding surface was enumerated to say so: System.Reflection over openDAQ.Net, Version=3.41.0.0 lists, declared on Daq.Core.OpenDAQ.Device, \"IDictObject`2 AvailableFunctionBlockTypes { get; }\", \"FunctionBlock AddFunctionBlock(String typeId, PropertyObject config)\" and \"Void RemoveFunctionBlock(FunctionBlock functionBlock)\" -- one member per operation"},{"capability":"streaming.raw","kind":"host","reason":"read_samples_raw has no handler in quackoscope-host-csharp; currently not available. The StreamReader plumbing it needs is now written and serving streaming.decimated; what is missing is the request-scoped read path, because read_samples_raw returns one binary frame per request rather than a standing subscription"},{"capability":"attribute.write","kind":"binding","reason":"set_component_attribute has no handler in quackoscope-host-csharp because openDAQ's .NET binding cannot write the full attribute set the contract's row covers, and the missing piece is `tags`. openDAQ makes tags writable through ITagsPrivate::add/remove/replace (tags_private.h:34-56), cast from component.tags, which is exactly how hosts/cpp and hosts/rust write it. openDAQ's .NET binding deliberately does not ship that interface: RTGen generates build/bindings/CSharp/core/opendaq/component/TagsPrivate.cs (stamped \"CSharpGenerator v1.0.0 on 21.08.2026 16:20:09\", declaring Add(string), Remove(string) and Replace(IListObject<StringObject>)), and then bindings/dotnet/openDAQ.Net/openDAQ.Net/openDAQ.Net.csproj compiles the RTGen output with Exclude=\"$(_RTGenOutputPath)\\**\\*Private.cs\" under the comment \"exclude files which are meant to be SDK private\". The assembly is not stale: openDAQ.Net.dll in the install tree is stamped 21.08.2026 16:26, SIX MINUTES AFTER TagsPrivate.cs was generated, and it carries Device.RemoveServer, which the same generation run produced. Enumerated with System.Reflection.MetadataLoadContext over openDAQ.Net, Version=3.41.0.0: 213 exported public types, of which the number whose name ends in \"Private\" is ZERO; Daq.Core.OpenDAQ.Tags declares exactly \"Boolean Contains(String)\", \"Boolean Query(String)\", \"IListObject`1[StringObject] get_List()\" and the List property, so no Add, Remove, Replace, Set or Clear; Daq.Core.OpenDAQ.Component declares get_Tags() and no set_Tags; and BaseObject.Cast<T>() and QueryInterface<T>() are generic over a type the assembly must contain, so neither reaches an absent interface. The alternative was to report ComponentAttribute.read_only true on the tags row, and contract types.ComponentAttribute.read_only forbids exactly that -- read_only is \"openDAQ's answer about the component, never the host's answer about itself\", and openDAQ does not lock tags: tags is not in COMPONENT_AVAILABLE_ATTRIBUTES (component_impl.h:59, signal_impl.h:53, input_port_impl.h:47) and tags_impl.h:88-150 performs no lock check. get_component_attributes therefore reports the tags row with read_only false, and this gap is where the host's own inability is stated. The other four writable attributes -- name, description, active, visible, all of which the binding DOES expose as set_Name, set_Description, set_Active, set_Visible on Daq.Core.OpenDAQ.Component, plus Public on Signal and InputPort -- are gapped with them, because contract section 4 defines attribute.write AS its whole operation and a capability declared on part of a row would leave the rest stated nowhere."}]
   HELD                  every Gap record conforms to contract.yaml types.Gap
                          contract: contract.yaml types.Gap: capability required string, kind enum [binding, host], reason required string with min_length 1
-                         expected: 3 conforming Gap records
-                         actual:   all 3 Gap records conform
+                         expected: 4 conforming Gap records
+                         actual:   all 4 Gap records conform
   HELD                  handshake.gaps is exactly the baseline minus the declared capabilities
                          contract: contract.yaml gap_generation.computed_as = baseline_capabilities_minus_host_capabilities; host_may_declare_gap_list = false; declared_by_host = reason_only
-                         expected: gap capabilities exactly [device.scan, function_block.add, streaming.raw]
-                         actual:   handshake gap capabilities [device.scan, function_block.add, streaming.raw]
+                         expected: gap capabilities exactly [device.scan, function_block.add, streaming.raw, attribute.write]
+                         actual:   handshake gap capabilities [device.scan, function_block.add, streaming.raw, attribute.write]
   HELD                  handshake.limits carries max_subscriptions and max_frame_bytes as positive integers
                          contract: contract.yaml handshake (contract 1.6): fields.limits.fields max_subscriptions (int, default 64), max_frame_bytes (int, default 262144)
                          expected: max_subscriptions: int, max_frame_bytes: int
@@ -112,7 +112,7 @@ computed gaps         (3): device.scan, function_block.add, streaming.raw
   HELD                  scan_available_devices: the declared-gap refusal uses a code from the closed set
                          contract: contract.yaml error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
                          expected: one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         actual:   {"code":"unsupported","detail":"unknown method \"scan_available_devices\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, save_instance_configuration_to_string, set_component_attribute, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
+                         actual:   {"code":"unsupported","detail":"unknown method \"scan_available_devices\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, remove_server, save_instance_configuration_to_string, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
   GAP (a) CONSISTENT    scan_available_devices belongs to declared gap "device.scan"
                          contract: contract.yaml gap_generation (gaps = baseline minus declared capabilities)
                          expected: a refusal, because "device.scan" is absent from this host's handshake capabilities
@@ -429,7 +429,7 @@ computed gaps         (3): device.scan, function_block.add, streaming.raw
   HELD                  list_function_block_types: the declared-gap refusal uses a code from the closed set
                          contract: contract.yaml error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
                          expected: one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         actual:   {"code":"unsupported","detail":"unknown method \"list_function_block_types\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, save_instance_configuration_to_string, set_component_attribute, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
+                         actual:   {"code":"unsupported","detail":"unknown method \"list_function_block_types\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, remove_server, save_instance_configuration_to_string, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
   GAP (a) CONSISTENT    list_function_block_types belongs to declared gap "function_block.add"
                          contract: contract.yaml gap_generation (gaps = baseline minus declared capabilities)
                          expected: a refusal, because "function_block.add" is absent from this host's handshake capabilities
@@ -438,7 +438,7 @@ computed gaps         (3): device.scan, function_block.add, streaming.raw
   HELD                  add_function_block: the declared-gap refusal uses a code from the closed set
                          contract: contract.yaml error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
                          expected: one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         actual:   {"code":"unsupported","detail":"unknown method \"add_function_block\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, save_instance_configuration_to_string, set_component_attribute, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
+                         actual:   {"code":"unsupported","detail":"unknown method \"add_function_block\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, remove_server, save_instance_configuration_to_string, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
   GAP (a) CONSISTENT    add_function_block belongs to declared gap "function_block.add"
                          contract: contract.yaml gap_generation (gaps = baseline minus declared capabilities)
                          expected: a refusal, because "function_block.add" is absent from this host's handshake capabilities
@@ -447,7 +447,7 @@ computed gaps         (3): device.scan, function_block.add, streaming.raw
   HELD                  remove_function_block: the declared-gap refusal uses a code from the closed set
                          contract: contract.yaml error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
                          expected: one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         actual:   {"code":"unsupported","detail":"unknown method \"remove_function_block\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, save_instance_configuration_to_string, set_component_attribute, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
+                         actual:   {"code":"unsupported","detail":"unknown method \"remove_function_block\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, remove_server, save_instance_configuration_to_string, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
   GAP (a) CONSISTENT    remove_function_block belongs to declared gap "function_block.add"
                          contract: contract.yaml gap_generation (gaps = baseline minus declared capabilities)
                          expected: a refusal, because "function_block.add" is absent from this host's handshake capabilities
@@ -456,7 +456,7 @@ computed gaps         (3): device.scan, function_block.add, streaming.raw
   HELD                  read_samples_raw: the declared-gap refusal uses a code from the closed set
                          contract: contract.yaml error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
                          expected: one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         actual:   {"code":"unsupported","detail":"unknown method \"read_samples_raw\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, save_instance_configuration_to_string, set_component_attribute, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
+                         actual:   {"code":"unsupported","detail":"unknown method \"read_samples_raw\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, remove_server, save_instance_configuration_to_string, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
   GAP (a) CONSISTENT    read_samples_raw belongs to declared gap "streaming.raw"
                          contract: contract.yaml gap_generation (gaps = baseline minus declared capabilities)
                          expected: a refusal, because "streaming.raw" is absent from this host's handshake capabilities
@@ -466,10 +466,12 @@ computed gaps         (3): device.scan, function_block.add, streaming.raw
 --- sweep 3: device operation mode, device lock, loaded modules --------------
 capabilities this sweep drives: device.mode (claimed), device.lock (claimed), module.read (claimed), module.load (claimed)
 the device this sweep acts on: /quackoscope-host-csharp/Dev/RefDev0; a node that is not a device, for the unsupported corner: /quackoscope-host-csharp/Dev/RefDev0/Sig
-opened a second WebSocket to ws://127.0.0.1:8143/ws; its handshake was 2248 bytes. It is the client that is NOT the lock holder, which is the only client contract.yaml's read_only wording can be asserted from.
+opened a second WebSocket to ws://127.0.0.1:8223/ws; its handshake was 5079 bytes. It is the client that did NOT take the lock, which is the only client from which openDAQ's actual lock behaviour can be observed: user_lock_impl.cpp:22-23 and :31-32 make an anonymously-taken lock takeable and releasable by anyone, and config_server_access_control.h:75-81 is the only place a lock refuses a write, which is a path no in-process host is on.
 
 device.mode: get_device_operation_modes, set_device_operation_mode
 restored /quackoscope-host-csharp/Dev/RefDev0 to the operation mode it was found in, "safe_operation": the host accepted, result null
+set_device_operation_mode /quackoscope-host-csharp/Dev/RefDev0 = "quackoscope-conformance-sweep-no-such-operation-mode" (a name types.Node.operation_mode does not enumerate at all) -> refused with invalid_value: "quackoscope-conformance-sweep-no-such-operation-mode" is not one of the operation mode names contract types.Node.operation_mode enumerates: unknown, idle, oper; Node.operation_mode was "safe_operation" before the request and "safe_operation"
+set_device_operation_mode /quackoscope-host-csharp/Dev/RefDev0 = "unknown" (a name types.Node.operation_mode does enumerate and get_device_operation_modes did not return for /quackoscope-host-csharp/Dev/RefDev0) -> refused with invalid_value: device "/quackoscope-host-csharp/Dev/RefDev0" does not offer operation mode "unknown"; IDevice.availableOperationModes lists idle, operation, safe_operation. op; Node.operation_mode was "safe_operation" before the request and "safe_operation"
 
 module.read: list_loaded_modules
 list_loaded_modules answered with 17 module(s) and 34 component type(s): "AudioDeviceModule" "3.41.0", "BasicCsvRecorderModule" "3.41.0", "EmptyModule" "3.41.0", "LicensingModule" "3.41.0", "mock_dep" "0.0.0", "" "0.0.0", "" "0.0.0", "OpenDAQNativeStreamingClientModule" "3.41.0", "OpenDAQNativeStreamingServerModule" "3.41.0", "OpenDAQOPCUAClientModule" "4.1.0", "OpenDAQOPCUAServerModule" "4.1.0", "ParquetRecorderModule" "3.41.0", "ReferenceDevice" "3.41.0", "ReferenceF
@@ -480,9 +482,11 @@ load_module_from_host_path "C:/quackoscope-conformance-sweep/no-such-directory/n
 
 device.lock: lock_device, unlock_device, across two sessions
 the second session connected "daqref://device0" and got device node "/quackoscope-host-csharp/Dev/RefDev0"; the first session holds the lock on /quackoscope-host-csharp/Dev/RefDev0
-the locked device accepted that write, so /quackoscope-host-csharp/Dev/RefDev0.NumberOfChannels was restored to 2: the host accepted, result null
+the locked device accepted that write, which is what an in-process openDAQ does, so /quackoscope-host-csharp/Dev/RefDev0.NumberOfChannels was restored to 2: the host accepted, result null
+that mode change was accepted from the session that did not take the lock, which is what openDAQ does, so /quackoscope-host-csharp/Dev/RefDev0 was moved back to "safe_operation" from the other session: the host accepted, result null
+the lock on /quackoscope-host-csharp/Dev/RefDev0 was taken again from this run's first session, so that unlock_device force:true has a lock to force: the host accepted, result null
 
-closed the second WebSocket to ws://127.0.0.1:8143/ws; it sent 11 request(s)
+closed the second WebSocket to ws://127.0.0.1:8223/ws; it sent 11 request(s)
   HELD                  get_device_operation_modes: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
@@ -555,22 +559,6 @@ closed the second WebSocket to ws://127.0.0.1:8143/ws; it sent 11 request(s)
                          contract: contract.yaml types.Node.operation_mode: "This is the current mode the reference appends to the row name"; the AVAILABLE modes are get_device_operation_modes, so a set that is not visible on the node makes the two halves of device.mode disagree
                          expected: get_component_tree reports operation_mode "idle" on /quackoscope-host-csharp/Dev/RefDev0
                          actual:   operation_mode "idle" (it was "safe_operation" before the write)
-  HELD                  set_device_operation_mode {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","mode":"quackoscope-conformance-sweep-no-such-operation-mode"}: the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, error
-  HELD                  set_device_operation_mode {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","mode":"quackoscope-conformance-sweep-no-such-operation-mode"}: the error object matches contract error_shape and the closed error set
-                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         expected: {code: one of the closed set, detail: string}
-                         actual:   {"code":"invalid_value","detail":"\"quackoscope-conformance-sweep-no-such-operation-mode\" is not one of the operation mode names contract types.Node.operation_mode enumerates: unknown, idle, operation, safe_operation"}
-  HELD                  set_device_operation_mode {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","mode":"quackoscope-conformance-sweep-no-such-operation-mode"}: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]
-                         expected: one of [not_found, invalid_value, read_only, unsupported]
-                         actual:   "invalid_value" - "\"quackoscope-conformance-sweep-no-such-operation-mode\" is not one of the operation mode names contract types.Node.operation_mode enumerates: unknown, idle, operation, safe_operation"
-  HELD                  set_device_operation_mode with the mode name "quackoscope-conformance-sweep-no-such-operation-mode", which is outside types.Node.operation_mode, is refused with invalid_value
-                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]; "invalid_value: a mode name outside Node.operation_mode's values, or one the device did not list as available"
-                         expected: error code "invalid_value"
-                         actual:   error invalid_value: "quackoscope-conformance-sweep-no-such-operation-mode" is not one of the operation mode names contract types.Node.operation_mode enumerates: unknown, idle, operation, safe_operation
   HELD                  set_device_operation_mode {"node_id":"/quackoscope-conformance-sweep/no-such-node","mode":"idle"}: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
@@ -580,11 +568,11 @@ closed the second WebSocket to ws://127.0.0.1:8143/ws; it sent 11 request(s)
                          expected: {code: one of the closed set, detail: string}
                          actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0"}
   HELD                  set_device_operation_mode {"node_id":"/quackoscope-conformance-sweep/no-such-node","mode":"idle"}: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]
-                         expected: one of [not_found, invalid_value, read_only, unsupported]
+                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, unsupported]
+                         expected: one of [not_found, invalid_value, unsupported]
                          actual:   "not_found" - "no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0"
   HELD                  set_device_operation_mode on the unknown node "/quackoscope-conformance-sweep/no-such-node" is refused with not_found
-                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]
+                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, unsupported]
                          expected: error code "not_found"
                          actual:   error not_found: no component with id "/quackoscope-conformance-sweep/no-such-node" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0
   HELD                  set_device_operation_mode {"node_id":"/quackoscope-host-csharp/Dev/RefDev0/Sig","mode":"idle"}: the response carries exactly one of result or error
@@ -596,13 +584,53 @@ closed the second WebSocket to ws://127.0.0.1:8143/ws; it sent 11 request(s)
                          expected: {code: one of the closed set, detail: string}
                          actual:   {"code":"unsupported","detail":"component \"/quackoscope-host-csharp/Dev/RefDev0/Sig\" is a folder and not a device, so set_device_operation_mode has nothing to act on; openDAQ puts lock/unlock and the operation modes on IDevice"}
   HELD                  set_device_operation_mode {"node_id":"/quackoscope-host-csharp/Dev/RefDev0/Sig","mode":"idle"}: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]
-                         expected: one of [not_found, invalid_value, read_only, unsupported]
+                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, unsupported]
+                         expected: one of [not_found, invalid_value, unsupported]
                          actual:   "unsupported" - "component \"/quackoscope-host-csharp/Dev/RefDev0/Sig\" is a folder and not a device, so set_device_operation_mode has nothing to act on; openDAQ puts lock/unlock and the operation modes on IDevice"
   HELD                  set_device_operation_mode on /quackoscope-host-csharp/Dev/RefDev0/Sig, a node of kind folder and not a device, is refused with unsupported
-                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]; "unsupported is node_id naming a component that is not a device: the node exists, so not_found would be a lie"
+                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, unsupported]; "unsupported is node_id naming a component that is not a device: the node exists, so not_found would be a lie"
                          expected: error code "unsupported"
                          actual:   error unsupported: component "/quackoscope-host-csharp/Dev/RefDev0/Sig" is a folder and not a device, so set_device_operation_mode has nothing to act on; openDAQ puts lock/unlock and the operation modes on IDevice
+  HELD                  set_device_operation_mode mode "quackoscope-conformance-sweep-no-such-operation-mode", a name types.Node.operation_mode does not enumerate at all: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, error
+  HELD                  set_device_operation_mode mode "quackoscope-conformance-sweep-no-such-operation-mode", a name types.Node.operation_mode does not enumerate at all: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"invalid_value","detail":"\"quackoscope-conformance-sweep-no-such-operation-mode\" is not one of the operation mode names contract types.Node.operation_mode enumerates: unknown, idle, operation, safe_operation"}
+  HELD                  set_device_operation_mode mode "quackoscope-conformance-sweep-no-such-operation-mode", a name types.Node.operation_mode does not enumerate at all: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, unsupported]
+                         expected: one of [not_found, invalid_value, unsupported]
+                         actual:   "invalid_value" - "\"quackoscope-conformance-sweep-no-such-operation-mode\" is not one of the operation mode names contract types.Node.operation_mode enumerates: unknown, idle, operation, safe_operation"
+  HELD                  set_device_operation_mode /quackoscope-host-csharp/Dev/RefDev0 = "quackoscope-conformance-sweep-no-such-operation-mode" leaves the device in the mode it was already in
+                         contract: the one thing contract.yaml and openDAQ agree on for this input. contract.yaml operations[set_device_operation_mode].errors makes it "invalid_value", and a refused setter writes nothing; GenericDevice::setOperationMode (device_impl.h:1257-1260) returns OPENDAQ_IGNORED before it takes the tree lock guard or calls updateOperationModeInternal, so nothing is written on that path either. Under BOTH readings the device stands still.
+                         expected: Node.operation_mode still "safe_operation", the value it carried one request earlier
+                         actual:   Node.operation_mode "safe_operation" (the host refused the request: invalid_value)
+  UNCONSTRAINED         which answer set_device_operation_mode gives to "quackoscope-conformance-sweep-no-such-operation-mode", a name types.Node.operation_mode does not enumerate at all
+                         contract: contract.yaml operations[set_device_operation_mode].errors: "invalid_value: a mode name outside Node.operation_mode's values, or one the device did not list as available" - AGAINST openDAQ, which refuses neither: OperationModeTypeFromString (core/opendaq/component/include/opendaq/component_factory.h:55-64) returns OperationModeType::Unknown for any unrecognised string rather than failing, and GenericDevice::setOperationMode (core/opendaq/device/include/opendaq/device_impl.h:1257-1260) is "if (this->onGetAvailableOperationModes().count(modeType) == 0) return OPENDAQ_IGNORED;", where OPENDAQ_IGNORED is 0x00000006u (core/coretypes/include/coretypes/errors.h:39) and OPENDAQ_SUCCEEDED(x) is !((x) & 0x80000000u) (errors.h:29) - a SUCCESS
+                         expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
+                         actual:   the contract's row and the SDK give different answers to this exact input and no host can satisfy both: invalid_value is what the row declares and is a refusal openDAQ never makes, while a success envelope is what openDAQ produces and is outside the row as written. Which of the two a host lands on follows from whether its binding maps the wire string to the enum itself or hands it to OperationModeTypeFromString, so both are honest reports of the same SDK. This suite reports the disagreement to whoever owns contract.yaml instead of failing half the hosts for it; what it does assert is the assertion above, that the device did not move  observed: /quackoscope-host-csharp/Dev/RefDev0 lists [idle, operation, safe_operation] as available and types.Node.operation_mode enumerates [unknown, idle, operation, safe_operation]; sent mode "quackoscope-conformance-sweep-no-such-operation-mode" and the host refused with invalid_value: "quackoscope-conformance-sweep-no-such-operation-mode" is not one of the operation mode names contract types.Node.operation_mode enumerates: unknown, idle, oper; Node.operation_mode was "safe_operation" before the request and "safe_operation"
+  HELD                  set_device_operation_mode mode "unknown", a name types.Node.operation_mode does enumerate and get_device_operation_modes did not return for /quackoscope-host-csharp/Dev/RefDev0: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, error
+  HELD                  set_device_operation_mode mode "unknown", a name types.Node.operation_mode does enumerate and get_device_operation_modes did not return for /quackoscope-host-csharp/Dev/RefDev0: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"invalid_value","detail":"device \"/quackoscope-host-csharp/Dev/RefDev0\" does not offer operation mode \"unknown\"; IDevice.availableOperationModes lists idle, operation, safe_operation. openDAQ itself would not have raised here: GenericDevice::setOperationMode (device_impl.h:1257-1260) returns OPENDAQ_IGNORED, a SUCCESS, for a mode outside onGetAvailableOperationModes, so the call would have returned void and left the mode where it was. This invalid_value is contract operations[set_device_operation_mode].errors' rule, not a refusal openDAQ made"}
+  HELD                  set_device_operation_mode mode "unknown", a name types.Node.operation_mode does enumerate and get_device_operation_modes did not return for /quackoscope-host-csharp/Dev/RefDev0: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, unsupported]
+                         expected: one of [not_found, invalid_value, unsupported]
+                         actual:   "invalid_value" - "device \"/quackoscope-host-csharp/Dev/RefDev0\" does not offer operation mode \"unknown\"; IDevice.availableOperationModes lists idle, operation, safe_operation. openDAQ itself would not have raised here: GenericDevice::setOperationMode (device_impl.h:1257-1260) returns OPENDAQ_IGNORED, a SUCCESS, for a mode outside onGetAvailableOperationModes, so the call would have returned void and left the mode where it was. This invalid_value is contract operations[set_device_operation_mode].errors' rule, not a refusal openDAQ made"
+  HELD                  set_device_operation_mode /quackoscope-host-csharp/Dev/RefDev0 = "unknown" leaves the device in the mode it was already in
+                         contract: the one thing contract.yaml and openDAQ agree on for this input. contract.yaml operations[set_device_operation_mode].errors makes it "invalid_value", and a refused setter writes nothing; GenericDevice::setOperationMode (device_impl.h:1257-1260) returns OPENDAQ_IGNORED before it takes the tree lock guard or calls updateOperationModeInternal, so nothing is written on that path either. Under BOTH readings the device stands still.
+                         expected: Node.operation_mode still "safe_operation", the value it carried one request earlier
+                         actual:   Node.operation_mode "safe_operation" (the host refused the request: invalid_value)
+  UNCONSTRAINED         which answer set_device_operation_mode gives to "unknown", a name types.Node.operation_mode does enumerate and get_device_operation_modes did not return for /quackoscope-host-csharp/Dev/RefDev0
+                         contract: contract.yaml operations[set_device_operation_mode].errors: "invalid_value: a mode name outside Node.operation_mode's values, or one the device did not list as available" - AGAINST openDAQ, which refuses neither: OperationModeTypeFromString (core/opendaq/component/include/opendaq/component_factory.h:55-64) returns OperationModeType::Unknown for any unrecognised string rather than failing, and GenericDevice::setOperationMode (core/opendaq/device/include/opendaq/device_impl.h:1257-1260) is "if (this->onGetAvailableOperationModes().count(modeType) == 0) return OPENDAQ_IGNORED;", where OPENDAQ_IGNORED is 0x00000006u (core/coretypes/include/coretypes/errors.h:39) and OPENDAQ_SUCCEEDED(x) is !((x) & 0x80000000u) (errors.h:29) - a SUCCESS
+                         expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
+                         actual:   the contract's row and the SDK give different answers to this exact input and no host can satisfy both: invalid_value is what the row declares and is a refusal openDAQ never makes, while a success envelope is what openDAQ produces and is outside the row as written. Which of the two a host lands on follows from whether its binding maps the wire string to the enum itself or hands it to OperationModeTypeFromString, so both are honest reports of the same SDK. This suite reports the disagreement to whoever owns contract.yaml instead of failing half the hosts for it; what it does assert is the assertion above, that the device did not move  observed: /quackoscope-host-csharp/Dev/RefDev0 lists [idle, operation, safe_operation] as available and types.Node.operation_mode enumerates [unknown, idle, operation, safe_operation]; sent mode "unknown" and the host refused with invalid_value: device "/quackoscope-host-csharp/Dev/RefDev0" does not offer operation mode "unknown"; IDevice.availableOperationModes lists idle, operation, safe_operation. op; Node.operation_mode was "safe_operation" before the request and "safe_operation"
   HELD                  list_loaded_modules: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
@@ -767,68 +795,64 @@ closed the second WebSocket to ws://127.0.0.1:8143/ws; it sent 11 request(s)
                          contract: contract.yaml types.Node.locked: "The EFFECTIVE lock state, inheritance already applied host-side: a device reports its own IDevice.locked". lock_device and unlock_device are "the actions behind the lock and unlock icons the tree already ships", so a lock the tree does not show leaves the icon wrong.
                          expected: Node.locked === true
                          actual:   Node.locked true
-  HELD                  set_property_value /quackoscope-host-csharp/Dev/RefDev0.NumberOfChannels from a session that does not hold the lock: the response carries exactly one of result or error
+  HELD                  set_property_value /quackoscope-host-csharp/Dev/RefDev0.NumberOfChannels from a session that did not take the lock: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
                          actual:   keys: id, result
-  FAIL (b) CLAIMED      set_property_value /quackoscope-host-csharp/Dev/RefDev0.NumberOfChannels, from a session that does not hold the lock on /quackoscope-host-csharp/Dev/RefDev0, is refused with read_only
-                         contract: contract.yaml operations[set_device_operation_mode].errors names read_only "the closed error set's expression of openDAQ refused the write because the component is protected, the same code set_property_value already uses for a locked target"; types.Node.locked is the EFFECTIVE state, "any other component reports the nearest ancestor device's", so a property under a locked device is a locked target
-                         expected: error code "read_only"
-                         actual:   the write of 3 was ACCEPTED while another session held the lock, result null
-  HELD                  set_device_operation_mode {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","mode":"idle"}: the response carries exactly one of result or error
+  HELD                  set_property_value /quackoscope-host-csharp/Dev/RefDev0.NumberOfChannels, from a session that did not take the lock on /quackoscope-host-csharp/Dev/RefDev0, is ACCEPTED
+                         contract: contract.yaml operations[set_property_value].errors: "read_only is openDAQ refusing THIS property's write - PropertyDescriptor.read_only, i.e. the property object's own refusal. A LOCKED ANCESTOR DEVICE IS NOT A read_only CAUSE HERE, and a host must not manufacture one. The device lock is enforced only in the config-protocol server, by ConfigServerAccessControl::protectLockedComponent (config_server_access_control.h:75-81) ... Core does not: GenericPropertyObjectImpl::setPropertyValue consults no lock, so an in-process write to a property under a locked device SUCCEEDS. Every host in this repository holds an in-process Instance, so every one of them is on that path." This descriptor reports read_only false, so the one read_only cause the row does have is absent too.
+                         expected: a result envelope carrying null: the write of 3 lands exactly as it would on an unlocked device
+                         actual:   the write of 3 was accepted while another session held the lock, result null
+  HELD                  set_device_operation_mode /quackoscope-host-csharp/Dev/RefDev0 = "idle" from the session that did not take the lock: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  set_device_operation_mode /quackoscope-host-csharp/Dev/RefDev0 = "idle", sent from a session that did not take the lock while another session holds it, is ACCEPTED
+                         contract: contract.yaml operations[set_device_operation_mode].errors: "THERE IS NO read_only ON THIS ROW, and its removal is the correction of a rule this contract invented. It used to read read_only: the device is locked, and openDAQ does not do that: GenericDevice::setOperationMode (device_impl.h:1257-1281) consults no lock at all - it checks onGetAvailableOperationModes, takes the tree lock guard and writes. The device lock refuses writes only in the config-protocol server (config_server_access_control.h:75-81), and these hosts are in-process, so no lock refusal can reach this row."
+                         expected: a result envelope carrying null, exactly as it would be answered on an unlocked device
+                         actual:   result null
+  HELD                  lock_device /quackoscope-host-csharp/Dev/RefDev0, already locked by this run's first session, from a second session: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  lock_device /quackoscope-host-csharp/Dev/RefDev0 from a second session, on a device this run's first session already locked, is ACCEPTED
+                         contract: contract.yaml operations[lock_device].errors: read_only "is OPENDAQ_ERR_DEVICE_LOCKED ... which UserLockImpl::lock returns in exactly one case: `userLock.has_value() && userLock != userPtr` (user_lock_impl.cpp:21-22), i.e. a DIFFERENT NAMED user already holds it ... reachable only where authentication names users, so with this application's configuration a host will not produce this code and MUST NOT SYNTHESISE IT: a second lock of an anonymously-locked device compares nullptr against nullptr and succeeds"
+                         expected: a result envelope carrying null
+                         actual:   result null
+  HELD                  unlock_device /quackoscope-host-csharp/Dev/RefDev0, from the session that did not take the lock: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  unlock_device /quackoscope-host-csharp/Dev/RefDev0 from a second session, on a lock this run's first session took, is ACCEPTED
+                         contract: contract.yaml operations[unlock_device].errors: read_only is OPENDAQ_ERR_ACCESSDENIED, returned "only when `userLock.has_value() && userLock != nullptr && userLock != user` - the `!= nullptr` term is why an anonymously-taken lock, which is the only kind this application can take, is cleared by ANY caller. So this code is unreachable here too, and a host must not invent it to keep a second session out." openDAQ's own test asserts the same: test_device.cpp:400-430, LockUnlockAnonymous, locks anonymously and then unlocks as jure and as tomaz.
+                         expected: a result envelope carrying null
+                         actual:   result null
+  HELD                  get_component_tree reports Node.locked false on /quackoscope-host-csharp/Dev/RefDev0 after the OTHER session released a lock this run's first session took, which openDAQ permits any caller to do
+                         contract: contract.yaml types.Node.locked: "The EFFECTIVE lock state, inheritance already applied host-side: a device reports its own IDevice.locked". lock_device and unlock_device are "the actions behind the lock and unlock icons the tree already ships", so a lock the tree does not show leaves the icon wrong.
+                         expected: Node.locked === false
+                         actual:   Node.locked false
+  HELD                  unlock_device force true, from the session that did not take the lock: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
                          actual:   keys: id, error
-  HELD                  set_device_operation_mode {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","mode":"idle"}: the error object matches contract error_shape and the closed error set
+  HELD                  unlock_device force true, from the session that did not take the lock: the error object matches contract error_shape and the closed error set
                          contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
                          expected: {code: one of the closed set, detail: string}
-                         actual:   {"code":"read_only","detail":"device \"/quackoscope-host-csharp/Dev/RefDev0\" reports IDevice.locked = true, so openDAQ refuses the write; unlock_device it first"}
-  HELD                  set_device_operation_mode {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","mode":"idle"}: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[set_device_operation_mode].errors = [not_found, invalid_value, read_only, unsupported]
-                         expected: one of [not_found, invalid_value, read_only, unsupported]
-                         actual:   "read_only" - "device \"/quackoscope-host-csharp/Dev/RefDev0\" reports IDevice.locked = true, so openDAQ refuses the write; unlock_device it first"
-  HELD                  set_device_operation_mode from a session that does not hold the lock on /quackoscope-host-csharp/Dev/RefDev0 is refused with read_only
-                         contract: contract.yaml operations[set_device_operation_mode].errors: "read_only: the device is locked - the closed error set's expression of openDAQ refused the write because the component is protected, the same code set_property_value already uses for a locked target"
-                         expected: error code "read_only"
-                         actual:   error read_only: device "/quackoscope-host-csharp/Dev/RefDev0" reports IDevice.locked = true, so openDAQ refuses the write; unlock_device it first
-  HELD                  lock_device {"node_id":"/quackoscope-host-csharp/Dev/RefDev0"}: the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, result
-  FAIL (b) CLAIMED      lock_device from a second session, on a device this run's first session already locked, is refused with read_only
-                         contract: contract.yaml operations[lock_device].errors: "read_only is the device is already locked, and not by this session - openDAQ permits an unlock only by the user who locked it"
-                         expected: error code "read_only"
-                         actual:   accepted it, result null
-  HELD                  unlock_device {"node_id":"/quackoscope-host-csharp/Dev/RefDev0"}: the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, result
-  FAIL (b) CLAIMED      unlock_device from a second session, on a device this run's first session locked, is refused with read_only
-                         contract: contract.yaml operations[unlock_device]: "IDevice.unlock() takes no arguments and refuses when another user holds the lock"; errors: "read_only is the refusal the reference reacts to by offering the forced unlock, so it is the exact signal that enables that control"
-                         expected: error code "read_only"
-                         actual:   accepted it, result null
-  HELD                  unlock_device force true, from the session that does not hold the lock: the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, error
-  HELD                  unlock_device force true, from the session that does not hold the lock: the error object matches contract error_shape and the closed error set
-                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         expected: {code: one of the closed set, detail: string}
-                         actual:   {"code":"unsupported","detail":"unlock_device force: true is currently not available in quackoscope-host-csharp. openDAQ's C++ IDevicePrivate::forceUnlock is what the reference falls back to (gui_demo.py:1409-1412), and the .NET binding's surface was enumerated to see whether it can be reached: System.Reflection over openDAQ.Net, Version=3.41.0.0 lists 212 public types, none named DevicePrivate or IDevicePrivate; the only ForceUnlock in the whole assembly is \"Void ForceUnlock()\" on Daq.Core.OpenDAQ.UserLock, and no public member of any of the 212 types returns a UserLock, so a Device gives no route to one. Daq.Core.OpenDAQ.Device declares \"Void Lock()\", \"Void Unlock()\" and \"Boolean Locked { get; }\" and nothing further about locking. unlock_device without force is served."}
-  HELD                  unlock_device force true, from the session that does not hold the lock: the refusal code is inside the subset this operation declares
+                         actual:   {"code":"unsupported","detail":"unlock_device force: true is not available in quackoscope-host-csharp, because openDAQ's own .NET binding does not ship IDevicePrivate. openDAQ's C++ IDevicePrivate::forceUnlock (device_private.h:39-42) is what the reference falls back to (gui_demo.py:1409-1416). The assembly this host actually loads was enumerated with System.Reflection.MetadataLoadContext rather than assumed: openDAQ.Net, Version=3.41.0.0 (C:\\Users\\opendaq\\Projects\\openDAQ\\build\\x64\\msvc-26\\full\\install\\bindings\\dotnet\\net8.0\\openDAQ.Net.dll) exports 213 public types, of which the number whose name ends in \"Private\" is ZERO -- no DevicePrivate, no IDevicePrivate, no TagsPrivate. That is not staleness, it is openDAQ's own build rule: bindings/dotnet/openDAQ.Net/openDAQ.Net/openDAQ.Net.csproj compiles the RTGen output with Exclude=\"$(_RTGenOutputPath)\\**\\*Private.cs\" under the comment \"exclude files which are meant to be SDK private\", so build/bindings/CSharp/core/opendaq/device/DevicePrivate.cs is generated and then deliberately left out of every openDAQ.Net.dll. The only ForceUnlock in the assembly is \"Void ForceUnlock()\" on Daq.Core.OpenDAQ.UserLock, and the only member of any of the 213 types that returns a UserLock is the factory OpenDAQFactory.CreateUserLock(), which makes a NEW lock unrelated to any device -- so a Device gives no route to its own IUserLock. BaseObject.Cast<T>() and QueryInterface<T>() are generic over a type that must exist in the assembly, so they cannot reach an interface the assembly does not carry. Daq.Core.OpenDAQ.Device declares \"Void Lock()\", \"Void Unlock()\" and \"Boolean Locked { get; }\" and nothing further about locking. unlock_device without force is served."}
+  HELD                  unlock_device force true, from the session that did not take the lock: the refusal code is inside the subset this operation declares
                          contract: contract.yaml operations[unlock_device].errors = [not_found, read_only, unsupported]
                          expected: one of [not_found, read_only, unsupported]
-                         actual:   "unsupported" - "unlock_device force: true is currently not available in quackoscope-host-csharp. openDAQ's C++ IDevicePrivate::forceUnlock is what the reference falls back to (gui_demo.py:1409-1412), and the .NET binding's surface was enumerated to see whether it can be reached: System.Reflection over openDAQ.Net, Version=3.41.0.0 lists 212 public types, none named DevicePrivate or IDevicePrivate; the only ForceUnlock in the whole assembly is \"Void ForceUnlock()\" on Daq.Core.OpenDAQ.UserLock, and no public member of any of the 212 types returns a UserLock, so a Device gives no route to one. Daq.Core.OpenDAQ.Device declares \"Void Lock()\", \"Void Unlock()\" and \"Boolean Locked { get; }\" and nothing further about locking. unlock_device without force is served."
-  HELD                  unlock_device force true, from the session that does not hold the lock, either takes the lock or answers unsupported
-                         contract: contract.yaml operations[unlock_device].params force, presence optional: "the reference then offers a forced unlock, which is IDevicePrivate.force_unlock() - a different interface, reached by a cast"; errors: "unsupported covers both not a device and force: true on a host that cannot reach IDevicePrivate"
+                         actual:   "unsupported" - "unlock_device force: true is not available in quackoscope-host-csharp, because openDAQ's own .NET binding does not ship IDevicePrivate. openDAQ's C++ IDevicePrivate::forceUnlock (device_private.h:39-42) is what the reference falls back to (gui_demo.py:1409-1416). The assembly this host actually loads was enumerated with System.Reflection.MetadataLoadContext rather than assumed: openDAQ.Net, Version=3.41.0.0 (C:\\Users\\opendaq\\Projects\\openDAQ\\build\\x64\\msvc-26\\full\\install\\bindings\\dotnet\\net8.0\\openDAQ.Net.dll) exports 213 public types, of which the number whose name ends in \"Private\" is ZERO -- no DevicePrivate, no IDevicePrivate, no TagsPrivate. That is not staleness, it is openDAQ's own build rule: bindings/dotnet/openDAQ.Net/openDAQ.Net/openDAQ.Net.csproj compiles the RTGen output with Exclude=\"$(_RTGenOutputPath)\\**\\*Private.cs\" under the comment \"exclude files which are meant to be SDK private\", so build/bindings/CSharp/core/opendaq/device/DevicePrivate.cs is generated and then deliberately left out of every openDAQ.Net.dll. The only ForceUnlock in the assembly is \"Void ForceUnlock()\" on Daq.Core.OpenDAQ.UserLock, and the only member of any of the 213 types that returns a UserLock is the factory OpenDAQFactory.CreateUserLock(), which makes a NEW lock unrelated to any device -- so a Device gives no route to its own IUserLock. BaseObject.Cast<T>() and QueryInterface<T>() are generic over a type that must exist in the assembly, so they cannot reach an interface the assembly does not carry. Daq.Core.OpenDAQ.Device declares \"Void Lock()\", \"Void Unlock()\" and \"Boolean Locked { get; }\" and nothing further about locking. unlock_device without force is served."
+  HELD                  unlock_device force true, from the session that did not take the lock, either clears the lock or answers unsupported
+                         contract: contract.yaml operations[unlock_device].params force, presence optional: "the reference then offers a forced unlock, which is IDevicePrivate.force_unlock() - a different interface, reached by a cast"; errors: "unsupported covers both not a device and force: true on a host that cannot reach IDevicePrivate". forceUnlock is an unconditional userLock.reset() (user_lock_impl.cpp:38-42), so no ownership refusal is possible on this path.
                          expected: a result envelope carrying null, or error code "unsupported"
-                         actual:   error unsupported: unlock_device force: true is currently not available in quackoscope-host-csharp. openDAQ's C++ IDevicePrivate::forceUnlock is what the reference falls back to (gui_demo.py:1409-1412), and the .NET binding's surface was enumerated to see whether it can be reached: System.Reflection over openDAQ.Net, Version=3.41.0.0 lists 212 public types, none named DevicePrivate or IDevicePrivate; the only ForceUnlock in the whole assembly is "Void ForceUnlock()" on Daq.Core.OpenDAQ.UserLock, and no public member of any of the 212 types returns a UserLock, so a Device gives no route to one. Daq.Core.OpenDAQ.Device declares "Void Lock()", "Void Unlock()" and "Boolean Locked { get; }" and nothing further about locking. unlock_device without force is served.
+                         actual:   error unsupported: unlock_device force: true is not available in quackoscope-host-csharp, because openDAQ's own .NET binding does not ship IDevicePrivate. openDAQ's C++ IDevicePrivate::forceUnlock (device_private.h:39-42) is what the reference falls back to (gui_demo.py:1409-1416). The assembly this host actually loads was enumerated with System.Reflection.MetadataLoadContext rather than assumed: openDAQ.Net, Version=3.41.0.0 (C:\Users\opendaq\Projects\openDAQ\build\x64\msvc-26\full\install\bindings\dotnet\net8.0\openDAQ.Net.dll) exports 213 public types, of which the number whose name ends in "Private" is ZERO -- no DevicePrivate, no IDevicePrivate, no TagsPrivate. That is not staleness, it is openDAQ's own build rule: bindings/dotnet/openDAQ.Net/openDAQ.Net/openDAQ.Net.csproj compiles the RTGen output with Exclude="$(_RTGenOutputPath)\**\*Private.cs" under the comment "exclude files which are meant to be SDK private", so build/bindings/CSharp/core/opendaq/device/DevicePrivate.cs is generated and then deliberately left out of every openDAQ.Net.dll. The only ForceUnlock in the assembly is "Void ForceUnlock()" on Daq.Core.OpenDAQ.UserLock, and the only member of any of the 213 types that returns a UserLock is the factory OpenDAQFactory.CreateUserLock(), which makes a NEW lock unrelated to any device -- so a Device gives no route to its own IUserLock. BaseObject.Cast<T>() and QueryInterface<T>() are generic over a type that must exist in the assembly, so they cannot reach an interface the assembly does not carry. Daq.Core.OpenDAQ.Device declares "Void Lock()", "Void Unlock()" and "Boolean Locked { get; }" and nothing further about locking. unlock_device without force is served.
   HELD                  unlock_device: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
                          actual:   keys: id, result
-  HELD                  unlock_device /quackoscope-host-csharp/Dev/RefDev0 by the session that locked it is accepted and returns void
-                         contract: contract.yaml operations[unlock_device].returns = void
+  HELD                  unlock_device /quackoscope-host-csharp/Dev/RefDev0 by the session that took the lock is accepted and returns void
+                         contract: contract.yaml operations[unlock_device].returns = void; errors: read_only is OPENDAQ_ERR_ACCESSDENIED and fires only when `userLock.has_value() && userLock != nullptr && userLock != user`, so neither a lock this session took anonymously nor a device that is already unlocked can refuse this call
                          expected: a result envelope carrying null
                          actual:   result null
   HELD                  get_component_tree reports Node.locked false on /quackoscope-host-csharp/Dev/RefDev0 after the holder's unlock_device, which is how this sweep leaves the device
@@ -852,7 +876,7 @@ closed the second WebSocket to ws://127.0.0.1:8143/ws; it sent 11 request(s)
   HELD                  every binary frame carries the 17-byte little-endian header and a payload of the length its encoding implies
                          contract: contract.yaml binary_frame: header_bytes 17, byte_order little_endian, fields subscription_id@0:uint32 domain_start@4:uint64 sample_count@12:uint32 encoding@16:uint8; encodings 0=raw (sample_count float64), 1=min_max_envelope (sample_count * 2 float64)
                          expected: all 3 frames well formed
-                         actual:   3 frames, all well formed; encodings seen: 1 (min_max_envelope), 0 (raw); sample_count 62..64; bytes 513..1041
+                         actual:   3 frames, all well formed; encodings seen: 0 (raw), 1 (min_max_envelope); sample_count 31..64; bytes 265..1041
   HELD                  the uint32 subscription_id in every frame header equals the decimal text the control plane returned
                          contract: contract.yaml subscription_id_encoding.relation = decimal_text_of_uint32; "This is the only bridge between the two planes."
                          expected: every frame header carries subscription_id 1
@@ -864,11 +888,11 @@ closed the second WebSocket to ws://127.0.0.1:8143/ws; it sent 11 request(s)
   UNCONSTRAINED         domain_start ordering across the frames of one subscription
                          contract: contract.yaml binary_frame.header declares domain_start a uint64 and says nothing about ordering between frames
                          expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
-                         actual:   the contract fixes the field's width and offset but never says successive frames must not go backwards, so this is observed, not asserted  observed: 3 frames, domain_start 1788528997050196 .. 1788528997241196, non-decreasing: true
+                         actual:   the contract fixes the field's width and offset but never says successive frames must not go backwards, so this is observed, not asserted  observed: 3 frames, domain_start 1788927967276114 .. 1788927967431114, non-decreasing: true
   UNCONSTRAINED         sample_count against the pixel_columns 64 that was asked for
                          contract: contract.yaml operations[subscribe_signal].params pixel_columns is declared, but binary_frame states no relation between pixel_columns and sample_count
                          expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
-                         actual:   nothing in the contract bounds sample_count by pixel_columns, so exceeding it cannot be a failure  observed: 0 of 3 frames carry sample_count > 64; sample_count range 62..64
+                         actual:   nothing in the contract bounds sample_count by pixel_columns, so exceeding it cannot be a failure  observed: 0 of 3 frames carry sample_count > 64; sample_count range 31..64
   HELD                  unsubscribe_signal: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
@@ -922,12 +946,12 @@ closed the second WebSocket to ws://127.0.0.1:8143/ws; it sent 11 request(s)
                          expected: {code: one of the closed set, detail: string}
                          actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-conformance-sweep/no-such-signal\" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0"}
   HELD                  subscribe_signal: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[subscribe_signal].errors = [not_found, not_connected]
-                         expected: one of [not_found, not_connected]
+                         contract: contract.yaml operations[subscribe_signal].errors = [not_found, not_connected, invalid_value]
+                         expected: one of [not_found, not_connected, invalid_value]
                          actual:   "not_found" - "no component with id \"/quackoscope-conformance-sweep/no-such-signal\" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0"
   HELD                  subscribe_signal on an unknown signal id is refused
-                         contract: contract.yaml operations[subscribe_signal].errors = [not_found, not_connected]
-                         expected: one of [not_found, not_connected]
+                         contract: contract.yaml operations[subscribe_signal].errors = [not_found, not_connected, invalid_value]
+                         expected: one of [not_found, not_connected, invalid_value]
                          actual:   error not_found: no component with id "/quackoscope-conformance-sweep/no-such-signal" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0
   NOT PROVOKABLE        the advertised max_subscriptions limit (64) was not driven to exhaustion
                          contract: contract.yaml handshake.fields.limits.fields.max_subscriptions
@@ -935,31 +959,37 @@ closed the second WebSocket to ws://127.0.0.1:8143/ws; it sent 11 request(s)
                          actual:   opening 64 simultaneous subscriptions against a real acquisition device would change how that device behaves for anyone else using it; the sweep declines to do it and says so rather than skipping silently
 
 --- sweep 5: component attributes, servers, the recorder, batched updates, instance configuration ---
-capabilities this sweep drives: attribute.read (claimed), attribute.write (claimed), server.add (claimed), server.discovery (claimed), recorder.control (claimed), property.batched_update (claimed), configuration.save (claimed), configuration.load (claimed)
+capabilities this sweep drives: attribute.read (claimed), attribute.write (declared a gap), server.add (claimed), server.discovery (claimed), recorder.control (claimed), property.batched_update (claimed), configuration.save (claimed), configuration.load (claimed)
 the rows this sweep found in the tree it was handed (19 node(s)): device /quackoscope-host-csharp/Dev/RefDev0; a node of kind server, for set_server_discovery_enabled: (none); a node reporting a non-null Node.recording, which is the only kind of row that IS a recorder: (none); a node that is not a server, for the unsupported corner: /quackoscope-host-csharp/Dev/RefDev0; a node reporting Node.recording null, for the recorder's unsupported corner: /quackoscope-host-csharp/Dev/RefDev0
-opened a second WebSocket to ws://127.0.0.1:8143/ws; its handshake was 2248 bytes. It has connected no device, which is the only session the not_connected corner of these rows can be asked of, and it is the session that will begin a batched update and then drop without ending it.
+opened a second WebSocket to ws://127.0.0.1:8223/ws; its handshake was 5079 bytes. It has connected no device, which is the only session the not_connected corner of these rows can be asked of, and it is the session that will begin a batched update and then drop without ending it.
 
 attribute.read: get_component_attributes
 
 attribute.write: set_component_attribute
-restored /quackoscope-host-csharp/Dev/RefDev0.name to the value it was found with, "RefDev0": the host accepted, result null
 
-server.add: list_server_types, add_server (failure paths only - see this file's header)
+server.add: list_server_types, add_server, remove_server - the whole lifecycle, see this file's header
+add_server "OpenDAQNativeStreaming" -> created "/quackoscope-host-csharp/Srv/OpenDAQNativeStreaming" (kind "server")
+add_server "OpenDAQNativeStreaming" created /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming, and on a host holding a real openDAQ Instance that server is now HOLDING A LISTENING SOCKET on whatever port its type defaults to - nothing on this wire reports the port, so this sweep cannot print it. /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming is removed with remove_server after the discovery section below, and contract.yaml operations[remove_server] is why that closes the socket rather than only delisting the row: ServerImpl::removed (server_impl.h:199-202) is `checkErrorInfo(stop()); Super::removed();`.
 
 server.discovery: set_server_discovery_enabled
+the server row this section drives is /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming, created moments ago by add_server "OpenDAQNativeStreaming" and removed again below
+set_server_discovery_enabled was driven on /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming with false and then true, and this sweep LEAVES DISCOVERY ENABLED there. It cannot restore what it cannot read: contract.yaml says of this row "THERE IS NO GETTER AND THERE CANNOT BE ONE", having enumerated the Python binding's IServer surface and openDAQ's own server.h and found no discovery-state member in either. true is the value left because contract.yaml records that the reference calls enable_discovery immediately after add_server, so it is the state a server row is created in, and because silencing a server that other clients scan for is a larger change than advertising one.
+
+server.add: taking down /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming, the server add_server created from type "OpenDAQNativeStreaming" earlier in this sweep
+remove_server /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming was accepted; the socket add_server opened is closed with it.
 
 recorder.control: start_recording, stop_recording
 
 property.batched_update: begin_batched_property_update, end_batched_property_update
 restored /quackoscope-host-csharp/Dev/RefDev0.NumberOfChannels to the value it was found with, 2: the host accepted, result null
-opened a third WebSocket to ws://127.0.0.1:8143/ws for the abandoned batch; its handshake was 2248 bytes. It exists to be closed while it holds a batch open, which is the case contract.yaml raises and refuses to rule.
+opened a third WebSocket to ws://127.0.0.1:8223/ws for the abandoned batch; its handshake was 5079 bytes. It exists to be closed while it holds a batch open, which is the case contract.yaml raises and refuses to rule.
 that third session connected "daqref://device0" and got device node "/quackoscope-host-csharp/Dev/RefDev0"; it is about to begin a batch on it and then be closed without ending it
 that session began a batch on /quackoscope-host-csharp/Dev/RefDev0 and its WebSocket was then closed without an end_batched_property_update. contract.yaml states this case, states that it does NOT rule it, and gives Node.updating so the next session can see it - so what follows is recorded, not judged.
 end_batched_property_update /quackoscope-host-csharp/Dev/RefDev0 was sent from the session that did not begin that batch, so this run leaves no component in batch mode: the host accepted, result null
 
 configuration.save, configuration.load: save_instance_configuration_to_string, load_instance_configuration_from_string
 
-closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 request(s)
+closed this sweep's second WebSocket to ws://127.0.0.1:8223/ws; it sent 5 request(s)
   HELD                  get_component_attributes /quackoscope-host-csharp/Dev/RefDev0: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
@@ -967,7 +997,7 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
   HELD                  get_component_attributes /quackoscope-host-csharp/Dev/RefDev0 returns an array of contract-shaped ComponentAttribute records
                          contract: contract.yaml operations[get_component_attributes].returns = array of ComponentAttribute; types.ComponentAttribute id/name/value_type/read_only required and value nullable, value_type an enum over [bool, int, float, string, string_list]
                          expected: every element a ComponentAttribute carrying all 5 contract keys
-                         actual:   7 attribute(s): name="RefDev0" (string), description="" (string), active=true (bool), global_id="/quackoscope-host-csharp/Dev/RefDev0" (string, read_only), local_id="RefDev0" (string, read_only), tags=[] (string_list, read_only), visible=true (bool, read_only)
+                         actual:   7 attribute(s): name="RefDev0" (string), description="" (string), active=true (bool), global_id="/quackoscope-host-csharp/Dev/RefDev0" (string, read_only), local_id="RefDev0" (string, read_only), tags=[] (string_list), visible=true (bool, read_only)
   HELD                  no attribute row of /quackoscope-host-csharp/Dev/RefDev0 carries a null value
                          contract: contract.yaml operations[get_component_attributes].returns: "A host that cannot perform a cast returns fewer rows; it does not return a row with a null value, which would claim the attribute exists and has no value."
                          expected: every row a real value; an attribute a host cannot reach is absent, not null
@@ -976,6 +1006,10 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
                          contract: contract.yaml types.ComponentAttribute: "ATTRIBUTES ARE NOT PROPERTIES, and this record exists because of that. A property is a PropertyDescriptor the object carries in a property bag and answers get/setPropertyValue for. An attribute is a fixed member of the openDAQ interface itself"; types.Node.property_ids.references = PropertyDescriptor.id
                          expected: the two id spaces do not overlap on this node
                          actual:   7 attribute id(s) and 8 property id(s) on /quackoscope-host-csharp/Dev/RefDev0, no id in both
+  HELD                  a host that declared attribute.write a gap does not report read_only true on every attribute row instead
+                         contract: contract.yaml types.ComponentAttribute.read_only, "WHAT read_only MUST NOT BE USED FOR": "It is openDAQ's answer about the component, never the host's answer about itself. A host that has not implemented attribute writing declares no attribute.write capability and the client disables the editors from the gap; it must not instead report read_only true on every row, because that says openDAQ locked the attribute, which is a cause the host has not established."
+                         expected: at least one row with read_only false, since the gap and not read_only is what disables the editors
+                         actual:   4 of 7 row(s) report read_only false: name, description, active, tags
   HELD                  get_component_attributes {"node_id":"/quackoscope-conformance-sweep/no-such-node"}: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
@@ -985,11 +1019,11 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
                          expected: {code: one of the closed set, detail: string}
                          actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0"}
   HELD                  get_component_attributes {"node_id":"/quackoscope-conformance-sweep/no-such-node"}: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[get_component_attributes].errors = [not_found, not_connected]
-                         expected: one of [not_found, not_connected]
+                         contract: contract.yaml operations[get_component_attributes].errors = [not_found, not_connected, invalid_value]
+                         expected: one of [not_found, not_connected, invalid_value]
                          actual:   "not_found" - "no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0"
   HELD                  get_component_attributes on the unknown node "/quackoscope-conformance-sweep/no-such-node" is refused with not_found
-                         contract: contract.yaml operations[get_component_attributes].errors = [not_found, not_connected]; "The same subset get_property_descriptors declares, and for the same two reasons: node_id may name nothing, and there may be no instance to read."
+                         contract: contract.yaml operations[get_component_attributes].errors = [not_found, not_connected, invalid_value]; "The same subset get_property_descriptors declares, and for the same two reasons: node_id may name nothing, and there may be no instance to read."
                          expected: error code "not_found"
                          actual:   error not_found: no component with id "/quackoscope-conformance-sweep/no-such-node" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0
   HELD                  get_component_attributes on a second session that has connected no device: the response carries exactly one of result or error
@@ -1001,89 +1035,22 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
                          expected: {code: one of the closed set, detail: string}
                          actual:   {"code":"not_connected","detail":"this session has connected no device; call connect_device first (a device another session connected is not visible here)"}
   HELD                  get_component_attributes on a second session that has connected no device: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[get_component_attributes].errors = [not_found, not_connected]
-                         expected: one of [not_found, not_connected]
+                         contract: contract.yaml operations[get_component_attributes].errors = [not_found, not_connected, invalid_value]
+                         expected: one of [not_found, not_connected, invalid_value]
                          actual:   "not_connected" - "this session has connected no device; call connect_device first (a device another session connected is not visible here)"
   HELD                  get_component_attributes for /quackoscope-host-csharp/Dev/RefDev0, asked from a session that has connected no device, is refused
-                         contract: contract.yaml operations[get_component_attributes].errors = [not_found, not_connected]. The contract lists both and never says which a node id that is real on another session must get, so both are accepted here - the same reading sweep 3 makes of get_device_operation_modes
+                         contract: contract.yaml operations[get_component_attributes].errors = [not_found, not_connected, invalid_value]. The contract lists both and never says which a node id that is real on another session must get, so both are accepted here - the same reading sweep 3 makes of get_device_operation_modes
                          expected: one of [not_connected, not_found]
                          actual:   error not_connected: this session has connected no device; call connect_device first (a device another session connected is not visible here)
-  HELD                  set_component_attribute name written back unchanged: the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, result
-  HELD                  set_component_attribute description written back unchanged: the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, result
-  HELD                  set_component_attribute active written back unchanged: the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, result
-  HELD                  every attribute of /quackoscope-host-csharp/Dev/RefDev0 this host reports read_only false accepts the value this host itself reports for it (3 row(s))
-                         contract: contract.yaml types.ComponentAttribute.read_only: "true means this attribute cannot be written", and "It is openDAQ's answer about the component, never the host's answer about itself"; operations[set_component_attribute].errors: "read_only: the attribute's ComponentAttribute.read_only is true ... never 'this host has no writer', which is a capability gap. invalid_value: the value is of the wrong type for the attribute, or openDAQ rejected it." A row published read_only false, written back with the value in force, can be refused for neither reason.
-                         expected: all 3 row(s) accepted
-                         actual:   3 row(s) accepted: name, description, active
-  HELD                  set_component_attribute name = "RefDev0 (written by the quackoscope conformance sweep)": the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, result
-  HELD                  set_component_attribute /quackoscope-host-csharp/Dev/RefDev0.name = "RefDev0 (written by the quackoscope conformance sweep)" is accepted and returns void
-                         contract: contract.yaml operations[set_component_attribute].returns = void; envelopes.result.result presence nullable
-                         expected: a result envelope carrying null
-                         actual:   result null
-  HELD                  the write to /quackoscope-host-csharp/Dev/RefDev0.name is visible to a later get_component_attributes
-                         contract: contract.yaml operations[set_component_attribute] writes the attribute get_component_attributes reads: "One of the ComponentAttribute.id values get_component_attributes returned for this node". A write the read side does not show would make the panel and the setter disagree.
-                         expected: get_component_attributes reports "RefDev0 (written by the quackoscope conformance sweep)" for name
-                         actual:   "RefDev0 (written by the quackoscope conformance sweep)" (it was "RefDev0" before the write)
-  HELD                  set_component_attribute {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","attribute_id":"global_id","value":"/quackoscope-host-csharp/Dev/RefDe: the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, error
-  HELD                  set_component_attribute {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","attribute_id":"global_id","value":"/quackoscope-host-csharp/Dev/RefDe: the error object matches contract error_shape and the closed error set
-                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         expected: {code: one of the closed set, detail: string}
-                         actual:   {"code":"read_only","detail":"attribute \"global_id\" is one of the eight generic_attributes_treeview.py writes 'Locked': True for in tree_update (global_id, local_id, domain_signal_id, related_signal_ids, streamed, last_value, signal_id, requires_signal), so no client offers an editor for it and this host does not write it"}
-  HELD                  set_component_attribute {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","attribute_id":"global_id","value":"/quackoscope-host-csharp/Dev/RefDe: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]
-                         expected: one of [not_found, read_only, invalid_value]
-                         actual:   "read_only" - "attribute \"global_id\" is one of the eight generic_attributes_treeview.py writes 'Locked': True for in tree_update (global_id, local_id, domain_signal_id, related_signal_ids, streamed, last_value, signal_id, requires_signal), so no client offers an editor for it and this host does not write it"
-  HELD                  writing the host's own read_only=true attribute /quackoscope-host-csharp/Dev/RefDev0.global_id is refused with read_only
-                         contract: contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]; "read_only: the attribute's ComponentAttribute.read_only is true, i.e. openDAQ's locked_attributes or the reference's own hardcoded Locked flag refused the write"
-                         expected: error code "read_only"
-                         actual:   error read_only: attribute "global_id" is one of the eight generic_attributes_treeview.py writes 'Locked': True for in tree_update (global_id, local_id, domain_signal_id, related_signal_ids, streamed, last_value, signal_id, requires_signal), so no client offers an editor for it and this host does not write it
-  HELD                  set_component_attribute {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","attribute_id":"active","value":"this is not a value of that attribute: the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, error
-  HELD                  set_component_attribute {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","attribute_id":"active","value":"this is not a value of that attribute: the error object matches contract error_shape and the closed error set
-                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         expected: {code: one of the closed set, detail: string}
-                         actual:   {"code":"invalid_value","detail":"attribute \"active\" on \"/quackoscope-host-csharp/Dev/RefDev0\" is value_type bool, so params.value must be true or false; got \"this is not a value of that attribute\\u0027s type, it was sent by the quackoscope conformance sweep\""}
-  HELD                  set_component_attribute {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","attribute_id":"active","value":"this is not a value of that attribute: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]
-                         expected: one of [not_found, read_only, invalid_value]
-                         actual:   "invalid_value" - "attribute \"active\" on \"/quackoscope-host-csharp/Dev/RefDev0\" is value_type bool, so params.value must be true or false; got \"this is not a value of that attribute\\u0027s type, it was sent by the quackoscope conformance sweep\""
-  HELD                  writing a string into the bool attribute /quackoscope-host-csharp/Dev/RefDev0.active is refused with invalid_value
-                         contract: contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]; "invalid_value: the value is of the wrong type for the attribute, or openDAQ rejected it"; types.ComponentAttribute.value_type is an enum over [bool, int, float, string, string_list]
-                         expected: error code "invalid_value"
-                         actual:   error invalid_value: attribute "active" on "/quackoscope-host-csharp/Dev/RefDev0" is value_type bool, so params.value must be true or false; got "this is not a value of that attribute\u0027s type, it was sent by the quackoscope conformance sweep"
-  HELD                  set_component_attribute {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","attribute_id":"quackoscope-conformance-sweep-no-such-attribute","valu: the response carries exactly one of result or error
-                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
-                         expected: exactly one of the keys result / error, alongside the request's correlation id
-                         actual:   keys: id, error
-  HELD                  set_component_attribute {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","attribute_id":"quackoscope-conformance-sweep-no-such-attribute","valu: the error object matches contract error_shape and the closed error set
-                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         expected: {code: one of the closed set, detail: string}
-                         actual:   {"code":"not_found","detail":"component \"/quackoscope-host-csharp/Dev/RefDev0\" reports no attribute \"quackoscope-conformance-sweep-no-such-attribute\"; get_component_attributes answered with 7: name, description, active, global_id, local_id, tags, visible"}
-  HELD                  set_component_attribute {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","attribute_id":"quackoscope-conformance-sweep-no-such-attribute","valu: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]
-                         expected: one of [not_found, read_only, invalid_value]
-                         actual:   "not_found" - "component \"/quackoscope-host-csharp/Dev/RefDev0\" reports no attribute \"quackoscope-conformance-sweep-no-such-attribute\"; get_component_attributes answered with 7: name, description, active, global_id, local_id, tags, visible"
-  HELD                  set_component_attribute with the attribute id "quackoscope-conformance-sweep-no-such-attribute", which /quackoscope-host-csharp/Dev/RefDev0 does not report, is refused with not_found
-                         contract: contract.yaml operations[set_component_attribute].errors = [not_found, read_only, invalid_value]; "not_found: node_id names no component, or attribute_id is not one this component reports"
-                         expected: error code "not_found"
-                         actual:   error not_found: component "/quackoscope-host-csharp/Dev/RefDev0" reports no attribute "quackoscope-conformance-sweep-no-such-attribute"; get_component_attributes answered with 7: name, description, active, global_id, local_id, tags, visible
+  HELD                  set_component_attribute: the declared-gap refusal uses a code from the closed set
+                         contract: contract.yaml error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         actual:   {"code":"unsupported","detail":"unknown method \"set_component_attribute\"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, remove_server, save_instance_configuration_to_string, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal"}
+  GAP (a) CONSISTENT    set_component_attribute belongs to declared gap "attribute.write"
+                         contract: contract.yaml gap_generation (gaps = baseline minus declared capabilities)
+                         expected: a refusal, because "attribute.write" is absent from this host's handshake capabilities
+                         actual:   refused with error code "unsupported": unknown method "set_component_attribute"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_ope
+                         host's declared reason for the gap: set_component_attribute has no handler in quackoscope-host-csharp because openDAQ's .NET binding cannot write the full attribute set the contract's row covers, and the missing piece is `tags`. openDAQ makes tags writable through ITagsPrivate::add/remove/replace (tags_private.h:34-56), cast from component.tags, which is exactly how hosts/cpp and hosts/rust write it. openDAQ's .NET binding deliberately does not ship that interface: RTGen generates build/bindings/CSharp/core/opendaq/component/TagsPrivate.cs (stamped "CSharpGenerator v1.0.0 on 21.08.2026 16:20:09", declaring Add(string), Remove(string) and Replace(IListObject<StringObject>)), and then bindings/dotnet/openDAQ.Net/openDAQ.Net/openDAQ.Net.csproj compiles the RTGen output with Exclude="$(_RTGenOutputPath)\**\*Private.cs" under the comment "exclude files which are meant to be SDK private". The assembly is not stale: openDAQ.Net.dll in the install tree is stamped 21.08.2026 16:26, SIX MINUTES AFTER TagsPrivate.cs was generated, and it carries Device.RemoveServer, which the same generation run produced. Enumerated with System.Reflection.MetadataLoadContext over openDAQ.Net, Version=3.41.0.0: 213 exported public types, of which the number whose name ends in "Private" is ZERO; Daq.Core.OpenDAQ.Tags declares exactly "Boolean Contains(String)", "Boolean Query(String)", "IListObject`1[StringObject] get_List()" and the List property, so no Add, Remove, Replace, Set or Clear; Daq.Core.OpenDAQ.Component declares get_Tags() and no set_Tags; and BaseObject.Cast<T>() and QueryInterface<T>() are generic over a type the assembly must contain, so neither reaches an absent interface. The alternative was to report ComponentAttribute.read_only true on the tags row, and contract types.ComponentAttribute.read_only forbids exactly that -- read_only is "openDAQ's answer about the component, never the host's answer about itself", and openDAQ does not lock tags: tags is not in COMPONENT_AVAILABLE_ATTRIBUTES (component_impl.h:59, signal_impl.h:53, input_port_impl.h:47) and tags_impl.h:88-150 performs no lock check. get_component_attributes therefore reports the tags row with read_only false, and this gap is where the host's own inability is stated. The other four writable attributes -- name, description, active, visible, all of which the binding DOES expose as set_Name, set_Description, set_Active, set_Visible on Daq.Core.OpenDAQ.Component, plus Public on Signal and InputPort -- are gapped with them, because contract section 4 defines attribute.write AS its whole operation and a capability declared on part of a row would leave the rest stated nowhere.
   HELD                  list_server_types: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
@@ -1136,14 +1103,90 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
                          contract: contract.yaml operations[add_server].errors = [not_connected, unsupported, invalid_value, internal]; "not_connected: no instance, so nothing to add a server to" and "unsupported: type_id is not among list_server_types". Both are true of this request and the contract does not order them, so either conforms and which one a host picks is recorded rather than judged
                          expected: one of [not_connected, unsupported]
                          actual:   error unsupported: "quackoscope-conformance-sweep-no-such-server-type" is not one of the 3 server type ids this instance accepts; IInstance.availableServerTypes answers [OpenDAQNativeStreaming, OpenDAQOPCUA, OpenDAQLTStreaming]
-  NOT PROVOKABLE        the success path of add_server was not driven, and neither was the invalid_value an instance-refused addition produces
-                         contract: contract.yaml operations[add_server].errors: "internal: adding a server OPENS A LISTENING SOCKET in the host process, and that fails for reasons that are not about type_id at all - a port already bound, a permission refused by the operating system"; returns = Node, kind `server`. The operation table is closed (section 5) and carries no remove_server row.
+  HELD                  remove_server {"node_id":"/quackoscope-conformance-sweep/no-such-node"}: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, error
+  HELD                  remove_server {"node_id":"/quackoscope-conformance-sweep/no-such-node"}: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-conformance-sweep/no-such-node\""}
+  HELD                  remove_server {"node_id":"/quackoscope-conformance-sweep/no-such-node"}: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[remove_server].errors = [not_found, unsupported, internal]
+                         expected: one of [not_found, unsupported, internal]
+                         actual:   "not_found" - "no component with id \"/quackoscope-conformance-sweep/no-such-node\""
+  HELD                  remove_server on the unknown node "/quackoscope-conformance-sweep/no-such-node" is refused with not_found
+                         contract: contract.yaml operations[remove_server].errors = [not_found, unsupported, internal]; "not_found: node_id names no component"
+                         expected: error code "not_found"
+                         actual:   error not_found: no component with id "/quackoscope-conformance-sweep/no-such-node"
+  HELD                  remove_server {"node_id":"/quackoscope-host-csharp/Dev/RefDev0"}: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, error
+  HELD                  remove_server {"node_id":"/quackoscope-host-csharp/Dev/RefDev0"}: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"unsupported","detail":"component \"/quackoscope-host-csharp/Dev/RefDev0\" is a device and not a server, so remove_server has nothing to act on; openDAQ puts enableDiscovery and disableDiscovery on IServer, and IDevice::removeServer takes an IServer* and nothing else"}
+  HELD                  remove_server {"node_id":"/quackoscope-host-csharp/Dev/RefDev0"}: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[remove_server].errors = [not_found, unsupported, internal]
+                         expected: one of [not_found, unsupported, internal]
+                         actual:   "unsupported" - "component \"/quackoscope-host-csharp/Dev/RefDev0\" is a device and not a server, so remove_server has nothing to act on; openDAQ puts enableDiscovery and disableDiscovery on IServer, and IDevice::removeServer takes an IServer* and nothing else"
+  HELD                  remove_server on /quackoscope-host-csharp/Dev/RefDev0, a node of kind device and not a server, is refused with unsupported
+                         contract: contract.yaml operations[remove_server].errors = [not_found, unsupported, internal]; "unsupported: the component exists and is not a server ... It is unsupported rather than not_found because the node was found; what is missing is the ability"
+                         expected: error code "unsupported"
+                         actual:   error unsupported: component "/quackoscope-host-csharp/Dev/RefDev0" is a device and not a server, so remove_server has nothing to act on; openDAQ puts enableDiscovery and disableDiscovery on IServer, and IDevice::removeServer takes an IServer* and nothing else
+  HELD                  add_server type_id "OpenDAQNativeStreaming": the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  add_server "OpenDAQNativeStreaming" returns a contract-shaped Node of kind "server"
+                         contract: contract.yaml operations[add_server].returns = Node - "The record of the thing it created, which is the shape connect_device, add_function_block and load_module_from_host_path already set. Its kind is `server`, which is the value NodeKind grew for this row."; types.Node id/name/kind/child_ids/property_ids required, kind an enum over [device, channel, function_block, signal, folder, server]
+                         expected: a Node record whose kind is "server"
+                         actual:   Node "/quackoscope-host-csharp/Srv/OpenDAQNativeStreaming", name "OpenDAQNativeStreaming", kind "server", parent "/quackoscope-host-csharp/Srv"
+  HELD                  the server add_server created, /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming, is in the component tree afterwards
+                         contract: contract.yaml types.Node.kind carries `server` because without it "the client cannot tell a server row from a folder row"; add_server returns the Node it created, so a row the tree does not carry is a card the add-server grid could draw and the tree could not
+                         expected: get_component_tree carries /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming with kind "server"
+                         actual:   /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming, kind "server"
+  NOT PROVOKABLE        the "invalid_value" error code of add_server was not provoked
+                         contract: contract.yaml operations[add_server].errors = [not_connected, unsupported, invalid_value, internal]; "invalid_value: the type exists and the instance refused this addition"
                          expected: no assertion: a well-formed wire client cannot force this without breaking the host from the outside
-                         actual:   a successful add_server binds a real listening socket inside the host, on a port that comes from the server type's own configuration and that this project does not own - observed as 0.0.0.0:7420 (OpenDAQNativeStreaming) on the C++ host and both 7414 and 7420 on the Rust host - AND THERE IS NO ROW IN contract.yaml THAT CAN TAKE IT DOWN AGAIN. remove_function_block is one of the three function_block.add operations and is scoped to a function block; disconnect_device tears down a device this session connected; set_server_discovery_enabled only moves a flag; IServer::stop is bound to no row. So driving it would leak one listening socket per run per host, and the next run would meet `internal` - which this row names for exactly that, "a port already bound" - from a socket this run left behind. This is the same shape as load_module_from_host_path in sweep 3, whose success path is permanent for the host process and is recorded here rather than driven; a bound port is the worse of the two, because it is permanent on a number rather than only inside one process. THE FINDING THIS RECORDS IS ABOUT THE CONTRACT: contract.yaml needs a remove_server row, and not only so that this suite can drive add_server - the add-server card grid creates a server that no control in the client can undo.
-  NOT PROVOKABLE        set_server_discovery_enabled could not be driven against a server row
-                         contract: contract.yaml operations[set_server_discovery_enabled].params node_id, references Node.id; types.Node.kind carries `server` because "the client cannot tell a server row from a folder row" without it
-                         expected: no assertion: a well-formed wire client cannot force this without breaking the host from the outside
-                         actual:   this host's component tree carried no node of kind server, and the only row that creates one is add_server, whose success path this sweep refuses to drive because it binds a listening socket no row of this contract can take down
+                         actual:   add_server takes one parameter and it is a type id, so the only well-formed requests a wire client can send are a type the host listed and a type it did not; the first is the success path driven above and the second is the unsupported path driven above it. An instance that accepts the type and then refuses the addition is a state inside the host that no input on this row can shape
+  HELD                  set_server_discovery_enabled /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming enabled=false: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  set_server_discovery_enabled /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming enabled=false is accepted and returns void
+                         contract: contract.yaml operations[set_server_discovery_enabled]: "ONE ROW WITH A BOOLEAN, NOT TWO ROWS ... the row menu still draws two items, each sending this method with a different `enabled`"; returns = void
+                         expected: a result envelope carrying null
+                         actual:   result null
+  HELD                  set_server_discovery_enabled /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming enabled=true: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  set_server_discovery_enabled /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming enabled=true is accepted and returns void
+                         contract: contract.yaml operations[set_server_discovery_enabled]: "ONE ROW WITH A BOOLEAN, NOT TWO ROWS ... the row menu still draws two items, each sending this method with a different `enabled`"; returns = void
+                         expected: a result envelope carrying null
+                         actual:   result null
+  UNCONSTRAINED         what discovery state /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming was in before this sweep touched it, and what it is left in
+                         contract: contract.yaml operations[set_server_discovery_enabled]: "THERE IS NO GETTER AND THERE CANNOT BE ONE ... So this state cannot be a Node field the way `active` and `locked` are: no host can fill it."
+                         expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
+                         actual:   the contract fixes the setter and states that the state behind it is unreadable, so a sweep cannot restore what it found and cannot assert what it left  observed: this sweep sent enabled=false and then enabled=true to /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming; it is left with discovery enabled, and no operation of this contract can confirm that
+  HELD                  set_server_discovery_enabled {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","enabled":true}: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, error
+  HELD                  set_server_discovery_enabled {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","enabled":true}: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"unsupported","detail":"component \"/quackoscope-host-csharp/Dev/RefDev0\" is a device and not a server, so set_server_discovery_enabled has nothing to act on; openDAQ puts enableDiscovery and disableDiscovery on IServer, and IDevice::removeServer takes an IServer* and nothing else"}
+  HELD                  set_server_discovery_enabled {"node_id":"/quackoscope-host-csharp/Dev/RefDev0","enabled":true}: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal, invalid_value]
+                         expected: one of [not_found, unsupported, internal, invalid_value]
+                         actual:   "unsupported" - "component \"/quackoscope-host-csharp/Dev/RefDev0\" is a device and not a server, so set_server_discovery_enabled has nothing to act on; openDAQ puts enableDiscovery and disableDiscovery on IServer, and IDevice::removeServer takes an IServer* and nothing else"
+  HELD                  set_server_discovery_enabled on /quackoscope-host-csharp/Dev/RefDev0, a node of kind device and not a server, is refused with unsupported
+                         contract: contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal, invalid_value]; "unsupported: the component exists but is not a server - the same use get_device_operation_modes makes of this code for a node that is not a device"
+                         expected: error code "unsupported"
+                         actual:   error unsupported: component "/quackoscope-host-csharp/Dev/RefDev0" is a device and not a server, so set_server_discovery_enabled has nothing to act on; openDAQ puts enableDiscovery and disableDiscovery on IServer, and IDevice::removeServer takes an IServer* and nothing else
   HELD                  set_server_discovery_enabled {"node_id":"/quackoscope-conformance-sweep/no-such-node","enabled":true}: the response carries exactly one of result or error
                          contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
                          expected: exactly one of the keys result / error, alongside the request's correlation id
@@ -1153,17 +1196,49 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
                          expected: {code: one of the closed set, detail: string}
                          actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-conformance-sweep/no-such-node\""}
   HELD                  set_server_discovery_enabled {"node_id":"/quackoscope-conformance-sweep/no-such-node","enabled":true}: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal]
-                         expected: one of [not_found, unsupported, internal]
+                         contract: contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal, invalid_value]
+                         expected: one of [not_found, unsupported, internal, invalid_value]
                          actual:   "not_found" - "no component with id \"/quackoscope-conformance-sweep/no-such-node\""
   HELD                  set_server_discovery_enabled on the unknown node "/quackoscope-conformance-sweep/no-such-node" is refused with not_found
-                         contract: contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal]; "not_found: node_id names no component"
+                         contract: contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal, invalid_value]; "not_found: node_id names no component"
                          expected: error code "not_found"
                          actual:   error not_found: no component with id "/quackoscope-conformance-sweep/no-such-node"
   NOT PROVOKABLE        the "internal" error code of set_server_discovery_enabled was not provoked
-                         contract: contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal]; "internal: mDNS advertising failed"
+                         contract: contract.yaml operations[set_server_discovery_enabled].errors = [not_found, unsupported, internal, invalid_value]; "internal: mDNS advertising failed"
                          expected: no assertion: a well-formed wire client cannot force this without breaking the host from the outside
                          actual:   a failed mDNS advertisement is a fact about the host's network stack; no well-formed request can shape one, and nothing on the wire can take mDNS away from a healthy host
+  HELD                  remove_server /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming, created by this sweep: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, result
+  HELD                  remove_server /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming, the server this sweep added, is accepted and returns void
+                         contract: contract.yaml operations[remove_server].returns = void; the row is IDevice::removeServer(IServer*) - "device.h:300-304, Removes the server provided as argument - which device_impl.h:1014-1026 wraps to onRemoveServer (:1479-1487), the exact mirror of onAddServer (:1465-1476)". "THE SOCKET ACTUALLY CLOSES ... ServerImpl::removed (server_impl.h:199-202) is `checkErrorInfo(stop()); Super::removed();` - IServer::stop, whose own doc (server.h:55) is "Stops the server. This is called when we remove the server from the Instance or Instance is closing.""
+                         expected: a result envelope carrying null, and with it the listening socket add_server opened
+                         actual:   result null
+  HELD                  /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming is gone from the component tree after remove_server
+                         contract: contract.yaml operations[remove_server]: "`this->servers.removeItem(server)`" via folder_impl.h:598-605, which "removes the item, which calls IComponent::removed". A row that survives its own removal is a card the client would keep drawing for a server that is not there.
+                         expected: get_component_tree carries no node with id /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming
+                         actual:   19 row(s) came back and none of them is /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming
+  HELD                  remove_server {"node_id":"/quackoscope-host-csharp/Srv/OpenDAQNativeStreaming"}: the response carries exactly one of result or error
+                         contract: contract.yaml envelopes.result (discriminator has_key_result) and envelopes.error (discriminator has_key_error)
+                         expected: exactly one of the keys result / error, alongside the request's correlation id
+                         actual:   keys: id, error
+  HELD                  remove_server {"node_id":"/quackoscope-host-csharp/Srv/OpenDAQNativeStreaming"}: the error object matches contract error_shape and the closed error set
+                         contract: contract.yaml error_shape (code, detail) and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
+                         expected: {code: one of the closed set, detail: string}
+                         actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-host-csharp/Srv/OpenDAQNativeStreaming\""}
+  HELD                  remove_server {"node_id":"/quackoscope-host-csharp/Srv/OpenDAQNativeStreaming"}: the refusal code is inside the subset this operation declares
+                         contract: contract.yaml operations[remove_server].errors = [not_found, unsupported, internal]
+                         expected: one of [not_found, unsupported, internal]
+                         actual:   "not_found" - "no component with id \"/quackoscope-host-csharp/Srv/OpenDAQNativeStreaming\""
+  HELD                  remove_server /quackoscope-host-csharp/Srv/OpenDAQNativeStreaming a second time, after it has been removed, is refused with not_found
+                         contract: contract.yaml operations[remove_server].errors = [not_found, unsupported, internal]; "not_found: node_id names no component". This id named a component one request ago, so a host that still answers a result here has not removed anything.
+                         expected: error code "not_found"
+                         actual:   error not_found: no component with id "/quackoscope-host-csharp/Srv/OpenDAQNativeStreaming"
+  NOT PROVOKABLE        the "internal" error code of remove_server was not provoked
+                         contract: contract.yaml operations[remove_server].errors = [not_found, unsupported, internal]; "internal: stop() threw while closing the listening socket, which is native text for error.detail"
+                         expected: no assertion: a well-formed wire client cannot force this without breaking the host from the outside
+                         actual:   IServer::stop throwing on the way down is a fault inside the host's own socket teardown; no parameter of this row reaches it, and a wire client cannot make a healthy server fail to close
   NOT PROVOKABLE        the success path of start_recording was not driven
                          contract: contract.yaml types.Node.recording: "IRecorder::getIsRecording(Bool*), recorder.h:62. Recorder function-block rows only; null on every other kind." It is what decides whether the Start/Stop control exists at all.
                          expected: no assertion: a well-formed wire client cannot force this without breaking the host from the outside
@@ -1181,11 +1256,11 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
                          expected: {code: one of the closed set, detail: string}
                          actual:   {"code":"unsupported","detail":"component \"/quackoscope-host-csharp/Dev/RefDev0\" is a device that does not carry IRecorder, so start_recording has nothing to act on; Node.recording is null on exactly these components, which is what tells a client not to draw the Start/Stop control"}
   HELD                  start_recording {"node_id":"/quackoscope-host-csharp/Dev/RefDev0"}: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[start_recording].errors = [not_found, unsupported, internal]
-                         expected: one of [not_found, unsupported, internal]
+                         contract: contract.yaml operations[start_recording].errors = [not_found, unsupported, internal, invalid_value]
+                         expected: one of [not_found, unsupported, internal, invalid_value]
                          actual:   "unsupported" - "component \"/quackoscope-host-csharp/Dev/RefDev0\" is a device that does not carry IRecorder, so start_recording has nothing to act on; Node.recording is null on exactly these components, which is what tells a client not to draw the Start/Stop control"
   HELD                  start_recording on /quackoscope-host-csharp/Dev/RefDev0, a node of kind device reporting Node.recording null, is refused with unsupported
-                         contract: contract.yaml operations[start_recording].errors = [not_found, unsupported, internal]; "unsupported: the component exists and is not a recorder, i.e. the cast block_view.py:169 performs would fail." not_found would be a lie about a node that is in the tree.
+                         contract: contract.yaml operations[start_recording].errors = [not_found, unsupported, internal, invalid_value]; "unsupported: the component exists and is not a recorder, i.e. the cast block_view.py:169 performs would fail." not_found would be a lie about a node that is in the tree.
                          expected: error code "unsupported"
                          actual:   error unsupported: component "/quackoscope-host-csharp/Dev/RefDev0" is a device that does not carry IRecorder, so start_recording has nothing to act on; Node.recording is null on exactly these components, which is what tells a client not to draw the Start/Stop control
   HELD                  start_recording {"node_id":"/quackoscope-conformance-sweep/no-such-node"}: the response carries exactly one of result or error
@@ -1197,15 +1272,15 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
                          expected: {code: one of the closed set, detail: string}
                          actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0"}
   HELD                  start_recording {"node_id":"/quackoscope-conformance-sweep/no-such-node"}: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[start_recording].errors = [not_found, unsupported, internal]
-                         expected: one of [not_found, unsupported, internal]
+                         contract: contract.yaml operations[start_recording].errors = [not_found, unsupported, internal, invalid_value]
+                         expected: one of [not_found, unsupported, internal, invalid_value]
                          actual:   "not_found" - "no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0"
   HELD                  start_recording on the unknown node "/quackoscope-conformance-sweep/no-such-node" is refused with not_found
-                         contract: contract.yaml operations[start_recording].errors = [not_found, unsupported, internal]; "not_found: node_id names nothing"
+                         contract: contract.yaml operations[start_recording].errors = [not_found, unsupported, internal, invalid_value]; "not_found: node_id names nothing"
                          expected: error code "not_found"
                          actual:   error not_found: no component with id "/quackoscope-conformance-sweep/no-such-node" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0
   NOT PROVOKABLE        the "internal" error code of start_recording was not provoked
-                         contract: contract.yaml operations[start_recording].errors = [not_found, unsupported, internal]
+                         contract: contract.yaml operations[start_recording].errors = [not_found, unsupported, internal, invalid_value]
                          expected: no assertion: a well-formed wire client cannot force this without breaking the host from the outside
                          actual:   internal here is "IRecorder::startRecording threw - no writable path, a file already open, a device error", which are facts about the host's filesystem and its device; a wire client can shape none of them from a well-formed request
   HELD                  stop_recording {"node_id":"/quackoscope-host-csharp/Dev/RefDev0"}: the response carries exactly one of result or error
@@ -1305,11 +1380,11 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
                          expected: {code: one of the closed set, detail: string}
                          actual:   {"code":"not_found","detail":"no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0"}
   HELD                  begin_batched_property_update {"node_id":"/quackoscope-conformance-sweep/no-such-node"}: the refusal code is inside the subset this operation declares
-                         contract: contract.yaml operations[begin_batched_property_update].errors = [not_found, not_connected]
-                         expected: one of [not_found, not_connected]
+                         contract: contract.yaml operations[begin_batched_property_update].errors = [not_found, not_connected, invalid_value]
+                         expected: one of [not_found, not_connected, invalid_value]
                          actual:   "not_found" - "no component with id \"/quackoscope-conformance-sweep/no-such-node\" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0"
   HELD                  begin_batched_property_update on the unknown node "/quackoscope-conformance-sweep/no-such-node" is refused with not_found
-                         contract: contract.yaml operations[begin_batched_property_update].errors = [not_found, not_connected]; "not_found: node_id names no component"
+                         contract: contract.yaml operations[begin_batched_property_update].errors = [not_found, not_connected, invalid_value]; "not_found: node_id names no component"
                          expected: error code "not_found"
                          actual:   error not_found: no component with id "/quackoscope-conformance-sweep/no-such-node" in this session; it holds /quackoscope-host-csharp/Dev/RefDev0
   HELD                  end_batched_property_update {"node_id":"/quackoscope-conformance-sweep/no-such-node"}: the response carries exactly one of result or error
@@ -1396,7 +1471,7 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
                          contract: contract.yaml operations[load_instance_configuration_from_string].params configuration: "The text of a configuration previously produced by save_instance_configuration_to_string, on this host or another"; returns = void. This is the identity load, and it is the only load this sweep makes on the success path: what it applies is the configuration the instance already has, so it is the one load with nothing left behind.
                          expected: a result envelope carrying null
                          actual:   result null
-  UNCONSTRAINED         what the identity load left of the component tree on ws://127.0.0.1:8143/ws
+  UNCONSTRAINED         what the identity load left of the component tree on ws://127.0.0.1:8223/ws
                          contract: contract.yaml operations[load_instance_configuration_from_string] fixes the parameter, the return and the error subset, and says nothing at all about what a load must preserve; capabilities[configuration.load] says only that it "REPLACES the configuration of every device under the instance in one call"
                          expected: no pass/fail is possible: the contract constrains the shape but not the occurrence
                          actual:   the contract constrains the call, never what the instance looks like afterwards, so nothing here can be passed or failed  observed: before the load the tree carried 19 node(s) and the device this run connected was /quackoscope-host-csharp/Dev/RefDev0; after it the tree carries 19 node(s) and that device id is still present
@@ -1409,7 +1484,7 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
   HELD                  a method name that is not in the contract's operation table is refused with a closed-set error code
                          contract: contract.yaml lints.no_undeclared_public_method and error_codes.closed = true, values [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]. The contract does not name WHICH code an unknown method must get - see the contract-vagueness notes
                          expected: an error envelope whose code is one of [not_found, not_connected, invalid_value, read_only, unsupported, timeout, internal]
-                         actual:   error unsupported: unknown method "quackoscope_conformance_sweep_method_that_is_not_in_the_contract"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, save_instance_configuration_to_string, set_component_attribute, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal
+                         actual:   error unsupported: unknown method "quackoscope_conformance_sweep_method_that_is_not_in_the_contract"; quackoscope-host-csharp serves add_server, begin_batched_property_update, connect_device, disconnect_device, end_batched_property_update, get_component_attributes, get_component_tree, get_device_operation_modes, get_property_descriptors, get_property_value, list_loaded_modules, list_server_types, load_instance_configuration_from_string, load_module_from_host_path, lock_device, remove_server, save_instance_configuration_to_string, set_device_operation_mode, set_property_value, set_server_discovery_enabled, start_recording, stop_recording, subscribe_signal, unlock_device, unsubscribe_signal
   NOT PROVOKABLE        the "internal" error code was not provoked
                          contract: contract.yaml error_policy.unmapped_native_error_becomes = internal; operations[scan_available_devices].errors = [internal]
                          expected: no assertion: a well-formed wire client cannot force this without breaking the host from the outside
@@ -1480,15 +1555,15 @@ closed this sweep's second WebSocket to ws://127.0.0.1:8143/ws; it sent 5 reques
                          actual:   event occurrence is unconstrained by the contract, so silence is not a verdict  observed: pushed during this sweep: [(none)]; not pushed: [component_added, component_removed, property_changed, property_descriptor_changed, device_disconnected]
 
 --- the coverage guard: did this run drive every operation in the contract? ---
-  HELD                  every one of the 30 operations in contract.yaml was put on the socket and judged
-                         contract: contract.yaml operations: 30 rows - scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_value, get_property_descriptors, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, read_samples_raw, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, load_module_from_host_path, get_component_attributes, set_component_attribute, list_server_types, add_server, set_server_discovery_enabled, start_recording, stop_recording, begin_batched_property_update, end_batched_property_update, save_instance_configuration_to_string, load_instance_configuration_from_string. Section 5 calls that table closed and says host coverage of it is 100%; a suite that reports a clean sweep while never asking one of its rows is reporting on a smaller contract than the one it read.
-                         expected: all 30 wire methods with at least one request sent on a session of this run AND at least one ledger entry naming them, or an explicit not_provokable_by_a_wire_client entry saying why this host's own data left the row undrivable
-                         actual:   30 of 30 driven; requests sent per wire method: scan_available_devices=1, connect_device=3, disconnect_device=2, get_component_tree=11, get_property_value=43, get_property_descriptors=5, set_property_value=9, list_function_block_types=1, add_function_block=1, remove_function_block=1, subscribe_signal=2, unsubscribe_signal=3, read_samples_raw=1, get_device_operation_modes=4, set_device_operation_mode=6, lock_device=4, unlock_device=5, list_loaded_modules=2, load_module_from_host_path=4, get_component_attributes=4, set_component_attribute=8, list_server_types=2, add_server=2, set_server_discovery_enabled=1, start_recording=2, stop_recording=2, begin_batched_property_update=3, end_batched_property_update=4, save_instance_configuration_to_string=2, load_instance_configuration_from_string=3
-operation coverage: 30 of 30 driven
+  HELD                  every one of the 31 operations in contract.yaml was put on the socket and judged
+                         contract: contract.yaml operations: 31 rows - scan_available_devices, connect_device, disconnect_device, get_component_tree, get_property_value, get_property_descriptors, set_property_value, list_function_block_types, add_function_block, remove_function_block, subscribe_signal, unsubscribe_signal, read_samples_raw, get_device_operation_modes, set_device_operation_mode, lock_device, unlock_device, list_loaded_modules, load_module_from_host_path, get_component_attributes, set_component_attribute, list_server_types, add_server, remove_server, set_server_discovery_enabled, start_recording, stop_recording, begin_batched_property_update, end_batched_property_update, save_instance_configuration_to_string, load_instance_configuration_from_string. Section 5 calls that table closed and says host coverage of it is 100%; a suite that reports a clean sweep while never asking one of its rows is reporting on a smaller contract than the one it read.
+                         expected: all 31 wire methods with at least one request sent on a session of this run AND at least one ledger entry naming them, or an explicit not_provokable_by_a_wire_client entry saying why this host's own data left the row undrivable
+                         actual:   31 of 31 driven; requests sent per wire method: scan_available_devices=1, connect_device=3, disconnect_device=2, get_component_tree=18, get_property_value=43, get_property_descriptors=5, set_property_value=9, list_function_block_types=1, add_function_block=1, remove_function_block=1, subscribe_signal=2, unsubscribe_signal=3, read_samples_raw=1, get_device_operation_modes=4, set_device_operation_mode=8, lock_device=5, unlock_device=5, list_loaded_modules=2, load_module_from_host_path=4, get_component_attributes=3, set_component_attribute=1, list_server_types=2, add_server=3, remove_server=4, set_server_discovery_enabled=4, start_recording=2, stop_recording=2, begin_batched_property_update=3, end_batched_property_update=4, save_instance_configuration_to_string=2, load_instance_configuration_from_string=3
+operation coverage: 31 of 31 driven
   driven       scan_available_devices         1 request(s) sent,   2 ledger entry/entries
   driven       connect_device                 3 request(s) sent,   2 ledger entry/entries
   driven       disconnect_device              2 request(s) sent,   7 ledger entry/entries
-  driven       get_component_tree            11 request(s) sent,   9 ledger entry/entries
+  driven       get_component_tree            18 request(s) sent,   9 ledger entry/entries
   driven       get_property_value            43 request(s) sent,  47 ledger entry/entries
   driven       get_property_descriptors       5 request(s) sent,  10 ledger entry/entries
   driven       set_property_value             9 request(s) sent,  18 ledger entry/entries
@@ -1499,16 +1574,17 @@ operation coverage: 30 of 30 driven
   driven       unsubscribe_signal             3 request(s) sent,  11 ledger entry/entries
   driven       read_samples_raw               1 request(s) sent,   2 ledger entry/entries
   driven       get_device_operation_modes     4 request(s) sent,  14 ledger entry/entries
-  driven       set_device_operation_mode      6 request(s) sent,  19 ledger entry/entries
-  driven       lock_device                    4 request(s) sent,  14 ledger entry/entries
-  driven       unlock_device                  5 request(s) sent,  17 ledger entry/entries
+  driven       set_device_operation_mode      8 request(s) sent,  21 ledger entry/entries
+  driven       lock_device                    5 request(s) sent,  14 ledger entry/entries
+  driven       unlock_device                  5 request(s) sent,  18 ledger entry/entries
   driven       list_loaded_modules            2 request(s) sent,   5 ledger entry/entries, and the sweep recorded why a wire client cannot reach it
   driven       load_module_from_host_path     4 request(s) sent,  16 ledger entry/entries, and the sweep recorded why a wire client cannot reach it
-  driven       get_component_attributes       4 request(s) sent,  12 ledger entry/entries
-  driven       set_component_attribute        8 request(s) sent,  19 ledger entry/entries
+  driven       get_component_attributes       3 request(s) sent,  13 ledger entry/entries
+  driven       set_component_attribute        1 request(s) sent,   2 ledger entry/entries
   driven       list_server_types              2 request(s) sent,   5 ledger entry/entries
-  driven       add_server                     2 request(s) sent,   9 ledger entry/entries, and the sweep recorded why a wire client cannot reach it
-  driven       set_server_discovery_enabled   1 request(s) sent,   6 ledger entry/entries, and the sweep recorded why a wire client cannot reach it
+  driven       add_server                     3 request(s) sent,  12 ledger entry/entries, and the sweep recorded why a wire client cannot reach it
+  driven       remove_server                  4 request(s) sent,  16 ledger entry/entries, and the sweep recorded why a wire client cannot reach it
+  driven       set_server_discovery_enabled   4 request(s) sent,  13 ledger entry/entries, and the sweep recorded why a wire client cannot reach it
   driven       start_recording                2 request(s) sent,  10 ledger entry/entries, and the sweep recorded why a wire client cannot reach it
   driven       stop_recording                 2 request(s) sent,  10 ledger entry/entries, and the sweep recorded why a wire client cannot reach it
   driven       begin_batched_property_update   3 request(s) sent,   8 ledger entry/entries
@@ -1517,46 +1593,22 @@ operation coverage: 30 of 30 driven
   driven       load_instance_configuration_from_string   3 request(s) sent,  11 ledger entry/entries, and the sweep recorded why a wire client cannot reach it
 
 === verdict ==================================================================
-target                       ws://127.0.0.1:8143/ws
+target                       ws://127.0.0.1:8223/ws
 implementation (display only) quackoscope-host-csharp 0.1.0
 sdk reported by the host     version 3.41.0_bec37b44, commit bec37b4430ca6d92592547ffc84900438040ab22
-assertions recorded          352
-  held                               321
-  gap_declared_and_consistent        5
-  unconstrained_by_the_contract      9
+assertions recorded          368
+  held                               336
+  gap_declared_and_consistent        6
+  unconstrained_by_the_contract      12
   not_provokable_by_a_wire_client    14
-  capability_claimed_and_broken      3
 
-class (a) declared gap, consistent  5   NOT failures: the host said it cannot, and it did not
-class (b) claimed then broke        3   REAL failures: the host advertised the capability and then broke it
+class (a) declared gap, consistent  6   NOT failures: the host said it cannot, and it did not
+class (b) claimed then broke        0   REAL failures: the host advertised the capability and then broke it
           handshake nonconformant   0
           wire protocol broken      0
-          suite coverage incomplete 0   THIS SUITE's fault, not the host's: 30 of 30 contract operations were driven
+          suite coverage incomplete 0   THIS SUITE's fault, not the host's: 31 of 31 contract operations were driven
           gap declared but served   0   warnings: under-claimed, not a broken promise
 
-failures, in full:
+wrote the machine-readable report to C:\Users\opendaq\Projects\quackoscope\conformance\cross-host-report\generated\csharp-conformance-report.json (368 entries)
 
-  [1/3] FAIL (b) CLAIMED  set_property_value /quackoscope-host-csharp/Dev/RefDev0.NumberOfChannels, from a session that does not hold the lock on /quackoscope-host-csharp/Dev/RefDev0, is refused with read_only
-        capability claimed in the handshake: device.lock
-        wire method: set_property_value
-        contract: contract.yaml operations[set_device_operation_mode].errors names read_only "the closed error set's expression of openDAQ refused the write because the component is protected, the same code set_property_value already uses for a locked target"; types.Node.locked is the EFFECTIVE state, "any other component reports the nearest ancestor device's", so a property under a locked device is a locked target
-        expected: error code "read_only"
-        actual:   the write of 3 was ACCEPTED while another session held the lock, result null
-
-  [2/3] FAIL (b) CLAIMED  lock_device from a second session, on a device this run's first session already locked, is refused with read_only
-        capability claimed in the handshake: device.lock
-        wire method: lock_device
-        contract: contract.yaml operations[lock_device].errors: "read_only is the device is already locked, and not by this session - openDAQ permits an unlock only by the user who locked it"
-        expected: error code "read_only"
-        actual:   accepted it, result null
-
-  [3/3] FAIL (b) CLAIMED  unlock_device from a second session, on a device this run's first session locked, is refused with read_only
-        capability claimed in the handshake: device.lock
-        wire method: unlock_device
-        contract: contract.yaml operations[unlock_device]: "IDevice.unlock() takes no arguments and refuses when another user holds the lock"; errors: "read_only is the refusal the reference reacts to by offering the forced unlock, so it is the exact signal that enables that control"
-        expected: error code "read_only"
-        actual:   accepted it, result null
-
-wrote the machine-readable report to C:\Users\opendaq\Projects\quackoscope\conformance\cross-host-report\generated\csharp-conformance-report.json (352 entries)
-
-ws://127.0.0.1:8143/ws: 3 failure(s); 5 declared gap(s) behaved consistently. exit 1
+ws://127.0.0.1:8223/ws: no failure of either class; 6 declared gap(s) behaved consistently. exit 0

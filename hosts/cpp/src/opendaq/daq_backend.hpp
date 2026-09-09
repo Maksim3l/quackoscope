@@ -47,6 +47,8 @@ public:
                                const service::Json& value) override;
     std::vector<service::ComponentTypeInfo> listServerTypes() override;
     service::Node addServer(const std::string& typeId) override;
+    void removeServer(const std::string& nodeId) override;
+    std::vector<service::Node> listInstanceServerNodes() override;
     void setServerDiscoveryEnabled(const std::string& nodeId, bool enabled) override;
     void startRecording(const std::string& nodeId) override;
     void stopRecording(const std::string& nodeId) override;

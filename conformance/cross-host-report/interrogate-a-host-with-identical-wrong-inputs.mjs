@@ -304,6 +304,19 @@ export function identicalWrongInputCases() {
         "contract.yaml operations[start_recording].params node_id is type string presence required, and its errors = [not_found, unsupported, internal] contains no code for a parameter of the wrong type; stop_recording declares the identical subset, so its answer to the same input is the same question",
     },
     {
+      // remove_server DELETES something, so this is the one row whose wrong
+      // input must not be able to hit a real component by accident. A node id
+      // that is not a string cannot name one on any host, which is exactly what
+      // makes it safe to send five times.
+      id: "remove_server_with_a_node_id_that_is_not_a_string",
+      phase: "after_this_session_connected_a_device",
+      wireMethod: "remove_server",
+      params: { node_id: 17 },
+      wrongInputInWords: "a server removed by node_id 17, a number where types.Node.id is a string",
+      contractIsSilentHere:
+        "contract.yaml operations[remove_server].params node_id is type string presence required, and its errors = [not_found, unsupported, internal] contains no code for a parameter of the wrong type. The row's own reasoning rules two of the three out for this input by name: not_found is \"node_id names no component\" and unsupported is \"the component exists and is not a server ... because the node was found\", and neither is a lookup that ran",
+    },
+    {
       id: "set_server_discovery_enabled_with_an_enabled_that_is_not_a_bool",
       phase: "after_this_session_connected_a_device",
       wireMethod: "set_server_discovery_enabled",

@@ -7,7 +7,7 @@
   "async_style": "async_def",
   "collapse_getter_setter_pairs": true,
   "reserved_word_strategy": "suffix_underscore",
-  "symbol_count": 43,
+  "symbol_count": 44,
   "symbols": [
     {
       "symbol": "scan_available_devices",
@@ -168,6 +168,13 @@
       "kind": "call",
       "covers_wire_methods": [
         "add_server"
+      ]
+    },
+    {
+      "symbol": "remove_server",
+      "kind": "call",
+      "covers_wire_methods": [
+        "remove_server"
       ]
     },
     {

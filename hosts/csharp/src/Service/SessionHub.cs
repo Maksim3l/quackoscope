@@ -70,9 +70,11 @@ public sealed class SessionHub : IWebSocketSessionSink
             ["list_loaded_modules"] = (_, _, _) => ListLoadedModules(),
             ["load_module_from_host_path"] = (_, _, parameters) => LoadModuleFromHostPath(parameters),
             ["get_component_attributes"] = (_, state, parameters) => GetComponentAttributes(state, parameters),
-            ["set_component_attribute"] = (_, state, parameters) => SetComponentAttribute(state, parameters),
+            // No ["set_component_attribute"]: attribute.write is a computed gap.
+            // See GapKindAndReasonByCapabilityId below.
             ["list_server_types"] = (_, _, _) => ListServerTypes(),
             ["add_server"] = (_, _, parameters) => AddServer(parameters),
+            ["remove_server"] = (_, _, parameters) => RemoveServer(parameters),
             ["set_server_discovery_enabled"] = (_, _, parameters) => SetServerDiscoveryEnabled(parameters),
             ["start_recording"] = (_, state, parameters) => StartRecording(state, parameters),
             ["stop_recording"] = (_, state, parameters) => StopRecording(state, parameters),
@@ -107,11 +109,13 @@ public sealed class SessionHub : IWebSocketSessionSink
     // one thing on every backend.
 
     // The reason this host has for each capability it does not fully serve --
-    // the reason and nothing else. Every kind here is "host": "binding" is a
-    // claim that openDAQ's .NET binding cannot do the thing, and it is only
-    // made where the binding's surface was actually enumerated and the API was
-    // genuinely absent. Where the surface WAS enumerated and the members are
-    // there, the reason says so and names the members and how they were found.
+    // the reason and nothing else. "binding" is a claim that openDAQ's .NET
+    // binding cannot do the thing, and it is made in exactly one place here,
+    // attribute.write, where the assembly this host loads was enumerated with
+    // System.Reflection.MetadataLoadContext and the interface openDAQ writes
+    // tags through turned out to be excluded from it by openDAQ's own build
+    // rule. Every other gap is "host": the surface WAS enumerated, the members
+    // ARE there, and the reason says so and names them.
     private static readonly Dictionary<string, (string Kind, string Reason)> GapKindAndReasonByCapabilityId = new()
     {
         ["device.scan"] = ("host",
@@ -134,7 +138,14 @@ public sealed class SessionHub : IWebSocketSessionSink
             "read_samples_raw has no handler in quackoscope-host-csharp; currently not available. " +
             "The StreamReader plumbing it needs is " +
             "now written and serving streaming.decimated; what is missing is the request-scoped read path, because " +
-            "read_samples_raw returns one binary frame per request rather than a standing subscription")
+            "read_samples_raw returns one binary frame per request rather than a standing subscription"),
+        // THE ONLY GAP OF KIND `binding` THIS HOST DECLARES, and the only one it
+        // is entitled to: the surface was enumerated with
+        // System.Reflection.MetadataLoadContext over the assembly this host
+        // actually loads, and the interface openDAQ writes tags through is
+        // absent from it because openDAQ's own binding project excludes every
+        // *Private.cs. The whole enumeration is the reason string.
+        ["attribute.write"] = ("binding", Quackoscope.Host.CSharp.OpenDaq.OpenDaqBackend.AttributeWritingIsUnreachableInThisBinding)
     };
 
     private void VerifyEveryServedMethodIsInTheBaseline()
@@ -511,6 +522,7 @@ public sealed class SessionHub : IWebSocketSessionSink
         RequireDeviceInSession(state);
 
         var roots = new List<string>();
+        var includeTheInstancesServers = false;
         if (parameters.TryGetPropertyValue("root_id", out var rootNode) &&
             rootNode is JsonValue rootValue && rootValue.TryGetValue(out string _))
         {
@@ -518,6 +530,20 @@ public sealed class SessionHub : IWebSocketSessionSink
         }
         else
         {
+            // No root_id means "everything this session can see": the devices it
+            // connected itself -- never another session's -- AND every server
+            // the openDAQ Instance holds.
+            //
+            // The servers are not an exception to the scoping, they are what
+            // openDAQ's own placement forces. IDevice::onAddServer refuses every
+            // device but the root (device_impl.h:1470-1472), so a server is
+            // never under a connected device and a device-scoped read could
+            // never carry one -- which would leave types.Node.kind's `server`
+            // value unreachable and would hide the node add_server had just
+            // returned. remove_server and set_server_discovery_enabled already
+            // resolve server ids against the Instance and say so; this is the
+            // tree agreeing with them.
+            includeTheInstancesServers = true;
             lock (gate)
                 roots.AddRange(state.DeviceNodeIdsByConnectionString.Values);
         }
@@ -526,6 +552,11 @@ public sealed class SessionHub : IWebSocketSessionSink
         foreach (var root in roots)
             foreach (var node in backend.GetComponentTree(root))
                 out_.Add(node.ToWireJson());
+
+        if (includeTheInstancesServers)
+            foreach (var node in backend.ListInstanceServerNodes())
+                out_.Add(node.ToWireJson());
+
         return out_;
     }
 
@@ -633,7 +664,19 @@ public sealed class SessionHub : IWebSocketSessionSink
     // ([not_found, unsupported, internal]) have the same shape -- no
     // not_connected -- so those three rows read their node_id here too, which is
     // why this is named for a node and not for a device.
-    private string RequireNodeAddressableFromSessionOrNotFound(SessionState state, JsonObject parameters)
+    // `malformedNodeIdBecomes` is the row's own answer to a node_id that
+    // violated its declared wire type. error_policy.malformed_parameter_becomes
+    // is invalid_value -- "the cause is the wire decoder and never the SDK",
+    // because an integer is not an IString* and
+    // IComponent::findComponent(IString*, IComponent**) is never reached -- and
+    // every row that declares invalid_value passes it. The two callers whose
+    // error subset has no invalid_value (get_device_operation_modes is
+    // [not_found, not_connected, unsupported], stop_recording is
+    // [not_found, unsupported, internal]) pass not_found, because a code outside
+    // the row's closed subset is not an option the contract leaves open.
+    private string RequireNodeAddressableFromSessionOrNotFound(SessionState state,
+                                                               JsonObject parameters,
+                                                               WireErrorCode malformedNodeIdBecomes = WireErrorCode.NotFound)
     {
         string nodeId = null;
         if (parameters.TryGetPropertyValue("node_id", out var node) &&
@@ -641,9 +684,9 @@ public sealed class SessionHub : IWebSocketSessionSink
             nodeId = text;
 
         if (string.IsNullOrEmpty(nodeId))
-            throw new WireError(WireErrorCode.NotFound,
-                "params.node_id is absent, empty or not a string, so no component was named; these operations take " +
-                "the node id of a device exactly as connect_device answered it");
+            throw new WireError(malformedNodeIdBecomes,
+                $"params.node_id is {(node is null ? "absent" : node.ToJsonString())}, so no component was named; " +
+                "these operations take the node id of a device exactly as connect_device answered it");
 
         lock (gate)
         {
@@ -670,7 +713,10 @@ public sealed class SessionHub : IWebSocketSessionSink
 
     private JsonNode SetDeviceOperationMode(SessionState state, JsonObject parameters)
     {
-        var nodeId = RequireNodeAddressableFromSessionOrNotFound(state, parameters);
+        // contract operations[set_device_operation_mode].errors is
+        // [not_found, invalid_value, unsupported], so a node_id that violated
+        // its wire type is invalid_value here.
+        var nodeId = RequireNodeAddressableFromSessionOrNotFound(state, parameters, WireErrorCode.InvalidValue);
 
         if (!parameters.TryGetPropertyValue("mode", out var modeNode) ||
             modeNode is not JsonValue modeValue ||
@@ -770,30 +816,11 @@ public sealed class SessionHub : IWebSocketSessionSink
         return rows;
     }
 
-    // contract operations[set_component_attribute].errors is
-    // [not_found, read_only, invalid_value]: no not_connected, so an
-    // unaddressable node_id is not_found, which is what
-    // RequireNodeAddressableFromSessionOrNotFound answers.
-    private JsonNode SetComponentAttribute(SessionState state, JsonObject parameters)
-    {
-        var nodeId = RequireNodeAddressableFromSessionOrNotFound(state, parameters);
-
-        if (!parameters.TryGetPropertyValue("attribute_id", out var attributeNode) ||
-            attributeNode is not JsonValue attributeValue ||
-            !attributeValue.TryGetValue(out string attributeId) ||
-            attributeId.Length == 0)
-            throw new WireError(WireErrorCode.NotFound,
-                "params.attribute_id is absent, empty or not a string, so no attribute was named; it must be one " +
-                "of the ComponentAttribute.id values get_component_attributes answered with for this node");
-
-        if (!parameters.TryGetPropertyValue("value", out var value))
-            throw new WireError(WireErrorCode.InvalidValue,
-                $"params.value is required; set_component_attribute writes a value to \"{attributeId}\" on " +
-                $"\"{nodeId}\" and there is nothing to write");
-
-        backend.SetComponentAttribute(nodeId, attributeId, value);
-        return null;
-    }
+    // There is no SetComponentAttribute handler. attribute.write is a computed
+    // gap of kind `binding`, whose reason is
+    // OpenDaqBackend.AttributeWritingIsUnreachableInThisBinding, and an
+    // unhandled method is answered by Dispatch with `unsupported` and the list
+    // of the methods this host does serve.
 
     // --- servers, and their discovery ----------------------------------------
 
@@ -838,6 +865,35 @@ public sealed class SessionHub : IWebSocketSessionSink
         return backend.AddServer(typeId).ToWireJson();
     }
 
+    // remove_server resolves its node_id against the WHOLE instance, for the
+    // same reason set_server_discovery_enabled does: a server is added to the
+    // instance's root device, so it is never inside the subtree of a device
+    // connect_device added, and a session-scoped lookup would make this row
+    // unreachable for every server this contract can create.
+    //
+    // contract operations[remove_server].errors is
+    // [not_found, unsupported, internal] and says in as many words "Not
+    // invalid_value: there is no value on this row beyond node_id", so a
+    // node_id that is absent, empty or not a string is answered not_found --
+    // the only member of that subset that can carry "no component was named".
+    // The backend then answers not_found for an id naming nothing and
+    // unsupported for one naming a component that is not a server.
+    private JsonNode RemoveServer(JsonObject parameters)
+    {
+        string nodeId = null;
+        if (parameters.TryGetPropertyValue("node_id", out var node) &&
+            node is JsonValue value && value.TryGetValue(out string text))
+            nodeId = text;
+
+        if (string.IsNullOrEmpty(nodeId))
+            throw new WireError(WireErrorCode.NotFound,
+                $"params.node_id is {(node is null ? "absent" : node.ToJsonString())}, so no component was named; " +
+                "remove_server takes the node id of a server exactly as add_server answered it");
+
+        backend.RemoveServer(nodeId);
+        return null;
+    }
+
     // set_server_discovery_enabled resolves its node_id against the WHOLE
     // instance and not against the devices this session connected, which is a
     // consequence of add_server rather than a loosening of scope: a server is
@@ -855,23 +911,32 @@ public sealed class SessionHub : IWebSocketSessionSink
             node is JsonValue value && value.TryGetValue(out string text))
             nodeId = text;
 
+        // contract operations[set_server_discovery_enabled].errors now carries
+        // invalid_value, whose meaning is error_policy.malformed_parameter_becomes:
+        // "A PARAMETER VIOLATED ITS DECLARED WIRE TYPE ... the cause is the wire
+        // decoder and never the SDK". Both of this row's parameters are that
+        // case: a node_id that is not a string never reaches
+        // IComponent::findComponent(IString*, IComponent**), and `enabled` is
+        // THIS CONTRACT'S selector for which of two no-argument openDAQ methods
+        // to call -- IServer::enableDiscovery (server.h:66) and
+        // disableDiscovery (:90) take no parameter -- so "yes" selects neither
+        // and no SDK call can be made to raise about it.
         if (string.IsNullOrEmpty(nodeId))
-            throw new WireError(WireErrorCode.NotFound,
-                "params.node_id is absent, empty or not a string, so no component was named; this row takes the " +
-                "node id of a server exactly as add_server answered it");
+            throw new WireError(WireErrorCode.InvalidValue,
+                $"params.node_id is {(node is null ? "absent" : node.ToJsonString())}; contract " +
+                "operations[set_server_discovery_enabled].params.node_id is a required string carrying the node " +
+                "id of a server exactly as add_server answered it. Nothing was looked up, so not_found would " +
+                "claim a lookup that never ran");
 
         if (!parameters.TryGetPropertyValue("enabled", out var enabledNode) ||
             enabledNode is not JsonValue enabledValue ||
             !enabledValue.TryGetValue(out bool enabled))
-            // The subset has no invalid_value, and unsupported is what
-            // unlock_device already uses for a parameter this row cannot make
-            // sense of. contract operations[set_server_discovery_enabled].params
-            // .enabled is a required bool, so true or false and nothing else.
-            throw new WireError(WireErrorCode.Unsupported,
+            throw new WireError(WireErrorCode.InvalidValue,
                 $"params.enabled is {(enabledNode is null ? "absent" : enabledNode.ToJsonString())}; contract " +
                 "operations[set_server_discovery_enabled].params.enabled is a required bool, so it must be true " +
                 "or false. Two named row items each send one value; there is no switch, because openDAQ has no " +
-                "member that reports whether discovery is on");
+                "member that reports whether discovery is on. Neither not_found nor unsupported is honest here: " +
+                "nothing was looked up, and the server is perfectly capable of the operation that was mis-typed");
 
         backend.SetServerDiscoveryEnabled(nodeId, enabled);
         return null;
@@ -887,7 +952,12 @@ public sealed class SessionHub : IWebSocketSessionSink
 
     private JsonNode StartRecording(SessionState state, JsonObject parameters)
     {
-        backend.StartRecording(RequireNodeAddressableFromSessionOrNotFound(state, parameters));
+        // contract operations[start_recording].errors carries invalid_value for
+        // exactly this: IRecorder::startRecording (recorder.h:45) takes NO
+        // ARGUMENTS, so a malformed node_id cannot reach openDAQ at all and
+        // not_found would claim a lookup that never ran. stop_recording's subset
+        // has no invalid_value, so it keeps not_found.
+        backend.StartRecording(RequireNodeAddressableFromSessionOrNotFound(state, parameters, WireErrorCode.InvalidValue));
         return null;
     }
 

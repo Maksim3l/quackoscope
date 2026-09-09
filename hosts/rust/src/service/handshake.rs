@@ -65,7 +65,15 @@ pub const BASELINE_CAPABILITY_IDS: [&str; 20] = [
 ];
 
 /// Which capability owns which wire method, contract section 5.
-pub const CONTRACT_OPERATION_TABLE: [(&str, &str); 30] = [
+///
+/// remove_server is here because contract/contract.yaml grew it into
+/// server.add's operation list: "ADDING A SERVER IS NOT ONE-WAY, and this row
+/// exists because saying it was would have been false teaching". Capabilities
+/// are ALL-OF, so until this host dispatched remove_server as well,
+/// capabilities_fully_served_by would have computed server.add into a gap; the
+/// two verifiers below refused to start the host in the window where this table
+/// still held 30 rows and generated/wire/capability-baseline.json held 31.
+pub const CONTRACT_OPERATION_TABLE: [(&str, &str); 31] = [
     ("scan_available_devices", "device.scan"),
     ("connect_device", "device.connect"),
     ("disconnect_device", "device.connect"),
@@ -89,6 +97,7 @@ pub const CONTRACT_OPERATION_TABLE: [(&str, &str); 30] = [
     ("set_component_attribute", "attribute.write"),
     ("list_server_types", "server.add"),
     ("add_server", "server.add"),
+    ("remove_server", "server.add"),
     ("set_server_discovery_enabled", "server.discovery"),
     ("start_recording", "recorder.control"),
     ("stop_recording", "recorder.control"),

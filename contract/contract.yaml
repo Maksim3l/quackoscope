@@ -204,6 +204,33 @@ error_policy:
   unmapped_native_error_becomes: internal
   frontend_branches_on: code
 
+  # invalid_value ALSO MEANS "A PARAMETER VIOLATED ITS DECLARED WIRE TYPE", and
+  # this is one shared definition rather than a sentence repeated on every row,
+  # because the cause is the wire decoder and never the SDK. When node_id
+  # arrives as 17, or as [], or as null, openDAQ IS NEVER REACHED: there is no
+  # SDK entry point that can accept the value.
+  #   - a node lookup is IComponent::findComponent(IString* id, IComponent** out)
+  #     (component_impl.h:904-928). The parameter is IString*. An integer is not
+  #     an IString* and cannot be made into one. A null id would be
+  #     OPENDAQ_PARAM_NOT_NULL(id) at component_impl.h:906-907, expanding
+  #     (coretypes/validation.h:30-31) to OPENDAQ_ERR_ARGUMENT_NULL; a
+  #     well-formed id naming nothing returns OPENDAQ_NOTFOUND
+  #     (component_impl.h:924, errors.h:39).
+  #   - IRecorder::startRecording (recorder.h:45), IServer::enableDiscovery
+  #     (server.h:66), IServer::disableDiscovery (server.h:90) and
+  #     IPropertyObject::beginUpdate take NO ARGUMENTS AT ALL, so a malformed
+  #     argument has nowhere to arrive.
+  # openDAQ keeps "you gave me the wrong type" strictly apart from "I could not
+  # find it" and has four codes for the first: OPENDAQ_ERR_INVALIDPARAMETER
+  # (errors.h:46), OPENDAQ_ERR_INVALIDVALUE (:75), OPENDAQ_ERR_INVALIDTYPE (:77,
+  # used for exactly this - "Selection item type mismatch" at
+  # property_object_impl.h:2243, "List item type mismatch" at :2255) and
+  # OPENDAQ_ERR_ARGUMENT_NULL (:91). A subset that offers only not_found forces
+  # a host to collapse the two, and not_found asserts a lookup happened and
+  # failed, which is a claim about openDAQ that the host cannot support. Every
+  # row whose parameters can be malformed therefore declares invalid_value.
+  malformed_parameter_becomes: invalid_value
+
 # ---------------------------------------------------------------------------
 # 3. Types
 # ---------------------------------------------------------------------------
@@ -284,6 +311,18 @@ types:
       # the nearest ancestor device's, which is what the reference computes
       # client-side in _set_node_lock_status_recursive. true draws [locked].
       # lock_device and unlock_device act on device rows only.
+      #
+      # THIS IS A LABEL, NOT A WRITE REFUSAL, and a client must not infer one
+      # from it. The reference's entire consequence for a locked node is
+      # add_tag_and_configure(node, 'locked', 'gray') plus the [locked] suffix
+      # (gui_demo.py:1447-1471 and :655-657); it disables neither the property
+      # editor nor the attribute editor. openDAQ agrees: the lock is enforced in
+      # the config-protocol SERVER, by
+      # ConfigServerAccessControl::protectLockedComponent
+      # (config_server_access_control.h:75-81, called from
+      # config_server_component.h:78, :298 and :317), and nowhere in core -
+      # GenericPropertyObjectImpl::setPropertyValue consults no lock, so an
+      # in-process device.setPropertyValue on a locked device SUCCEEDS.
       locked:                   {type: bool, presence: nullable}
       component_status:         {type: enum, values: [ok, warning, error], presence: nullable}
       component_status_message: {type: string, presence: nullable}
@@ -587,8 +626,11 @@ capabilities:
 
   # The add-server card grid: list_server_types draws it and add_server is the
   # commit on a card, which is one control, exactly as function_block.add covers
-  # its list and its add together.
-  - {id: server.add,          operations: [[list, server, types], [add, server]]}
+  # its list and its add together. remove_server joins them for the same reason
+  # remove_function_block sits under function_block.add: the removal is the
+  # undo of the addition, on the thing this capability created, and there is no
+  # deployment that wants a client to add servers but never take one away.
+  - {id: server.add,          operations: [[list, server, types], [add, server], [remove, server]]}
   # The server row's discovery items, which are a different control on a
   # different surface at a different time: they act on a server row that this
   # session may not have created and may not be permitted to create. Folding
@@ -710,6 +752,20 @@ operations:
       - {name: property_id, type: string, presence: required, references: PropertyDescriptor.id}
       - {name: value, type: any, presence: required}
     returns: {type: void}
+    # read_only is openDAQ refusing THIS property's write -
+    # PropertyDescriptor.read_only, i.e. the property object's own refusal.
+    #
+    # A LOCKED ANCESTOR DEVICE IS NOT A read_only CAUSE HERE, and a host must
+    # not manufacture one. The device lock is enforced only in the
+    # config-protocol server, by ConfigServerAccessControl::protectLockedComponent
+    # (config_server_access_control.h:75-81), which
+    # config_server_component.h:78 calls on setPropertyValue. Core does not:
+    # GenericPropertyObjectImpl::setPropertyValue consults no lock, so an
+    # in-process write to a property under a locked device SUCCEEDS. Every host
+    # in this repository holds an in-process Instance, so every one of them is
+    # on that path. A host that refused such a write would be layering a rule
+    # openDAQ does not have, and the snippet the quack shows would then be
+    # openDAQ calls that do not produce what the user just saw.
     errors: [not_found, read_only, invalid_value]
     naming_overrides: {}
 
@@ -747,7 +803,22 @@ operations:
       - {name: signal_id, type: string, presence: required, references: Node.id}
       - {name: pixel_columns, type: int, presence: required}
     returns: {type: string, semantic: subscription_id}
-    errors: [not_found, not_connected]
+    # invalid_value is pixel_columns outside what a plot surface can be
+    # decimated to - 0, or a hundred million.
+    #
+    # pixel_columns IS THIS CONTRACT'S PARAMETER, NOT openDAQ'S, so openDAQ
+    # raises nothing for it and cannot: grep -rn "pixel" over core/, modules/
+    # and the reference GUI returns exactly one hit, gui_demo/utils.py:162, a
+    # comment about icon scaling. openDAQ's readers take a sample count, never a
+    # display-column count. The validation is therefore the host's own, of the
+    # host's own parameter, and it is correct - which is why all five hosts,
+    # including the mock that has no SDK at all, independently answered
+    # invalid_value to it. A code every host derives from the contract alone
+    # belongs in the contract.
+    #
+    # This is the same self-contradiction unsubscribe_signal below already
+    # fixed, for the same reason and by the same edit.
+    errors: [not_found, not_connected, invalid_value]
     naming_overrides: {}
 
   - tokens: [unsubscribe, signal]
@@ -808,11 +879,19 @@ operations:
       - {name: mode, type: string, presence: required}
     returns: {type: void}
     # invalid_value: a mode name outside Node.operation_mode's values, or one
-    # the device did not list as available. read_only: the device is locked -
-    # the closed error set's expression of "openDAQ refused the write because
-    # the component is protected", the same code set_property_value already
-    # uses for a locked target. unsupported: node_id is not a device.
-    errors: [not_found, invalid_value, read_only, unsupported]
+    # the device did not list as available. unsupported: node_id is not a
+    # device.
+    #
+    # THERE IS NO read_only ON THIS ROW, and its removal is the correction of a
+    # rule this contract invented. It used to read "read_only: the device is
+    # locked", and openDAQ does not do that:
+    # GenericDevice::setOperationMode (device_impl.h:1257-1281) consults no lock
+    # at all - it checks onGetAvailableOperationModes, takes the tree lock guard
+    # and writes. The device lock refuses writes only in the config-protocol
+    # server (config_server_access_control.h:75-81), and these hosts are
+    # in-process, so no lock refusal can reach this row. Every SDK host was
+    # marked BROKE against the old wording for doing exactly what openDAQ does.
+    errors: [not_found, invalid_value, unsupported]
     naming_overrides: {}
 
   # --- device lock -----------------------------------------------------------
@@ -820,6 +899,39 @@ operations:
   # The lock STATE is Node.locked, effective and inheritance-applied, so the
   # tree's lock icon and the greying of a locked subtree need no call. These two
   # rows are the actions behind the lock and unlock icons the tree already ships.
+  #
+  # THE LOCK IS OWNED BY A USER, AND THERE IS NO SESSION IN IT. This contract
+  # used to say "already locked, and not by this session", which is a rule
+  # openDAQ does not have and no host could honestly produce. openDAQ's own
+  # header, device.h:313-317, is the whole story and is quoted here so the next
+  # reader does not have to take this comment's word for it:
+  #
+  #     "Lock a device with a session user. Once locked, no properties of the
+  #      device can be changed via the protocol layer. Only the same user who
+  #      locked the device can unlock it. If no user was specified when the
+  #      device was locked, any user will be able to unlock it."
+  #
+  # IDevice::lock() (device.h:318), unlock() (:324) and isLocked(Bool*) (:330)
+  # all take NO ARGUMENT; device_impl.h:1040-1048 implements the public forms as
+  # literally `return this->lock(nullptr);` and `return this->unlock(nullptr);`.
+  # The user-taking forms are on IDevicePrivate (device_private.h:39-42), and
+  # over the wire the user comes from the CONNECTION, not the caller:
+  # config_server_device.h:78 calls lock(context.user), and
+  # config_client_device_impl.h:302-304 logs that "The specified user was
+  # ignored when unlocking a remote device. A session user was used instead."
+  #
+  # AND WITH NO AUTHENTICATION CONFIGURED, WHICH IS THIS APPLICATION'S
+  # CONFIGURATION, THE LOCK IS HELD BY NOBODY. AuthenticationProvider() defaults
+  # to allowAnonymous = true (authentication_provider_factory.h:31-35) and hands
+  # every anonymous connection the one User("", "") object
+  # (authentication_provider_impl.cpp:23 and :56); isAnonymous is
+  # username == "" && passwordHash == "" (user_impl.cpp:42-48); and
+  # UserLockImpl::lock (user_lock_impl.cpp:15-27) turns an anonymous user into
+  # nullptr before storing it. openDAQ's own test states the consequence
+  # plainly - test_device.cpp:399-430, LockUnlockAnonymous, locks anonymously
+  # and then asserts that unlock(jure) and unlock(tomaz), two DIFFERENT users,
+  # each succeed. A second connection taking or releasing a held lock is
+  # therefore openDAQ's behaviour, not a host defect.
 
   - tokens: [lock, device]
     kind: action
@@ -827,9 +939,16 @@ operations:
     params:
       - {name: node_id, type: string, presence: required, references: Node.id}
     returns: {type: void}
-    # read_only is "the device is already locked, and not by this session" -
-    # openDAQ permits an unlock only by the user who locked it. unsupported is
-    # node_id naming a component that is not a device.
+    # read_only is OPENDAQ_ERR_DEVICE_LOCKED (errors.h:128, surfacing as
+    # DeviceLockedException), which UserLockImpl::lock returns in exactly one
+    # case: `userLock.has_value() && userLock != userPtr`
+    # (user_lock_impl.cpp:21-22), i.e. a DIFFERENT NAMED user already holds it.
+    # device_impl.h:1707-1730 returns the same code for a nested device whose
+    # ancestor is locked. Both are reachable only where authentication names
+    # users, so with this application's configuration a host will not produce
+    # this code and MUST NOT SYNTHESISE IT: a second lock of an
+    # anonymously-locked device compares nullptr against nullptr and succeeds.
+    # unsupported is node_id naming a component that is not a device.
     errors: [not_found, read_only, unsupported]
     naming_overrides: {}
 
@@ -838,8 +957,8 @@ operations:
     capability: device.lock
     params:
       - {name: node_id, type: string, presence: required, references: Node.id}
-      # IDevice.unlock() takes no arguments and refuses when another user holds
-      # the lock; the reference then offers a forced unlock, which is
+      # IDevice.unlock() takes no arguments and refuses when another NAMED user
+      # holds the lock; the reference then offers a forced unlock, which is
       # IDevicePrivate.force_unlock() - a different interface, reached by a cast.
       # It is an optional parameter rather than a row of its own because the
       # forced path is the same act on the same node with the same capability,
@@ -849,9 +968,29 @@ operations:
       - {name: force, type: bool, presence: optional}
     returns: {type: void}
     # read_only is the refusal the reference reacts to by offering the forced
-    # unlock, so it is the exact signal that enables that control. unsupported
-    # covers both "not a device" and force: true on a host that cannot reach
-    # IDevicePrivate.
+    # unlock, so it is the exact signal that enables that control. It is a
+    # DIFFERENT openDAQ code from lock_device's: UserLockImpl::unlock
+    # (user_lock_impl.cpp:29-36) returns OPENDAQ_ERR_ACCESSDENIED (errors.h:78,
+    # AccessDeniedException), and only when
+    # `userLock.has_value() && userLock != nullptr && userLock != user` - the
+    # `!= nullptr` term is why an anonymously-taken lock, which is the only kind
+    # this application can take, is cleared by ANY caller. So this code is
+    # unreachable here too, and a host must not invent it to keep a second
+    # session out. unsupported covers both "not a device" and force: true on a
+    # host that cannot reach IDevicePrivate.
+    #
+    # THE FORCED PATH IS REACTIVE, NOT A STATE CHECK, and that is how the
+    # reference offers it: handle_unlock (gui_demo.py:1394-1407) calls
+    # device.unlock() and only inside `except` asks "Unlock failed ... Do you
+    # want to forcefully unlock the device?", then calls
+    # IDevicePrivate.force_unlock() (:1409-1416). The Lock and Unlock menu items
+    # themselves are unconditional (:1026-1028) - neither is enabled or disabled
+    # by lock state, and the GUI never asks whose lock it is. In-process, where
+    # no exception is possible, that dialog is unreachable. forceUnlock is an
+    # unconditional userLock.reset() (user_lock_impl.cpp:38-42) - "A force
+    # unlock will always succeed, regardless of which user initially locked the
+    # object" (user_lock.h:55-58) - and it carries no ownership check on the
+    # wire either (config_server_device.h:93-101 gates it on Read|Write only).
     errors: [not_found, read_only, unsupported]
     naming_overrides: {}
 
@@ -984,9 +1123,15 @@ operations:
     # cast returns fewer rows; it does not return a row with a null value, which
     # would claim the attribute exists and has no value.
     returns: {type: array, items: ComponentAttribute}
-    # The same subset get_property_descriptors declares, and for the same two
-    # reasons: node_id may name nothing, and there may be no instance to read.
-    errors: [not_found, not_connected]
+    # not_found and not_connected for the same two reasons
+    # get_property_descriptors declares them: node_id may name nothing, and
+    # there may be no instance to read. invalid_value is error_policy's
+    # malformed_parameter_becomes - node_id arriving as 17 rather than as a
+    # string. The lookup this row performs is
+    # IComponent::findComponent(IString* id, ...) and an integer is not an
+    # IString*, so openDAQ is never reached and not_found would assert a lookup
+    # that never happened.
+    errors: [not_found, not_connected, invalid_value]
     naming_overrides: {}
 
   - tokens: [set, component, attribute]
@@ -1007,6 +1152,32 @@ operations:
     # write - never "this host has no writer", which is a capability gap.
     # invalid_value: the value is of the wrong type for the attribute, or
     # openDAQ rejected it.
+    #
+    # A GENUINELY LOCKED ATTRIBUTE RAISES NOTHING, so this row must not be read
+    # as promising that it does. COMPONENT_AVAILABLE_ATTRIBUTES is the entire
+    # universe of the locked-attribute machinery - {"Name", "Description",
+    # "Visible", "Active"} at component_impl.h:59, plus {"Public",
+    # "DomainSignal", "RelatedSignals"} (signal_impl.h:53) and {"Public"}
+    # (input_port_impl.h:47) - and when one of those is locked the setter
+    # returns OPENDAQ_IGNORED (component_impl.h:541-552 for setName, :592-603
+    # setDescription, :365-376 setActive, :650-661 setVisible). OPENDAQ_IGNORED
+    # is 0x00000006u (errors.h:38) and OPENDAQ_FAILED is (x) & 0x80000000u
+    # (errors.h:28), so it is a SUCCESS: openDAQ silently does nothing and no
+    # binding raises. A host that meets this must read the attribute back and
+    # report the unchanged value; it must NOT manufacture read_only from the
+    # absence of an exception.
+    #
+    # tags IS NOT IN THAT MACHINERY AT ALL, so ComponentAttribute.read_only can
+    # never be true for it on the reference device, and a host reporting
+    # otherwise is reporting itself. IComponent has getTags and no setTags
+    # (component.h:164); ITags is read-only, getList/contains/query
+    # (tags.h:39-60); the writer is ITagsPrivate::add/remove/replace
+    # (tags_private.h:34-56), reached by a cast from component.tags, and it is
+    # present in every binding - py_tags_private.cpp:43-69, C# TagsPrivate.cs
+    # :73/:96/:115, C daqTagsPrivate_* (c/.../tags_private.h:44-46), Rust
+    # TagsPrivate in opendaq-0.1.1 src/generated/component.rs:2835+. tags_impl.h
+    # :88-150 performs no lock check, so tags.h:36-37's "can only be modified if
+    # the object is not locked" is documentation of an unimplemented intent.
     errors: [not_found, read_only, invalid_value]
     naming_overrides: {}
 
@@ -1073,6 +1244,63 @@ operations:
     errors: [not_connected, unsupported, invalid_value, internal]
     naming_overrides: {}
 
+  # ADDING A SERVER IS NOT ONE-WAY, and this row exists because saying it was
+  # would have been false teaching. openDAQ takes a server down with
+  # IDevice::removeServer(IServer* server) - device.h:300-304, "Removes the
+  # server provided as argument" - which device_impl.h:1014-1026 wraps to
+  # onRemoveServer (:1479-1487), the exact mirror of onAddServer (:1465-1476),
+  # same root-device restriction and then `this->servers.removeItem(server)`.
+  # IInstance forwards it: instance_impl.cpp:271-274 is
+  # `return rootDevice->removeServer(server);`.
+  #
+  # THE SOCKET ACTUALLY CLOSES, which is what makes this a real undo rather than
+  # a delisting. folder_impl.h:598-605 removes the item, which calls
+  # IComponent::removed, and ServerImpl::removed (server_impl.h:199-202) is
+  # `checkErrorInfo(stop()); Super::removed();` - IServer::stop, whose own doc
+  # (server.h:55) is "Stops the server. This is called when we remove the server
+  # from the Instance or Instance is closing."
+  #
+  # Every binding has it: python remove_server (py_device.cpp:310-315), C#
+  # Device.cs:1030 `public void RemoveServer(Server server)`, C
+  # daqDevice_removeServer (c/.../device.h:80), rust
+  # `pub fn remove_server(&self, server: &Server)` (opendaq-0.1.1
+  # src/generated/device.rs:3414-3418).
+  #
+  # TWO HONEST CAVEATS, stated because a host will meet both. (1) The native
+  # config protocol has NO RemoveServer RPC: config_protocol_server.cpp:161-179
+  # registers Lock, Unlock, ForceUnlock, AddDevice, RemoveDevice and no removal
+  # of a server, so a host proxying a REMOTE instance would declare a gap here.
+  # Every host in this repository holds an in-process Instance, so this does not
+  # limit them. (2) The reference GUI never removes one - menu_server_groups
+  # (gui_demo.py:1032-1039) offers only the discovery items, the update items
+  # and the property items, unlike menu_device_groups and
+  # menu_function_block_groups which both carry a removal. So this row is argued
+  # from openDAQ's API, not from the reference's menu.
+  #
+  # It takes node_id, the SERVER node - the same shape remove_function_block
+  # takes - because what crosses the wire is an id and the host resolves it to
+  # the IServer the call needs.
+  - tokens: [remove, server]
+    kind: action
+    capability: server.add
+    params:
+      - {name: node_id, type: string, presence: required, references: Node.id}
+    returns: {type: void}
+    # not_found: node_id names no component.
+    # unsupported: the component exists and is not a server, and also the target
+    #   not being the root device - onRemoveServer throws NotFoundException
+    #   "Device does not allow adding/removing servers." for any non-root device
+    #   (device_impl.h:1484). It is unsupported rather than not_found
+    #   because the node was found; what is missing is the ability, which is the
+    #   use get_device_operation_modes and set_server_discovery_enabled already
+    #   make of this code.
+    # internal: stop() threw while closing the listening socket, which is native
+    #   text for error.detail.
+    # Not read_only: no component is being written. Not invalid_value: there is
+    # no value on this row beyond node_id.
+    errors: [not_found, unsupported, internal]
+    naming_overrides: {}
+
   # ONE ROW WITH A BOOLEAN, NOT TWO ROWS. The reference draws two menu items,
   # Enable discovery and Disable discovery (gui_demo.py:1034-1038), and openDAQ
   # has two methods, IServer::enableDiscovery and IServer::disableDiscovery
@@ -1109,7 +1337,15 @@ operations:
     # internal: mDNS advertising failed. The reference has exactly this path and
     #   treats it as a warning that does not undo anything: 'Server added but
     #   enable_discovery failed' (add_server_dialog.py:225).
-    errors: [not_found, unsupported, internal]
+    # invalid_value: error_policy's malformed_parameter_becomes - `enabled`
+    #   arriving as the string "yes" rather than as a bool. `enabled` is THIS
+    #   CONTRACT'S selector for which of two no-argument openDAQ methods to
+    #   call, as this row's own header says; IServer::enableDiscovery
+    #   (server.h:66) and disableDiscovery (:90) take no parameter, so "yes"
+    #   selects neither and no SDK call can be made to raise about it. Neither
+    #   not_found nor unsupported is honest there: nothing was looked up, and
+    #   the server is perfectly capable of the operation that was mis-typed.
+    errors: [not_found, unsupported, internal, invalid_value]
     naming_overrides: {}
 
   # --- the recorder ----------------------------------------------------------
@@ -1128,8 +1364,13 @@ operations:
     #   block_view.py:169 performs would fail. not_found: node_id names nothing.
     #   internal: IRecorder::startRecording threw - no writable path, a file
     #   already open, a device error - which is native text for error.detail.
-    # Not invalid_value: there is no value on this row to be invalid.
-    errors: [not_found, unsupported, internal]
+    # invalid_value: error_policy's malformed_parameter_becomes - node_id
+    #   arriving as null rather than as a string. IRecorder::startRecording
+    #   (recorder.h:45) takes NO ARGUMENTS, and its one documented failure
+    #   (recorder.h:41-43) is OPENDAQ_ERR_INVALIDSTATE for "already recording",
+    #   so a malformed node_id cannot reach openDAQ at all and not_found would
+    #   claim a lookup that never ran.
+    errors: [not_found, unsupported, internal, invalid_value]
     naming_overrides: {}
 
   - tokens: [stop, recording]
@@ -1159,11 +1400,15 @@ operations:
   # batch mode for every session at once, and a session that begins and then
   # drops leaves it there. Nothing here says whether a host must end an
   # abandoned batch when its opener disconnects, whether a second session may
-  # end one it did not begin, or what either should answer. That is the SAME
-  # question already open and escalated for device.lock, which is not
-  # session-scoped on any of the four SDK hosts; this row does not decide it,
-  # and a host must not quietly invent a policy and call it the contract.
-  # Node.updating is what makes the unruled state visible in the meantime.
+  # end one it did not begin, or what either should answer.
+  #
+  # The device.lock rows above once carried the same open question and no longer
+  # do: openDAQ answered it there, and the answer was that the lock is owned by
+  # a USER and never by a session. Nothing in openDAQ scopes a batch to a
+  # session either, so the same discipline applies to this pair - a host reports
+  # what beginUpdate and endUpdate actually do and must not quietly invent a
+  # session policy and call it the contract. Node.updating is what makes the
+  # unruled state visible in the meantime.
 
   - tokens: [begin, batched, property, update]
     kind: action
@@ -1175,7 +1420,12 @@ operations:
     # No unsupported: every openDAQ component is an IPropertyObject, which is
     # why the reference casts unconditionally (gui_demo.py:1369-1372) rather
     # than testing can_cast_from first as it does for IRecorder and IServer.
-    errors: [not_found, not_connected]
+    # invalid_value: error_policy's malformed_parameter_becomes - node_id
+    # arriving as [] rather than as a string. IPropertyObject::beginUpdate takes
+    # no arguments and node_id exists here only to find the component, through
+    # the same findComponent(IString*) path get_component_attributes uses, so a
+    # list is not a component id in any sense openDAQ can be asked about.
+    errors: [not_found, not_connected, invalid_value]
     naming_overrides: {}
 
   - tokens: [end, batched, property, update]

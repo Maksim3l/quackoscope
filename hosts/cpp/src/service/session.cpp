@@ -80,6 +80,7 @@ const std::map<std::string, SessionHub::Handler>& SessionHub::handlersByWireMeth
         {"set_component_attribute", &SessionHub::setComponentAttribute},
         {"list_server_types", &SessionHub::listServerTypes},
         {"add_server", &SessionHub::addServer},
+        {"remove_server", &SessionHub::removeServer},
         {"set_server_discovery_enabled", &SessionHub::setServerDiscoveryEnabled},
         {"start_recording", &SessionHub::startRecording},
         {"stop_recording", &SessionHub::stopRecording},
@@ -339,7 +340,7 @@ std::string SessionHub::requireNodeReachableReportedAs(const SessionStatePtr& st
                                               : reachable));
 }
 
-// --- the twenty-nine served methods ------------------------------------------
+// --- the thirty served methods ------------------------------------------------
 
 Json SessionHub::scanAvailableDevices(const transport::ConnectionPtr&, const SessionStatePtr&, const Json&)
 {
@@ -444,14 +445,26 @@ Json SessionHub::getComponentTree(const transport::ConnectionPtr&, const Session
     requireDeviceInSession(state);
 
     std::vector<std::string> roots;
+    bool includeTheInstancesServers = false;
     if (params.contains("root_id") && params["root_id"].is_string())
     {
         roots.push_back(requireNodeReachableFromSession(state, params, "root_id"));
     }
     else
     {
-        // No root_id means "everything this session can see", which is exactly
-        // the devices it connected itself -- never another session's.
+        // No root_id means "everything this session can see": the devices it
+        // connected itself -- never another session's -- AND every server the
+        // openDAQ Instance holds.
+        //
+        // The servers are not an exception to the scoping, they are what
+        // openDAQ's own placement forces. IDevice::onAddServer refuses every
+        // device but the root (device_impl.h:1470-1472), so a server is never
+        // under a connected device and a device-scoped read could never carry
+        // one -- which would leave types.Node.kind's `server` value unreachable
+        // and would hide the node add_server had just returned. remove_server
+        // and set_server_discovery_enabled already resolve server ids against
+        // the Instance and say so; this is the tree agreeing with them.
+        includeTheInstancesServers = true;
         std::lock_guard<std::mutex> lock(mutex_);
         for (const auto& [connectionString, deviceNodeId] : state->deviceNodeIdsByConnectionString)
             roots.push_back(deviceNodeId);
@@ -461,6 +474,11 @@ Json SessionHub::getComponentTree(const transport::ConnectionPtr&, const Session
     for (const auto& root : roots)
         for (const auto& node : backend_.getComponentTree(std::optional<std::string>(root)))
             out.push_back(toJson(node));
+
+    if (includeTheInstancesServers)
+        for (const auto& node : backend_.listInstanceServerNodes())
+            out.push_back(toJson(node));
+
     return out;
 }
 
@@ -623,9 +641,16 @@ Json SessionHub::setDeviceOperationMode(const transport::ConnectionPtr&,
                                         const Json& params)
 {
     // contract operations[set_device_operation_mode].errors =
-    // [not_found, invalid_value, read_only, unsupported]. not_connected is NOT
-    // in that subset, so a session holding no device answers not_found for the
-    // node it was asked about rather than reaching for a code this row forbids.
+    // [not_found, invalid_value, unsupported]. not_connected is NOT in that
+    // subset, so a session holding no device answers not_found for the node it
+    // was asked about rather than reaching for a code this row forbids.
+    //
+    // read_only IS GONE FROM THAT SUBSET and nothing here replaces it. It used
+    // to mean "the device is locked", and openDAQ's
+    // GenericDevice::setOperationMode (device_impl.h:1256-1281) consults no
+    // lock at all; the user lock refuses writes only in the config-protocol
+    // server (config_server_access_control.h:75-81), which an in-process host
+    // is not on. There is therefore no lock check on this path in this host.
     const auto nodeId =
         requireNodeReachableReportedAs(state, params, "node_id", ErrorCode::InvalidValue, ErrorCode::NotFound);
     const auto mode = requireString(params, "mode");
@@ -642,6 +667,14 @@ Json SessionHub::lockDevice(const transport::ConnectionPtr&, const SessionStateP
     // contract operations[lock_device].errors = [not_found, read_only,
     // unsupported]: neither not_connected nor invalid_value is in the subset,
     // so both a malformed node_id and a session with no device are not_found.
+    //
+    // NO SESSION OWNS A LOCK, and this handler holds no record of one. openDAQ
+    // scopes the lock to a USER (device.h:313-317), and with no authentication
+    // configured that user is nobody -- UserLockImpl::lock collapses an
+    // anonymous user to nullptr (user_lock_impl.cpp:15-27). So locking a device
+    // this session already locked succeeds, and so does another socket's
+    // unlock. read_only reaches the wire only if openDAQ itself returns
+    // OPENDAQ_ERR_DEVICE_LOCKED.
     const auto nodeId =
         requireNodeReachableReportedAs(state, params, "node_id", ErrorCode::NotFound, ErrorCode::NotFound);
 
@@ -762,10 +795,14 @@ Json SessionHub::getComponentAttributes(const transport::ConnectionPtr&,
                                         const Json& params)
 {
     // contract operations[get_component_attributes].errors =
-    // [not_found, not_connected], which is the same subset
-    // get_property_descriptors declares and is read the same way: a session
-    // holding no device is not_connected, and an id that session cannot reach
-    // is not_found.
+    // [not_found, not_connected, invalid_value]. The first two are read the way
+    // get_property_descriptors reads them: a session holding no device is
+    // not_connected, and a well-formed id that session cannot reach is
+    // not_found. invalid_value is a MALFORMED node_id, which requireString
+    // below reports -- the lookup this row performs is
+    // IComponent::findComponent(IString*), and an integer is not an IString*,
+    // so openDAQ is never reached and not_found would assert a lookup that
+    // never happened.
     requireDeviceInSession(state);
 
     Json out = Json::array();
@@ -838,6 +875,46 @@ Json SessionHub::addServer(const transport::ConnectionPtr&, const SessionStatePt
     return toJson(node);
 }
 
+Json SessionHub::removeServer(const transport::ConnectionPtr&, const SessionStatePtr& state, const Json& params)
+{
+    // contract operations[remove_server].errors = [not_found, unsupported,
+    // internal]: neither not_connected nor invalid_value is in the subset, so a
+    // malformed node_id is reported as not_found, exactly as
+    // set_server_discovery_enabled reports one.
+    if (!params.contains("node_id") || !params["node_id"].is_string())
+        throw ServiceError(ErrorCode::NotFound,
+                           "params.node_id is missing or is not a string, so this request names no server");
+    const auto nodeId = params["node_id"].get<std::string>();
+
+    // Resolved against the openDAQ Instance and not against this session's
+    // devices, for the same reason set_server_discovery_enabled is: servers
+    // hang under the Instance's own root device, which no session connected.
+    // The consequence, stated: a session can remove a server another session
+    // added, and a server this session added outlives this socket unless
+    // somebody removes it. Servers are process-wide here.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (state->serverNodeIds.find(nodeId) == state->serverNodeIds.end())
+            std::cout << "[service] remove_server " << nodeId
+                      << ": no add_server on this session produced that node id, so the id is resolved against the "
+                      << "openDAQ Instance rather than against this session's devices. Whether it names a server "
+                      << "at all is decided there, by the cast to IServer" << std::endl;
+    }
+
+    backend_.removeServer(nodeId);
+
+    // Dropped from this session's record of what it added, because the server
+    // it named is gone from the openDAQ Instance. This is bookkeeping for the
+    // log line above and nothing else: it is not an ownership check, and it did
+    // not gate the removal.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        state->serverNodeIds.erase(nodeId);
+    }
+
+    return nullptr;
+}
+
 // --- server.discovery -------------------------------------------------------
 
 Json SessionHub::setServerDiscoveryEnabled(const transport::ConnectionPtr&,
@@ -845,15 +922,21 @@ Json SessionHub::setServerDiscoveryEnabled(const transport::ConnectionPtr&,
                                            const Json& params)
 {
     // contract operations[set_server_discovery_enabled].errors =
-    // [not_found, unsupported, internal]: neither not_connected nor
-    // invalid_value is in the subset, so a malformed node_id is not_found too.
+    // [not_found, unsupported, internal, invalid_value]. A malformed parameter
+    // is invalid_value, which is error_policy.malformed_parameter_becomes:
+    // `enabled` is THIS CONTRACT'S selector between two openDAQ methods that
+    // take no parameter at all -- IServer::enableDiscovery (server.h:66) and
+    // disableDiscovery (:90) -- so "yes" selects neither and no SDK call can be
+    // made to raise about it. not_found would claim a lookup that never
+    // happened, and unsupported would blame a server that is perfectly capable
+    // of the operation that was mis-typed.
     if (!params.contains("node_id") || !params["node_id"].is_string())
-        throw ServiceError(ErrorCode::NotFound,
+        throw ServiceError(ErrorCode::InvalidValue,
                            "params.node_id is missing or is not a string, so this request names no server");
     const auto nodeId = params["node_id"].get<std::string>();
 
     if (!params.contains("enabled") || !params["enabled"].is_boolean())
-        throw ServiceError(ErrorCode::NotFound,
+        throw ServiceError(ErrorCode::InvalidValue,
                            "params.enabled is " +
                                (params.contains("enabled") ? params["enabled"].dump() : std::string("absent")) +
                                ", which is not a boolean; set_server_discovery_enabled takes enabled: true or false");
@@ -885,11 +968,15 @@ Json SessionHub::setServerDiscoveryEnabled(const transport::ConnectionPtr&,
 Json SessionHub::startRecording(const transport::ConnectionPtr&, const SessionStatePtr& state, const Json& params)
 {
     // contract operations[start_recording].errors =
-    // [not_found, unsupported, internal]: no invalid_value and no
-    // not_connected, so both a malformed node_id and a session with no device
-    // are not_found.
+    // [not_found, unsupported, internal, invalid_value]. A MALFORMED node_id is
+    // invalid_value, which is error_policy.malformed_parameter_becomes and
+    // which this row now declares: IRecorder::startRecording (recorder.h:45)
+    // takes no arguments, so a node_id that is not a string never reaches
+    // openDAQ and not_found would claim a lookup that never ran. A well-formed
+    // id this session cannot reach is not_found, and stop_recording -- whose
+    // row declares no invalid_value -- keeps not_found for both.
     backend_.startRecording(
-        requireNodeReachableReportedAs(state, params, "node_id", ErrorCode::NotFound, ErrorCode::NotFound));
+        requireNodeReachableReportedAs(state, params, "node_id", ErrorCode::InvalidValue, ErrorCode::NotFound));
     return nullptr;
 }
 
@@ -907,8 +994,11 @@ Json SessionHub::beginBatchedPropertyUpdate(const transport::ConnectionPtr&,
                                             const Json& params)
 {
     // contract operations[begin_batched_property_update].errors =
-    // [not_found, not_connected], which requireDeviceInSession and
-    // requireNodeReachableFromSession produce between them.
+    // [not_found, not_connected, invalid_value], which requireDeviceInSession
+    // and requireNodeReachableFromSession produce between them:
+    // requireString answers a malformed node_id with invalid_value, because
+    // IPropertyObject::beginUpdate takes no arguments and node_id exists here
+    // only to find the component.
     requireDeviceInSession(state);
     const auto nodeId = requireNodeReachableFromSession(state, params, "node_id");
 

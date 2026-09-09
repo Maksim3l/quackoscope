@@ -19,7 +19,7 @@ use super::types::{
 pub type SampleSink = Arc<dyn Fn(u32, u64, &[f64]) + Send + Sync>;
 
 pub trait DaqBackend: Send + Sync {
-    // --- the twenty-six operations this host serves -------------------------
+    // --- the twenty-seven operations this host serves ------------------------
     //
     // One method per wire method of contract section 5 that
     // hosts/rust/src/service/session.rs dispatches. The four it does not serve
@@ -118,8 +118,21 @@ pub trait DaqBackend: Send + Sync {
     // add_server takes no parent id: openDAQ's IDevice::onAddServer refuses
     // every device but the root, so a parent would be a parameter with exactly
     // one legal value. It answers the Node it created, whose kind is `server`.
+    //
+    // remove_server is the undo of add_server, and it is a real one rather than
+    // a delisting: openDAQ's IDevice::removeServer(IServer*) (device.h:300-304,
+    // device_impl.h:1014-1026 -> onRemoveServer at :1479-1487) drops the item
+    // from the root device's servers folder, folder_impl.h:598-605 calls
+    // IComponent::removed on it, and ServerImpl::removed (server_impl.h:199-202)
+    // is `checkErrorInfo(stop()); Super::removed();`, so the listening socket
+    // closes. The opendaq crate 0.1.1 reaches it: `pub fn remove_server(&self,
+    // server: &Server) -> Result<()>` at src/generated/device.rs:3415, calling
+    // daqDevice_removeServer. It takes the SERVER's node id, the same shape
+    // remove_function_block takes, and this host resolves that id to the IServer
+    // the call needs.
     fn list_server_types(&self) -> ServiceResult<Vec<ComponentTypeInfo>>;
     fn add_server(&self, type_id: &str) -> ServiceResult<Node>;
+    fn remove_server(&self, node_id: &str) -> ServiceResult<()>;
 
     // --- server.discovery ---------------------------------------------------
     //

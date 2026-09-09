@@ -32,7 +32,7 @@ public:
     // Server push. Installed once, before the transport starts accepting.
     virtual void setEventSink(EventSink sink) = 0;
 
-    // --- the twenty-nine operations this host serves -------------------------
+    // --- the thirty operations this host serves ------------------------------
     //
     // One method per wire method of contract section 5, minus read_samples_raw:
     // streaming.raw is a declared gap, see hosts/cpp/src/service/handshake.cpp.
@@ -100,6 +100,29 @@ public:
     // IDevice::onAddServer refuses every device but the root, so
     // IInstance::addServer is the only call there is.
     virtual Node addServer(const std::string& typeId) = 0;
+    // Takes one back down. IDevice::removeServer(IServer*) (device.h:300-304),
+    // which IInstance forwards to the root device (instance_impl.cpp:271-274).
+    // It is not a delisting: removing the item calls IComponent::removed, and
+    // ServerImpl::removed (server_impl.h:199-202) is `checkErrorInfo(stop());`,
+    // so the listening socket actually closes. The parameter is a node id
+    // because that is what crosses the wire; the host resolves it to the
+    // IServer the call needs.
+    virtual void removeServer(const std::string& nodeId) = 0;
+    // Every server the openDAQ Instance currently holds, each as the same Node
+    // rows get_component_tree reports for anything else, subtree included.
+    //
+    // THIS IS NOT A WIRE METHOD, and it is the one method on this interface that
+    // is not. It exists because a server is NOT under any device a session
+    // connected: IDevice::onAddServer refuses every device but the root
+    // (device_impl.h:1470-1472), so openDAQ parents every server under the
+    // INSTANCE root device's "Srv" folder. A tree read scoped to this session's
+    // own devices can therefore never carry a server row, which would make
+    // types.Node.kind's `server` value -- the value the contract grew so "the
+    // client cannot tell a server row from a folder row" -- unreachable, and
+    // would hide the very node add_server just returned. remove_server and
+    // set_server_discovery_enabled already address servers instance-wide; this
+    // makes the tree say the same thing they do.
+    virtual std::vector<Node> listInstanceServerNodes() = 0;
     // IServer::enableDiscovery / IServer::disableDiscovery, chosen by `enabled`.
     // There is NO getter for this state anywhere on IServer, which is why no
     // Node field carries it.

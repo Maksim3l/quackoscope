@@ -536,6 +536,7 @@ WIRE_METHOD_NAMES: tuple[str, ...] = (
     "set_component_attribute",
     "list_server_types",
     "add_server",
+    "remove_server",
     "set_server_discovery_enabled",
     "start_recording",
     "stop_recording",

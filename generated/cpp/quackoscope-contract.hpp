@@ -390,7 +390,7 @@ inline constexpr std::string_view BASELINE_CAPABILITY_IDS[20] =
 /// The closed operation table of contract 1.4. lints.host_covers_every_operation
 /// and lints.no_undeclared_public_method are both checked against this
 /// array.
-inline constexpr std::string_view WIRE_METHOD_NAMES[30] =
+inline constexpr std::string_view WIRE_METHOD_NAMES[31] =
 {
     "scan_available_devices",
     "connect_device",
@@ -415,6 +415,7 @@ inline constexpr std::string_view WIRE_METHOD_NAMES[30] =
     "set_component_attribute",
     "list_server_types",
     "add_server",
+    "remove_server",
     "set_server_discovery_enabled",
     "start_recording",
     "stop_recording",
@@ -530,7 +531,7 @@ public:
     virtual void removeFunctionBlock(const std::string& nodeId) = 0;
 
     /// wire method "subscribe_signal", capability streaming.decimated, kind action.
-    /// Declared errors: not_found, not_connected. Signal one by throwing WireCallFailed.
+    /// Declared errors: not_found, not_connected, invalid_value. Signal one by throwing WireCallFailed.
     virtual std::string subscribeSignal(const std::string& signalId, std::int64_t pixelColumns) = 0;
 
     /// wire method "unsubscribe_signal", capability streaming.decimated, kind action.
@@ -552,7 +553,7 @@ public:
     virtual std::vector<std::string> getDeviceOperationModes(const std::string& nodeId) = 0;
 
     /// wire method "set_device_operation_mode", capability device.mode, kind setter.
-    /// Declared errors: not_found, invalid_value, read_only, unsupported. Signal one by throwing WireCallFailed.
+    /// Declared errors: not_found, invalid_value, unsupported. Signal one by throwing WireCallFailed.
     virtual void setDeviceOperationMode(const std::string& nodeId, const std::string& mode) = 0;
 
     /// wire method "lock_device", capability device.lock, kind action.
@@ -572,7 +573,7 @@ public:
     virtual ModuleInfo loadModuleFromHostPath(const std::string& hostPath) = 0;
 
     /// wire method "get_component_attributes", capability attribute.read, kind getter.
-    /// Declared errors: not_found, not_connected. Signal one by throwing WireCallFailed.
+    /// Declared errors: not_found, not_connected, invalid_value. Signal one by throwing WireCallFailed.
     virtual std::vector<ComponentAttribute> getComponentAttributes(const std::string& nodeId) = 0;
 
     /// wire method "set_component_attribute", capability attribute.write, kind setter.
@@ -587,12 +588,16 @@ public:
     /// Declared errors: not_connected, unsupported, invalid_value, internal. Signal one by throwing WireCallFailed.
     virtual Node addServer(const std::string& typeId) = 0;
 
-    /// wire method "set_server_discovery_enabled", capability server.discovery, kind setter.
+    /// wire method "remove_server", capability server.add, kind action.
     /// Declared errors: not_found, unsupported, internal. Signal one by throwing WireCallFailed.
+    virtual void removeServer(const std::string& nodeId) = 0;
+
+    /// wire method "set_server_discovery_enabled", capability server.discovery, kind setter.
+    /// Declared errors: not_found, unsupported, internal, invalid_value. Signal one by throwing WireCallFailed.
     virtual void setServerDiscoveryEnabled(const std::string& nodeId, bool enabled) = 0;
 
     /// wire method "start_recording", capability recorder.control, kind action.
-    /// Declared errors: not_found, unsupported, internal. Signal one by throwing WireCallFailed.
+    /// Declared errors: not_found, unsupported, internal, invalid_value. Signal one by throwing WireCallFailed.
     virtual void startRecording(const std::string& nodeId) = 0;
 
     /// wire method "stop_recording", capability recorder.control, kind action.
@@ -600,7 +605,7 @@ public:
     virtual void stopRecording(const std::string& nodeId) = 0;
 
     /// wire method "begin_batched_property_update", capability property.batched_update, kind action.
-    /// Declared errors: not_found, not_connected. Signal one by throwing WireCallFailed.
+    /// Declared errors: not_found, not_connected, invalid_value. Signal one by throwing WireCallFailed.
     virtual void beginBatchedPropertyUpdate(const std::string& nodeId) = 0;
 
     /// wire method "end_batched_property_update", capability property.batched_update, kind action.

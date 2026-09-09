@@ -23,6 +23,14 @@ public interface IComponentTreeBackend
     void DisconnectDevice(string nodeId);
 
     IReadOnlyList<ComponentNode> GetComponentTree(string rootId);
+
+    // Every server the openDAQ Instance holds, each as its own subtree. A
+    // get_component_tree with no root_id needs this on top of the session's
+    // connected devices, because IDevice::onAddServer refuses every device but
+    // the root (device_impl.h:1470-1472), so a server is never inside a
+    // connected device's subtree and a device-scoped read could never carry the
+    // node add_server had just returned.
+    IReadOnlyList<ComponentNode> ListInstanceServerNodes();
     IReadOnlyList<PropertyDescriptor> GetPropertyDescriptors(string nodeId);
     JsonNode GetPropertyValue(string nodeId, string propertyId);
     void SetPropertyValue(string nodeId, string propertyId, JsonNode value);
@@ -64,9 +72,14 @@ public interface IComponentTreeBackend
     // component, never this host's answer about itself.
     IReadOnlyList<ComponentAttribute> GetComponentAttributes(string nodeId);
 
-    // One of the ComponentAttribute.id values GetComponentAttributes reported
-    // for this node, written back through the .NET binding's setter for it.
-    void SetComponentAttribute(string nodeId, string attributeId, JsonNode value);
+    // THERE IS NO SetComponentAttribute. openDAQ makes `tags` writable through
+    // ITagsPrivate, and openDAQ's own .NET binding project excludes every
+    // *Private.cs from openDAQ.Net.dll, so this host cannot serve the whole
+    // set_component_attribute row. contract types.ComponentAttribute.read_only
+    // rules that case: declare no attribute.write capability and let the client
+    // disable the editors from the gap, never report read_only true instead.
+    // OpenDaqBackend.AttributeWritingIsUnreachableInThisBinding carries the
+    // enumeration, and it is the gap's reason in the handshake.
 
     // The server types THIS INSTANCE will accept, which is
     // IInstance.availableServerTypes and not the union of what the loaded
@@ -78,6 +91,13 @@ public interface IComponentTreeBackend
     // contract carries no parameter for it. The answer is the Node of the
     // server that was created, whose kind is `server`.
     ComponentNode AddServer(string typeId);
+
+    // IDevice::removeServer on the instance, the undo of AddServer: the wire
+    // sends the node id of the server row and this resolves it to the IServer
+    // the call takes. Removing it runs IServer::stop through
+    // ServerImpl::removed, so the listening socket the addition opened is
+    // closed, not merely delisted.
+    void RemoveServer(string nodeId);
 
     // IServer::enableDiscovery / IServer::disableDiscovery over one boolean.
     // Nothing in openDAQ reports the resulting state back, which is why there

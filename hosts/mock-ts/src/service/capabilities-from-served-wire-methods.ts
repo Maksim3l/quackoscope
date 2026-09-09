@@ -74,6 +74,7 @@ const CONTRACT_OPERATION_TABLE: readonly ContractOperation[] = [
   { wireMethod: "set_component_attribute", capability: "attribute.write" },
   { wireMethod: "list_server_types", capability: "server.add" },
   { wireMethod: "add_server", capability: "server.add" },
+  { wireMethod: "remove_server", capability: "server.add" },
   { wireMethod: "set_server_discovery_enabled", capability: "server.discovery" },
   { wireMethod: "start_recording", capability: "recorder.control" },
   { wireMethod: "stop_recording", capability: "recorder.control" },

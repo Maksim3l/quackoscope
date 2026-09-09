@@ -108,6 +108,17 @@ operations:
   set_component_attribute:             [set_component_attribute,             setComponentAttribute,             SetComponentAttributeAsync,             set_component_attribute,             set_component_attribute]
   list_server_types:                   [list_server_types,                   listServerTypes,                   ListServerTypesAsync,                   list_server_types,                   list_server_types]
   add_server:                          [add_server,                          addServer,                         AddServerAsync,                         add_server,                          add_server]
+  # The row IDevice::removeServer (device.h:304) earns, added by the work that
+  # found adding a server is not one-way. It is written HERE, between add_server
+  # and set_server_discovery_enabled, because that is where contract.yaml
+  # declares it and the assertion compares ORDER as well as membership. tokens are
+  # [remove, server] and kind is action, so no getter or setter convention
+  # applies in any target: rust drops a leading "get" and this row does not
+  # begin with one, exactly as remove_function_block above does not. "remove"
+  # and "server" are both ordinary tokens, neither in the closed acronym list,
+  # and remove_server is not a reserved word in any of the five targets - the
+  # same check add_server passed.
+  remove_server:                       [remove_server,                       removeServer,                      RemoveServerAsync,                      remove_server,                       remove_server]
   set_server_discovery_enabled:        [set_server_discovery_enabled,        setServerDiscoveryEnabled,         SetServerDiscoveryEnabledAsync,         set_server_discovery_enabled,        set_server_discovery_enabled]
   start_recording:                     [start_recording,                     startRecording,                    StartRecordingAsync,                    start_recording,                     start_recording]
   stop_recording:                      [stop_recording,                      stopRecording,                     StopRecordingAsync,                     stop_recording,                      stop_recording]

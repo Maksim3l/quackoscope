@@ -54,6 +54,7 @@ SERVED_WIRE_METHODS = (
     "set_component_attribute",
     "list_server_types",
     "add_server",
+    "remove_server",
     "set_server_discovery_enabled",
     "start_recording",
     "stop_recording",
@@ -75,26 +76,28 @@ SERVED_WIRE_METHODS = (
 # that operation's declared subset, so the choice can be checked against the
 # contract without leaving this table.
 #
-# set_server_discovery_enabled is deliberately ABSENT: a server is added to the
-# shared openDAQ Instance and belongs to no session, so that row resolves its
-# node globally. _set_server_discovery_enabled says why where it does it.
+# set_server_discovery_enabled and remove_server are deliberately ABSENT: a
+# server is added to the shared openDAQ Instance and belongs to no session, so
+# both rows resolve their node globally. _set_server_discovery_enabled and
+# _remove_server each say why where they do it.
 _UNREACHABLE_NODE_CODE_BY_WIRE_METHOD = {
     "get_component_tree": NOT_CONNECTED,        # errors [not_connected, not_found]
     "get_property_descriptors": NOT_CONNECTED,  # errors [not_found, not_connected]
     "get_property_value": NOT_CONNECTED,        # errors [not_found, not_connected]
     "set_property_value": NOT_FOUND,            # errors [not_found, read_only, invalid_value]
-    "subscribe_signal": NOT_CONNECTED,          # errors [not_found, not_connected]
+    "subscribe_signal": NOT_CONNECTED,          # errors [not_found, not_connected, invalid_value]
     "get_device_operation_modes": NOT_CONNECTED,  # errors [not_found, not_connected, unsupported]
-    "set_device_operation_mode": NOT_FOUND,     # errors [not_found, invalid_value, read_only,
-                                                #         unsupported]
+    "set_device_operation_mode": NOT_FOUND,     # errors [not_found, invalid_value, unsupported]
     "lock_device": NOT_FOUND,                   # errors [not_found, read_only, unsupported]
     "unlock_device": NOT_FOUND,                 # errors [not_found, read_only, unsupported]
-    "get_component_attributes": NOT_CONNECTED,  # errors [not_found, not_connected]
+    "get_component_attributes": NOT_CONNECTED,  # errors [not_found, not_connected, invalid_value]
     "set_component_attribute": NOT_FOUND,       # errors [not_found, read_only, invalid_value]
-    "begin_batched_property_update": NOT_CONNECTED,  # errors [not_found, not_connected]
+    "begin_batched_property_update": NOT_CONNECTED,  # errors [not_found, not_connected,
+                                                     #         invalid_value]
     "end_batched_property_update": NOT_CONNECTED,    # errors [not_found, not_connected,
                                                      #         invalid_value]
-    "start_recording": NOT_FOUND,               # errors [not_found, unsupported, internal]
+    "start_recording": NOT_FOUND,               # errors [not_found, unsupported, internal,
+                                                #         invalid_value]
     "stop_recording": NOT_FOUND,                # errors [not_found, unsupported, internal]
 }
 
@@ -305,6 +308,8 @@ class SessionHub:
             return self._list_server_types(state, params)
         if method == "add_server":
             return self._add_server(state, params)
+        if method == "remove_server":
+            return self._remove_server(state, params)
         if method == "set_server_discovery_enabled":
             return self._set_server_discovery_enabled(state, params)
         if method == "start_recording":
@@ -342,15 +347,45 @@ class SessionHub:
                 "another session connected is not visible here)",
             )
 
+    def _addressable_node_id_prefixes(self, state):
+        """Every subtree of the openDAQ Instance this session may address, as
+        the node ids those subtrees are rooted at.
+
+        Two kinds of root, and the second is why this is one function rather
+        than a line inside _get_component_tree:
+
+          * the devices THIS session connected. A device another session added
+            is not addressable here.
+          * the instance's SERVERS FOLDER, which belongs to no session. A server
+            is added to the shared Instance -- add_server calls
+            IDevice::addServer on the instance root because
+            device_impl.h:1465-1476 refuses every other parent -- so it lands at
+            <instance root>/Srv/<type id>, outside every connected device.
+            Leaving it out made the row add_server had just handed the caller
+            unreadable and unremovable, and _remove_server and
+            _set_server_discovery_enabled had to resolve their node globally to
+            work around it.
+
+        The tree read and the node check both come from here, so what a session
+        is shown and what it may address cannot drift apart.
+        """
+        with self._lock:
+            prefixes = list(state.device_node_ids_by_connection_string.values())
+        server_folder_node_id = self._backend.instance_server_folder_node_id()
+        if server_folder_node_id is not None:
+            prefixes.append(server_folder_node_id)
+        return prefixes
+
     def _require_node_reachable_from_session(
         self, state, params, key, wire_method, bad_type_code=INVALID_VALUE, declared=None
     ):
         node_id = _require_string(params, key, bad_type_code, wire_method, declared)
+        prefixes = self._addressable_node_id_prefixes(state)
+        for prefix in prefixes:
+            if node_id == prefix or node_id.startswith(prefix + "/"):
+                return node_id
         with self._lock:
             held = dict(state.device_node_ids_by_connection_string)
-        for device_node_id in held.values():
-            if node_id == device_node_id or node_id.startswith(device_node_id + "/"):
-                return node_id
         if not held:
             raise ServiceError(
                 _UNREACHABLE_NODE_CODE_BY_WIRE_METHOD[wire_method],
@@ -359,8 +394,8 @@ class SessionHub:
             )
         raise ServiceError(
             NOT_FOUND,
-            'no component with id "%s" in this session; it holds %s'
-            % (node_id, ", ".join(held.values())),
+            'no component with id "%s" in this session; it can address %s'
+            % (node_id, ", ".join(prefixes)),
         )
 
     # --- device.connect, tree.read, property.read/write, streaming.decimated ---
@@ -445,10 +480,20 @@ class SessionHub:
                 )
             ]
         else:
-            # No root_id means "everything this session can see", which is
-            # exactly the devices it connected itself -- never another session's.
-            with self._lock:
-                roots = list(state.device_node_ids_by_connection_string.values())
+            # Everything this session can address: the devices it connected
+            # itself -- never another session's -- AND the instance's servers
+            # folder, which belongs to no session at all.
+            #
+            # THE SERVERS FOLDER USED TO BE MISSING HERE, and that was a
+            # visibility rule openDAQ does not have hiding a row this very
+            # session had just created. add_server calls IDevice::addServer on
+            # the INSTANCE (device_impl.h:1465-1476 refuses every other parent),
+            # so the server node lands at <instance root>/Srv/<type id> and
+            # never under any connected device; a client that added a server and
+            # then read the tree could not find the Node it had just been handed.
+            # _addressable_node_id_prefixes says the same thing once, so the
+            # tree read and node addressing cannot drift apart.
+            roots = self._addressable_node_id_prefixes(state)
         out = []
         for root in roots:
             for node in self._backend.get_component_tree(root):
@@ -538,8 +583,8 @@ class SessionHub:
         mode = params.get("mode")
         if not isinstance(mode, str):
             # invalid_value and not internal: set_device_operation_mode declares
-            # [not_found, invalid_value, read_only, unsupported], and a
-            # non-string mode is exactly a bad value.
+            # [not_found, invalid_value, unsupported], and a non-string mode is
+            # exactly a bad value.
             raise ServiceError(
                 INVALID_VALUE,
                 "params.mode must be a string naming one of the operation modes "
@@ -612,13 +657,13 @@ class SessionHub:
 
     def _get_component_attributes(self, state, params):
         self._require_device_in_session(state, "get_component_attributes")
+        # invalid_value for a malformed node_id, which get_component_attributes
+        # now declares: this row's lookup is
+        # IComponent::findComponent(IString* id, ...) and an integer is not an
+        # IString*, so openDAQ is never reached and not_found would assert a
+        # lookup that never happened.
         node_id = self._require_node_reachable_from_session(
-            state,
-            params,
-            "node_id",
-            "get_component_attributes",
-            NOT_FOUND,
-            ("not_found", "not_connected"),
+            state, params, "node_id", "get_component_attributes"
         )
         return [
             component_attribute_to_json(attribute)
@@ -658,6 +703,32 @@ class SessionHub:
         type_id = _require_string(params, "type_id")
         return node_to_json(self._backend.add_server(type_id))
 
+    def _remove_server(self, state, params):
+        # Resolved globally, for the same reason set_server_discovery_enabled is:
+        # add_server calls IDevice.addServer on the INSTANCE root, never on a
+        # session's device, so a server node lives on process-global state that
+        # no session owns. _addressable_node_id_prefixes puts that same folder
+        # in every session's view of the tree; this row does not even need the
+        # check, because the only node it can act on is one that carries IServer
+        # and everything else is answered unsupported one layer down.
+        #
+        # A non-string node_id is not_found and not invalid_value: remove_server
+        # declares [not_found, unsupported, internal] and invalid_value is not
+        # among them. `internal` would claim this host does not know what
+        # happened, and `unsupported` would say the server is incapable of a
+        # removal it is perfectly capable of, so not_found -- the one of the
+        # three that is about the request -- carries the whole reason in its
+        # detail.
+        node_id = _require_string(
+            params,
+            "node_id",
+            NOT_FOUND,
+            "remove_server",
+            ("not_found", "unsupported", "internal"),
+        )
+        self._backend.remove_server(node_id)
+        return None
+
     # --- server.discovery ---------------------------------------------------
 
     def _set_server_discovery_enabled(self, state, params):
@@ -670,27 +741,20 @@ class SessionHub:
         # every server unaddressable, including the one this session just added.
         # What it does NOT open up is any other node: anything that is not an
         # IServer is answered `unsupported` one layer down.
-        node_id = _require_string(
-            params,
-            "node_id",
-            NOT_FOUND,
-            "set_server_discovery_enabled",
-            ("not_found", "unsupported", "internal"),
-        )
+        node_id = _require_string(params, "node_id")
         enabled = params.get("enabled")
         if not isinstance(enabled, bool):
-            # set_server_discovery_enabled declares [not_found, unsupported,
-            # internal] and none of those can say "bad parameter". `internal`
-            # means "this host does not know what happened", which would be
-            # false here, so the refusal names the exact value it was sent and
-            # reports not_found -- the one of the three that is about the
-            # request rather than about the SDK.
+            # invalid_value, which set_server_discovery_enabled now declares:
+            # error_policy.malformed_parameter_becomes. `enabled` is THIS
+            # CONTRACT'S selector for which of two no-argument openDAQ methods to
+            # call -- IServer::enableDiscovery (server.h:66) and
+            # disableDiscovery (:90) take no parameter -- so a non-bool selects
+            # neither and no SDK call can be made to raise about it.
             raise ServiceError(
-                NOT_FOUND,
+                INVALID_VALUE,
                 "params.enabled must be a bool naming which of IServer.enable_discovery() and "
-                "IServer.disable_discovery() to call; it was %r (%s). "
-                "contract/contract.yaml declares only [not_found, unsupported, internal] for "
-                "set_server_discovery_enabled, so there is no invalid_value to answer with"
+                "IServer.disable_discovery() to call; it was %r (%s). Neither method takes an "
+                "argument, so openDAQ was never reached and could raise nothing about it"
                 % (enabled, type(enabled).__name__),
             )
         self._backend.set_server_discovery_enabled(node_id, enabled)
@@ -700,13 +764,12 @@ class SessionHub:
 
     def _start_recording(self, state, params):
         self._require_device_in_session(state, "start_recording")
+        # invalid_value for a malformed node_id, which start_recording now
+        # declares: IRecorder::startRecording (recorder.h:45) takes NO ARGUMENTS,
+        # so a node_id arriving as null cannot reach openDAQ at all and not_found
+        # would claim a lookup that never ran.
         node_id = self._require_node_reachable_from_session(
-            state,
-            params,
-            "node_id",
-            "start_recording",
-            NOT_FOUND,
-            ("not_found", "unsupported", "internal"),
+            state, params, "node_id", "start_recording"
         )
         self._backend.start_recording(node_id)
         return None
@@ -728,13 +791,14 @@ class SessionHub:
 
     def _begin_batched_property_update(self, state, params):
         self._require_device_in_session(state, "begin_batched_property_update")
+        # invalid_value for a malformed node_id, which
+        # begin_batched_property_update now declares: IPropertyObject::beginUpdate
+        # takes no arguments and node_id exists here only to find the component,
+        # through the same findComponent(IString*) path get_component_attributes
+        # uses, so a list is not a component id in any sense openDAQ can be asked
+        # about.
         node_id = self._require_node_reachable_from_session(
-            state,
-            params,
-            "node_id",
-            "begin_batched_property_update",
-            NOT_FOUND,
-            ("not_found", "not_connected"),
+            state, params, "node_id", "begin_batched_property_update"
         )
         self._backend.begin_batched_property_update(node_id)
         return None

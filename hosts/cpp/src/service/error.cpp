@@ -237,12 +237,20 @@ ErrorCode mapNativeErrorCode(std::uint32_t nativeErrCode, MapContext context)
                 {ErrorCode::NotConnected, ErrorCode::Unsupported, ErrorCode::InvalidValue, ErrorCode::Internal},
                 ErrorCode::Internal);
 
+        case MapContext::ServerRemove:
         case MapContext::ServerDiscoveryEnable:
         case MapContext::RecorderControl:
-            // Both rows declare not_found, unsupported and internal. The
+            // All three rows declare not_found, unsupported and internal. The
             // component was resolved and its facet cast before the call, so
-            // what arrives here is the mDNS advertising or the recorder itself
-            // failing, which is internal.
+            // what arrives here is the mDNS advertising, the recorder itself,
+            // or -- for remove_server -- IServer::stop() failing while
+            // ServerImpl::removed closes the listening socket
+            // (server_impl.h:199-202), and each of those is internal. The one
+            // openDAQ refusal that is not internal on remove_server is
+            // onRemoveServer's NotFoundException "Device does not allow
+            // adding/removing servers." (device_impl.h:1484) for a non-root
+            // device, which the General table calls not_found and this subset
+            // keeps.
             return confineToDeclaredSubset(general,
                                            {ErrorCode::NotFound, ErrorCode::Unsupported, ErrorCode::Internal},
                                            ErrorCode::Internal);

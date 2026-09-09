@@ -715,6 +715,47 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
         return nodes;
     }
 
+    public IReadOnlyList<ComponentNode> ListInstanceServerNodes()
+    {
+        IListObject<Server> servers;
+        try
+        {
+            // quack-snippet capability=tree.read uses=instance-with-module-path step=3
+            // WHERE A SERVER LIVES. IDevice::onAddServer refuses every device but
+            // the root (device_impl.h:1470-1472, "Device does not allow
+            // adding/removing servers."), so every server openDAQ holds is
+            // parented under the INSTANCE root device's "Srv" folder and reached
+            // with IDevice::getServers(), which the .NET binding spells
+            // Device.Servers -- never under a device a client connected. That is
+            // why a tree read has to ask for them separately, why add_server
+            // takes no parent_id, and why remove_server and
+            // set_server_discovery_enabled resolve their node_id against the
+            // whole Instance.
+            servers = instance.RootDevice.Servers;
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            throw new WireError(ClosedSetCodeFor(e),
+                $"reading IDevice.servers on the instance root device failed with {NativeCodeTextOf(e)}: " +
+                OpenDaqOwnMessageOf(e));
+        }
+
+        var nodes = new List<ComponentNode>();
+        var serverCount = 0;
+        foreach (var server in servers)
+        {
+            if (server is null)
+                continue;
+            serverCount++;
+            AppendSubtree(server.Cast<Component>(), nodes);
+        }
+
+        Console.WriteLine($"[opendaq] get_component_tree: the openDAQ Instance root device holds {serverCount} " +
+                          $"server(s), reported as {nodes.Count} node row(s) including their Sig and FB folders");
+        return nodes;
+    }
+
     private void AppendSubtree(Component component, List<ComponentNode> nodes)
     {
         nodes.Add(BuildNode(component));
@@ -990,17 +1031,48 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
                 $"\"{mode}\" is not one of the operation mode names contract types.Node.operation_mode enumerates: " +
                 $"{string.Join(", ", OperationModeWireValues)}");
 
+        // WHAT openDAQ DOES WITH A MODE THE DEVICE DID NOT LIST, stated here
+        // because this refusal is the host's and not openDAQ's.
+        // GenericDevice::setOperationMode (device_impl.h:1257-1260) opens with
+        //
+        //     if (this->onGetAvailableOperationModes().count(modeType) == 0)
+        //         return OPENDAQ_IGNORED;
+        //
+        // and OPENDAQ_IGNORED is 0x00000006u (errors.h:38), which OPENDAQ_FAILED
+        // ((x) & 0x80000000u, errors.h:28) does not match. So openDAQ ACCEPTS an
+        // unavailable mode, silently does nothing, and the .NET binding's
+        // Result.Failed check never fires: Device.SetOperationMode returns
+        // normally and IComponent.operationMode still reads the old mode.
+        // contract operations[set_device_operation_mode] nevertheless declares
+        // "invalid_value: a mode name outside Node.operation_mode's values, OR
+        // ONE THE DEVICE DID NOT LIST AS AVAILABLE", so this host refuses it
+        // rather than answering void to a request that changed nothing. The
+        // refusal is built from IDevice.availableOperationModes, an openDAQ
+        // read, and it says in as many words what openDAQ would have done.
         var available = GetDeviceOperationModes(nodeId);
         if (!available.Contains(mode))
             throw new WireError(WireErrorCode.InvalidValue,
                 $"device \"{nodeId}\" does not offer operation mode \"{mode}\"; " +
-                $"IDevice.availableOperationModes lists {(available.Count == 0 ? "(none)" : string.Join(", ", available))}");
+                $"IDevice.availableOperationModes lists {(available.Count == 0 ? "(none)" : string.Join(", ", available))}. " +
+                "openDAQ itself would not have raised here: GenericDevice::setOperationMode " +
+                "(device_impl.h:1257-1260) returns OPENDAQ_IGNORED, a SUCCESS, for a mode outside " +
+                "onGetAvailableOperationModes, so the call would have returned void and left the mode where it " +
+                "was. This invalid_value is contract operations[set_device_operation_mode].errors' rule, not a " +
+                "refusal openDAQ made");
 
-        if (EffectiveLockStateOf(device) == true)
-            throw new WireError(WireErrorCode.ReadOnly,
-                $"device \"{nodeId}\" reports IDevice.locked = true, so openDAQ refuses the write; " +
-                "unlock_device it first");
-
+        // NO LOCK CHECK. GenericDevice::setOperationMode (device_impl.h:1257-1281)
+        // consults no lock whatsoever: it tests onGetAvailableOperationModes,
+        // takes getTreeLockGuard() -- a tree MUTEX, not the user lock -- and
+        // writes. The device lock refuses writes only in the config-protocol
+        // server, in ConfigServerAccessControl::protectLockedComponent
+        // (config_server_access_control.h:75-81), and quackoscope-host-csharp
+        // holds an IN-PROCESS Instance, so that code is not on this path at all.
+        // A read_only here would be this host inventing a rule openDAQ does not
+        // have, and the snippet below would then show a call that does not
+        // produce what the user just saw. contract
+        // operations[set_device_operation_mode].errors is
+        // [not_found, invalid_value, unsupported] and carries no read_only for
+        // exactly this reason.
         try
         {
             // quack-snippet capability=device.mode uses=device-of-component,operation-mode-wire-names step=2
@@ -1013,12 +1085,13 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
         }
         catch (OpenDaqException e)
         {
-            // The likeliest native refusal here is the lock, which openDAQ
-            // reports on the write and not on the precheck if it is taken in
-            // between; LockRefusalCodeFor turns that into the read_only the
-            // row's error subset names for it.
-            throw new WireError(LockRefusalCodeFor(e),
-                $"IDevice.setOperationMode({modeType}) on \"{nodeId}\" failed: {e.Message}");
+            // Classified by the same rule every other operation uses. read_only
+            // is NOT reachable from here and is not synthesised: it is not in
+            // this row's error subset, and openDAQ has no lock refusal on this
+            // call to translate.
+            throw new WireError(ClosedSetCodeFor(e),
+                $"IDevice.setOperationMode({modeType}) on \"{nodeId}\" failed with {NativeCodeTextOf(e)}: " +
+                OpenDaqOwnMessageOf(e));
         }
 
         Console.WriteLine($"[opendaq] set_device_operation_mode {nodeId} = \"{mode}\" " +
@@ -1028,21 +1101,42 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
 
     // --- lock_device / unlock_device ----------------------------------------
 
-    // The refusal openDAQ gives when a lock is held by somebody else, mapped to
-    // the code contract operations[lock_device].errors names for it. The closed
-    // set has no "locked" member and read_only is the nearest true statement:
-    // it is also the exact signal that turns the forced-unlock control on.
-    // A native failure that is NOT a lock refusal is not dressed up as one --
-    // it goes through the same classifier every other operation uses.
-    private static WireErrorCode LockRefusalCodeFor(OpenDaqException e)
-    {
-        var text = e.Message ?? "";
-        if (text.Contains("lock", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("access denied", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("ACCESSDENIED", StringComparison.OrdinalIgnoreCase))
-            return WireErrorCode.ReadOnly;
-        return ClosedSetCodeFor(e);
-    }
+    // OPENDAQ_ERR_DEVICE_LOCKED, the code UserLockImpl::lock returns
+    // (user_lock_impl.cpp:21-22) and the one device_impl.h:1707-1730 returns for
+    // a nested device under a locked ancestor. errors.h:128 defines it as
+    // OPENDAQ_ERROR_CODE(OPENDAQ_ERRTYPE_GENERIC, 0x0052u), and
+    // OPENDAQ_ERROR_CODE is 0x80000000u | (type << 16) | code (errors.h:25) with
+    // OPENDAQ_ERRTYPE_GENERIC = 0x00, so the number is 0x80000052. It is spelt
+    // out as a number because openDAQ's .NET binding's ErrorCode enum does NOT
+    // carry a member for it: openDAQ.Net, Version=3.41.0.0 has
+    // OPENDAQ_ERR_ACCESSDENIED = 0x80000012u and no OPENDAQ_ERR_DEVICE_LOCKED at
+    // all, so the value arrives as an unnamed enum value and must be compared
+    // numerically.
+    private const uint OpenDaqErrDeviceLocked = 0x80000052u;
+
+    // The two refusals openDAQ has for the lock, each recognised by its EXACT
+    // native code and never by message text:
+    //   lock_device   -> OPENDAQ_ERR_DEVICE_LOCKED, returned by UserLockImpl::lock
+    //                    (user_lock_impl.cpp:21-22) only when
+    //                    `userLock.has_value() && userLock != userPtr`, i.e. a
+    //                    DIFFERENT NAMED user already holds it.
+    //   unlock_device -> OPENDAQ_ERR_ACCESSDENIED, returned by UserLockImpl::unlock
+    //                    (user_lock_impl.cpp:29-36) only when
+    //                    `userLock.has_value() && userLock != nullptr && userLock != user`.
+    // contract operations[lock_device|unlock_device].errors names read_only for
+    // exactly these, and warns that a host MUST NOT SYNTHESISE the code. This
+    // host does not: with no authentication configured every connection is the
+    // one anonymous User("", "") (authentication_provider_impl.cpp:23, :56),
+    // UserLockImpl::lock collapses it to nullptr (user_lock_impl.cpp:19-20), so
+    // nullptr == nullptr and neither refusal is reachable in this process. The
+    // translation exists so that a genuine native refusal is carried faithfully
+    // if authentication is ever configured -- nothing here manufactures one, and
+    // no lock state is read before the call.
+    private static WireErrorCode LockRefusalCodeFor(OpenDaqException e) =>
+        (uint)e.ErrorCode == OpenDaqErrDeviceLocked ||
+        e.ErrorCode == Daq.Core.Types.ErrorCode.OPENDAQ_ERR_ACCESSDENIED
+            ? WireErrorCode.ReadOnly
+            : ClosedSetCodeFor(e);
 
     public void LockDevice(string nodeId)
     {
@@ -1052,16 +1146,27 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
         try
         {
             // quack-snippet capability=device.lock uses=device-of-component step=1
-            // IDevice.lock() takes no arguments in the .NET binding: openDAQ
-            // resolves the user from the instance's authentication provider, and
-            // locks every child device of this one as well. IDevice.locked is
-            // what reads the state back, and it is already on every Node.
+            // IDevice.lock() takes no arguments in the .NET binding, because
+            // IDevice::lock() takes none in C++ either (device.h:318) and
+            // device_impl.h:1040-1044 implements it as `return this->lock(nullptr);`.
+            // THE LOCK IS OWNED BY A USER AND THERE IS NO SESSION IN IT: over the
+            // wire the user comes from the CONNECTION (config_server_device.h:78
+            // calls lock(context.user)), and in this process there is no
+            // authentication, so every caller is the one anonymous User("", "")
+            // that UserLockImpl::lock collapses to nullptr
+            // (user_lock_impl.cpp:19-20). A second socket taking a lock this one
+            // already took therefore SUCCEEDS -- openDAQ's own
+            // LockUnlockAnonymous test (test_device.cpp:399-430) asserts that
+            // shape -- and this host neither reads the lock first nor refuses.
+            // IDevice.locked is what reads the state back, and it is already on
+            // every Node.
             device.Lock();
             // quack-snippet end
         }
         catch (OpenDaqException e)
         {
-            throw new WireError(LockRefusalCodeFor(e), $"IDevice.lock() on \"{nodeId}\" failed: {e.Message}");
+            throw new WireError(LockRefusalCodeFor(e),
+                $"IDevice.lock() on \"{nodeId}\" failed with {NativeCodeTextOf(e)}: {OpenDaqOwnMessageOf(e)}");
         }
 
         Console.WriteLine($"[opendaq] lock_device {nodeId}: IDevice.lock() returned; IDevice.locked was " +
@@ -1089,15 +1194,23 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
         try
         {
             // quack-snippet capability=device.lock uses=device-of-component step=2
-            // IDevice.unlock() takes no arguments in the .NET binding and
-            // refuses with OPENDAQ_ERR_ACCESSDENIED when the lock belongs to
-            // another user; that refusal is what read_only carries back.
+            // IDevice.unlock() takes no arguments in the .NET binding, matching
+            // IDevice::unlock() (device.h:324), which device_impl.h:1046-1048
+            // implements as `return this->unlock(nullptr);`. UserLockImpl::unlock
+            // (user_lock_impl.cpp:29-36) refuses with OPENDAQ_ERR_ACCESSDENIED
+            // only when `userLock.has_value() && userLock != nullptr &&
+            // userLock != user` -- the `!= nullptr` term is why an
+            // ANONYMOUSLY-taken lock, the only kind this process can take, is
+            // cleared by ANY caller. So a second socket unlocking what this one
+            // locked SUCCEEDS, and this host does not read the lock first and
+            // does not keep a holder table to refuse from.
             device.Unlock();
             // quack-snippet end
         }
         catch (OpenDaqException e)
         {
-            throw new WireError(LockRefusalCodeFor(e), $"IDevice.unlock() on \"{nodeId}\" failed: {e.Message}");
+            throw new WireError(LockRefusalCodeFor(e),
+                $"IDevice.unlock() on \"{nodeId}\" failed with {NativeCodeTextOf(e)}: {OpenDaqOwnMessageOf(e)}");
         }
 
         Console.WriteLine($"[opendaq] unlock_device {nodeId} (force false): IDevice.unlock() returned; " +
@@ -1108,14 +1221,24 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
     // Why unlock_device refuses force: true. Stated once, printed verbatim into
     // the refusal, so the client shows what was searched and not "not exposed".
     public const string ForcedUnlockIsUnreachableInThisBinding =
-        "unlock_device force: true is currently not available in quackoscope-host-csharp. openDAQ's C++ " +
-        "IDevicePrivate::forceUnlock is what the reference falls back to (gui_demo.py:1409-1412), and the .NET " +
-        "binding's surface was enumerated to see whether it can be reached: System.Reflection over openDAQ.Net, " +
-        "Version=3.41.0.0 lists 212 public types, none named DevicePrivate or IDevicePrivate; the only ForceUnlock " +
-        "in the whole assembly is \"Void ForceUnlock()\" on Daq.Core.OpenDAQ.UserLock, and no public member of any " +
-        "of the 212 types returns a UserLock, so a Device gives no route to one. Daq.Core.OpenDAQ.Device declares " +
-        "\"Void Lock()\", \"Void Unlock()\" and \"Boolean Locked { get; }\" and nothing further about locking. " +
-        "unlock_device without force is served.";
+        "unlock_device force: true is not available in quackoscope-host-csharp, because openDAQ's own .NET binding " +
+        "does not ship IDevicePrivate. openDAQ's C++ IDevicePrivate::forceUnlock (device_private.h:39-42) is what " +
+        "the reference falls back to (gui_demo.py:1409-1416). The assembly this host actually loads was enumerated " +
+        "with System.Reflection.MetadataLoadContext rather than assumed: openDAQ.Net, Version=3.41.0.0 " +
+        "(C:\\Users\\opendaq\\Projects\\openDAQ\\build\\x64\\msvc-26\\full\\install\\bindings\\dotnet\\net8.0\\" +
+        "openDAQ.Net.dll) exports 213 public types, of which the number whose name ends in \"Private\" is ZERO -- " +
+        "no DevicePrivate, no IDevicePrivate, no TagsPrivate. That is not staleness, it is openDAQ's own build " +
+        "rule: bindings/dotnet/openDAQ.Net/openDAQ.Net/openDAQ.Net.csproj compiles the RTGen output with " +
+        "Exclude=\"$(_RTGenOutputPath)\\**\\*Private.cs\" under the comment \"exclude files which are meant to be " +
+        "SDK private\", so build/bindings/CSharp/core/opendaq/device/DevicePrivate.cs is generated and then " +
+        "deliberately left out of every openDAQ.Net.dll. The only ForceUnlock in the assembly is " +
+        "\"Void ForceUnlock()\" on Daq.Core.OpenDAQ.UserLock, and the only member of any of the 213 types that " +
+        "returns a UserLock is the factory OpenDAQFactory.CreateUserLock(), which makes a NEW lock unrelated to " +
+        "any device -- so a Device gives no route to its own IUserLock. BaseObject.Cast<T>() and " +
+        "QueryInterface<T>() are generic over a type that must exist in the assembly, so they cannot reach an " +
+        "interface the assembly does not carry. Daq.Core.OpenDAQ.Device declares \"Void Lock()\", " +
+        "\"Void Unlock()\" and \"Boolean Locked { get; }\" and nothing further about locking. unlock_device " +
+        "without force is served.";
 
     // --- list_loaded_modules -------------------------------------------------
 
@@ -1604,25 +1727,90 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
         "streamed", "last_value", "signal_id", "requires_signal"
     };
 
-    // Why `tags` is reported read_only by THIS host although the reference
-    // marks it unlocked. Stated once and printed verbatim into the refusal, so
-    // a client shows what was enumerated rather than "not exposed".
+    // WHY THIS HOST HAS NO ATTRIBUTE WRITER AT ALL, which is a statement about
+    // openDAQ's .NET binding and is the reason attribute.write is a computed
+    // gap of kind `binding` in the handshake rather than a read_only on a row.
     //
-    // This is a per-ATTRIBUTE statement about openDAQ's .NET binding, not this
-    // host's answer about itself: quackoscope-host-csharp declares
-    // attribute.write and writes the five attributes that have a setter. What
-    // contract types.ComponentAttribute.read_only forbids is a host with no
-    // writer at all reporting read_only on every row; that is not this.
-    public const string TagsAreUnwritableThroughTheDotnetBinding =
-        "the attribute \"tags\" cannot be written through openDAQ's .NET binding. System.Reflection over " +
-        "openDAQ.Net, Version=3.41.0.0 lists Daq.Core.OpenDAQ.Tags with exactly four declared public members -- " +
-        "\"Boolean Contains(String)\", \"Boolean Query(String)\", \"IListObject`1[StringObject] get_List()\" and " +
-        "the List property it backs -- so there is no Add, Remove, Set or Clear to call, and none of the 213 " +
-        "exported types of that assembly is named TagsPrivate or TagsConfig, so there is no private interface to " +
-        "query for one either. Component.Tags is a get-only property: the assembly declares get_Tags() and no " +
-        "set_Tags. The reference reaches the same outcome by another route -- generic_attributes_treeview.py " +
-        "marks Tags unlocked, and its handle_double_click has no branch for a list value (lines 88-110), so " +
-        "new_value stays None and the write silently never happens.";
+    // `tags` USED TO BE REPORTED read_only HERE AND THAT WAS WRONG. contract
+    // types.ComponentAttribute.read_only is "openDAQ's answer about the
+    // component, never the host's answer about itself", and its two sanctioned
+    // sources are the reference's own hardcoded Locked flags -- which mark Tags
+    // UNLOCKED -- and IComponent.lockedAttributes, whose universe is
+    // COMPONENT_AVAILABLE_ATTRIBUTES: {"Name", "Description", "Visible",
+    // "Active"} (component_impl.h:59), plus {"Public", "DomainSignal",
+    // "RelatedSignals"} (signal_impl.h:53) and {"Public"} (input_port_impl.h:47).
+    // Tags is in neither list, and tags_impl.h:88-150 performs no lock check at
+    // all, so openDAQ never locks it and a host saying otherwise was reporting
+    // itself. The row now reports read_only false, which is openDAQ's answer.
+    //
+    // openDAQ DOES make tags writable -- through ITagsPrivate::add/remove/replace
+    // (tags_private.h:34-56), reached by a cast from component.tags, which is
+    // how hosts/cpp and hosts/rust write it. THE .NET BINDING DOES NOT CARRY
+    // THAT INTERFACE, and this is openDAQ's own decision rather than a stale
+    // build of the assembly, which was the first thing checked:
+    //   - RTGen DID generate it. build/bindings/CSharp/core/opendaq/component/
+    //     TagsPrivate.cs exists, is stamped "RTGen (CSharpGenerator v1.0.0) on
+    //     21.08.2026 16:20:09", and declares
+    //     `public class TagsPrivate : BaseObject` with Add(string),
+    //     Remove(string) and Replace(IListObject<StringObject>).
+    //   - openDAQ THEN EXCLUDES IT. bindings/dotnet/openDAQ.Net/openDAQ.Net/
+    //     openDAQ.Net.csproj compiles that output with
+    //     `<Compile Include="$(_RTGenOutputPath)\core*\**\*.cs"
+    //               Exclude="$(_RTGenOutputPath)\**\*Private.cs;..." />`
+    //     under the comment "exclude files which are meant to be SDK private".
+    //     TagsPrivate.cs matches *Private.cs, so no build of openDAQ.Net.dll as
+    //     configured can ever contain it.
+    //   - THE ASSEMBLY IS NOT STALE. openDAQ.Net.dll in the install tree this
+    //     host's csproj references is stamped 21.08.2026 16:26, six minutes
+    //     AFTER TagsPrivate.cs was generated, and all fourteen copies of
+    //     openDAQ.Net.dll under C:\Users\opendaq\Projects\openDAQ carry
+    //     Device.RemoveServer and none of them carries TagsPrivate.
+    //   - ENUMERATED, NOT ASSUMED. System.Reflection.MetadataLoadContext over
+    //     openDAQ.Net, Version=3.41.0.0 reports 213 exported public types, of
+    //     which the count whose name ends in "Private" is ZERO.
+    //     Daq.Core.OpenDAQ.Tags declares exactly four public members --
+    //     "Boolean Contains(String)", "Boolean Query(String)",
+    //     "IListObject`1[StringObject] get_List()" and the List property it
+    //     backs -- so there is no Add, Remove, Replace, Set or Clear.
+    //     Daq.Core.OpenDAQ.Component declares get_Tags() and no set_Tags.
+    //     BaseObject.Cast<T>() and QueryInterface<T>() are generic over a type
+    //     that must exist in the assembly, so neither reaches an interface the
+    //     assembly does not carry.
+    //
+    // The consequence, per contract types.ComponentAttribute.read_only: "A host
+    // that has not implemented attribute writing declares no attribute.write
+    // capability and the client disables the editors from the gap; it must not
+    // instead report read_only true". So set_component_attribute has no handler
+    // here, attribute.write is computed as a gap, and this sentence is the gap's
+    // reason.
+    public const string AttributeWritingIsUnreachableInThisBinding =
+        "set_component_attribute has no handler in quackoscope-host-csharp because openDAQ's .NET binding cannot " +
+        "write the full attribute set the contract's row covers, and the missing piece is `tags`. openDAQ makes " +
+        "tags writable through ITagsPrivate::add/remove/replace (tags_private.h:34-56), cast from component.tags, " +
+        "which is exactly how hosts/cpp and hosts/rust write it. openDAQ's .NET binding deliberately does not " +
+        "ship that interface: RTGen generates build/bindings/CSharp/core/opendaq/component/TagsPrivate.cs " +
+        "(stamped \"CSharpGenerator v1.0.0 on 21.08.2026 16:20:09\", declaring Add(string), Remove(string) and " +
+        "Replace(IListObject<StringObject>)), and then " +
+        "bindings/dotnet/openDAQ.Net/openDAQ.Net/openDAQ.Net.csproj compiles the RTGen output with " +
+        "Exclude=\"$(_RTGenOutputPath)\\**\\*Private.cs\" under the comment \"exclude files which are meant to be " +
+        "SDK private\". The assembly is not stale: openDAQ.Net.dll in the install tree is stamped 21.08.2026 " +
+        "16:26, SIX MINUTES AFTER TagsPrivate.cs was generated, and it carries Device.RemoveServer, which the " +
+        "same generation run produced. Enumerated with System.Reflection.MetadataLoadContext over openDAQ.Net, " +
+        "Version=3.41.0.0: 213 exported public types, of which the number whose name ends in \"Private\" is ZERO; " +
+        "Daq.Core.OpenDAQ.Tags declares exactly \"Boolean Contains(String)\", \"Boolean Query(String)\", " +
+        "\"IListObject`1[StringObject] get_List()\" and the List property, so no Add, Remove, Replace, Set or " +
+        "Clear; Daq.Core.OpenDAQ.Component declares get_Tags() and no set_Tags; and BaseObject.Cast<T>() and " +
+        "QueryInterface<T>() are generic over a type the assembly must contain, so neither reaches an absent " +
+        "interface. The alternative was to report ComponentAttribute.read_only true on the tags row, and contract " +
+        "types.ComponentAttribute.read_only forbids exactly that -- read_only is \"openDAQ's answer about the " +
+        "component, never the host's answer about itself\", and openDAQ does not lock tags: tags is not in " +
+        "COMPONENT_AVAILABLE_ATTRIBUTES (component_impl.h:59, signal_impl.h:53, input_port_impl.h:47) and " +
+        "tags_impl.h:88-150 performs no lock check. get_component_attributes therefore reports the tags row with " +
+        "read_only false, and this gap is where the host's own inability is stated. The other four writable " +
+        "attributes -- name, description, active, visible, all of which the binding DOES expose as set_Name, " +
+        "set_Description, set_Active, set_Visible on Daq.Core.OpenDAQ.Component, plus Public on Signal and " +
+        "InputPort -- are gapped with them, because contract section 4 defines attribute.write AS its whole " +
+        "operation and a capability declared on part of a row would leave the rest stated nowhere.";
 
     // A locked-attribute name as openDAQ spells it ("Name", "Global ID"),
     // reduced to the form the wire id compares equal in. Bookkeeping, not an
@@ -1777,13 +1965,17 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
                 continue;
             }
 
-            if (entry.Row.Id == "tags")
-            {
-                entry.Row.ReadOnly = true;
-                entry.ReadOnlyReason = TagsAreUnwritableThroughTheDotnetBinding;
-                continue;
-            }
-
+            // NO SPECIAL CASE FOR `tags`. It falls through to
+            // IComponent.lockedAttributes like every other row, which never
+            // names it: COMPONENT_AVAILABLE_ATTRIBUTES is {"Name",
+            // "Description", "Visible", "Active"} (component_impl.h:59) plus
+            // {"Public", "DomainSignal", "RelatedSignals"} (signal_impl.h:53)
+            // and {"Public"} (input_port_impl.h:47), and tags_impl.h:88-150
+            // performs no lock check at all. So this row reports read_only
+            // false, which is openDAQ's answer. That this host cannot WRITE
+            // tags is said in the handshake, as the attribute.write gap whose
+            // reason is AttributeWritingIsUnreachableInThisBinding, and never
+            // as a read_only on this row.
             var comparable = ComparableAttributeName(entry.Row.Id);
             var comparableLabel = ComparableAttributeName(entry.Row.Name);
             var matched = lockedComparable
@@ -1831,117 +2023,32 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
                               $"{entry.Row.Id} ({entry.Row.ValueType}) = {entry.Row.Value?.ToJsonString() ?? "null"}" +
                               (entry.Row.ReadOnly ? " [read-only]" : ""))));
 
+        // Each read-only row's CAUSE, printed rather than only carried, because
+        // contract types.ComponentAttribute carries a bool and no reason and the
+        // bool alone does not say which of openDAQ's two sources marked the row.
+        foreach (var entry in rows.Where(entry => entry.Row.ReadOnly))
+            Console.WriteLine($"[opendaq] get_component_attributes {nodeId}: \"{entry.Row.Id}\" is read-only " +
+                              $"because {entry.ReadOnlyReason}");
+
         return rows.Select(entry => entry.Row).ToList();
     }
 
-    public void SetComponentAttribute(string nodeId, string attributeId, JsonNode value)
-    {
-        var component = ResolveComponent(nodeId);
-        var rows = ReadAttributeRowsOf(component, nodeId);
-
-        var entry = rows.FirstOrDefault(candidate => candidate.Row.Id == attributeId);
-        if (entry is null)
-            throw new WireError(WireErrorCode.NotFound,
-                $"component \"{nodeId}\" reports no attribute \"{attributeId}\"; get_component_attributes " +
-                $"answered with {rows.Count}: {string.Join(", ", rows.Select(candidate => candidate.Row.Id))}");
-
-        if (entry.Row.ReadOnly)
-            throw new WireError(WireErrorCode.ReadOnly, entry.ReadOnlyReason);
-
-        var before = entry.Row.Value?.ToJsonString() ?? "null";
-
-        bool RequireBool()
-        {
-            if (value is JsonValue booleanNode && booleanNode.TryGetValue(out bool boolean))
-                return boolean;
-            throw new WireError(WireErrorCode.InvalidValue,
-                $"attribute \"{attributeId}\" on \"{nodeId}\" is value_type bool, so params.value must be true or " +
-                $"false; got {value?.ToJsonString() ?? "null"}");
-        }
-
-        string RequireText()
-        {
-            if (value is JsonValue textNode && textNode.TryGetValue(out string text))
-                return text;
-            throw new WireError(WireErrorCode.InvalidValue,
-                $"attribute \"{attributeId}\" on \"{nodeId}\" is value_type string, so params.value must be a " +
-                $"JSON string; got {value?.ToJsonString() ?? "null"}");
-        }
-
-        try
-        {
-            switch (attributeId)
-            {
-                case "name":
-                    // quack-snippet capability=attribute.write uses=component-by-global-id,component-attribute-rows step=1
-                    // IComponent's setters, which the .NET binding collapsed
-                    // into the same properties the read uses: assigning to
-                    // Component.Name calls set_Name, and openDAQ refuses it
-                    // with ACCESSDENIED when the attribute is in
-                    // lockedAttributes.
-                    component.Name = RequireText();
-                    // quack-snippet end
-                    break;
-                case "description":
-                    // quack-snippet capability=attribute.write uses=component-by-global-id step=2
-                    component.Description = RequireText();
-                    // quack-snippet end
-                    break;
-                case "active":
-                    // quack-snippet capability=attribute.write uses=component-by-global-id step=3
-                    component.Active = RequireBool();
-                    // quack-snippet end
-                    break;
-                case "visible":
-                    // quack-snippet capability=attribute.write uses=component-by-global-id step=4
-                    component.Visible = RequireBool();
-                    // quack-snippet end
-                    break;
-                case "public":
-                    // quack-snippet capability=attribute.write uses=component-by-global-id,component-kind step=5
-                    // `public` is not on IComponent: ISignal and IInputPort each
-                    // declare their own, so the write goes through whichever
-                    // cast produced the row that was read.
-                    if (component.CanCastTo<Signal>())
-                        component.Cast<Signal>().Public = RequireBool();
-                    else
-                        component.Cast<InputPort>().Public = RequireBool();
-                    // quack-snippet end
-                    break;
-                default:
-                    // Unreachable while the writable set is exactly the five
-                    // above: every other row is marked read_only and was
-                    // refused before this switch. Stated rather than left to a
-                    // silent fall-through, so a sixth writable attribute added
-                    // to the read without a case here fails loudly.
-                    throw new WireError(WireErrorCode.InvalidValue,
-                        $"attribute \"{attributeId}\" on \"{nodeId}\" is reported writable by " +
-                        "get_component_attributes and quackoscope-host-csharp has no writer for it; the five it " +
-                        "writes are name, description, active, visible and public");
-            }
-        }
-        catch (OpenDaqException e)
-        {
-            // contract operations[set_component_attribute].errors is
-            // [not_found, read_only, invalid_value]. openDAQ's refusal of a
-            // locked attribute is ACCESSDENIED, which is read_only here for the
-            // same reason lock_device uses it; everything else openDAQ refuses
-            // a value with is invalid_value, and the native text rides along.
-            var code = e.ErrorCode == Daq.Core.Types.ErrorCode.OPENDAQ_ERR_ACCESSDENIED
-                ? WireErrorCode.ReadOnly
-                : WireErrorCode.InvalidValue;
-            throw new WireError(code,
-                $"writing {value?.ToJsonString() ?? "null"} to attribute \"{attributeId}\" on \"{nodeId}\" was " +
-                $"refused by openDAQ with {NativeCodeTextOf(e)}: {OpenDaqOwnMessageOf(e)}");
-        }
-
-        var after = ReadAttributeRowsOf(component, nodeId)
-            .FirstOrDefault(candidate => candidate.Row.Id == attributeId)?.Row.Value?.ToJsonString() ?? "null";
-
-        Console.WriteLine($"[opendaq] set_component_attribute {nodeId}.{attributeId} = " +
-                          $"{value?.ToJsonString() ?? "null"} accepted; the attribute read {before} before and " +
-                          $"reads {after} now");
-    }
+    // THERE IS NO SetComponentAttribute HERE, AND THAT IS THE ANSWER, NOT AN
+    // OMISSION. openDAQ's .NET binding cannot write the whole row -- `tags` is
+    // reachable in openDAQ only through ITagsPrivate, which
+    // openDAQ.Net.csproj excludes from every openDAQ.Net.dll it builds -- so
+    // contract types.ComponentAttribute.read_only's rule applies: "A host that
+    // has not implemented attribute writing declares no attribute.write
+    // capability and the client disables the editors from the gap; it must not
+    // instead report read_only true". set_component_attribute therefore has no
+    // handler in hosts/csharp/src/Service/SessionHub.cs, attribute.write is
+    // computed as a gap of kind `binding`, and
+    // AttributeWritingIsUnreachableInThisBinding above carries the whole
+    // enumeration that establishes it. Writing four of the five attributes and
+    // silently refusing the fifth would have made the handshake say
+    // attribute.write is served when a third of the reference's editable rows
+    // is not, which is the "claimed then broke" shape the conformance suite
+    // counts as a real failure.
 
     // --- list_server_types / add_server --------------------------------------
 
@@ -2042,6 +2149,66 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
             ? WireErrorCode.InvalidValue
             : WireErrorCode.Internal;
 
+    // --- remove_server --------------------------------------------------------
+
+    public void RemoveServer(string nodeId)
+    {
+        var server = ResolveServerOnly(nodeId, "remove_server");
+        var serverId = ServerIdTextOf(server);
+        var serversBefore = CountServersOnTheInstance();
+
+        try
+        {
+            // quack-snippet capability=server.add uses=instance-with-module-path,server-of-component step=3
+            // IDevice::removeServer(IServer* server) -- device.h:300-304,
+            // "Removes the server provided as argument" -- which the .NET
+            // binding spells Void RemoveServer(Server) on
+            // Daq.Core.OpenDAQ.Device, the exact mirror of the AddServer above,
+            // and which Instance inherits. IInstance forwards it:
+            // instance_impl.cpp:271-274 is `return rootDevice->removeServer(server);`.
+            //
+            // THE LISTENING SOCKET ACTUALLY CLOSES, which is what makes this the
+            // undo of add_server rather than a delisting.
+            // GenericDevice::onRemoveServer (device_impl.h:1479-1487) is
+            // `this->servers.removeItem(server)`; folder_impl.h:598-605 calls
+            // IComponent::removed on the item; and ServerImpl::removed
+            // (server_impl.h:199-202) is `checkErrorInfo(stop()); Super::removed();`
+            // where IServer::stop's own doc (server.h:55) is "Stops the server.
+            // This is called when we remove the server from the Instance or
+            // Instance is closing."
+            //
+            // It is called on the INSTANCE for the same reason add_server is:
+            // onRemoveServer throws NotFoundException "Device does not allow
+            // adding/removing servers." for any device that is not the root
+            // (device_impl.h:1484).
+            instance.RemoveServer(server);
+            // quack-snippet end
+        }
+        catch (OpenDaqException e)
+        {
+            // contract operations[remove_server].errors is
+            // [not_found, unsupported, internal]. The node was found and it IS a
+            // server, so the two things left are the root-device restriction --
+            // NotFoundException from onRemoveServer, which arrives as
+            // OPENDAQ_ERR_NOTFOUND and is `unsupported` here because the node
+            // was found and it is the ABILITY that is missing, exactly as that
+            // row says -- and stop() failing while closing the socket, which is
+            // internal.
+            throw new WireError(
+                e.ErrorCode == Daq.Core.Types.ErrorCode.OPENDAQ_ERR_NOTFOUND
+                    ? WireErrorCode.Unsupported
+                    : WireErrorCode.Internal,
+                $"IDevice::removeServer() on server node \"{nodeId}\" (IServer.id \"{serverId}\") was refused " +
+                $"with {NativeCodeTextOf(e)}: {OpenDaqOwnMessageOf(e)}");
+        }
+
+        var serversAfter = CountServersOnTheInstance();
+        Console.WriteLine($"[opendaq] remove_server {nodeId} (IServer.id \"{serverId}\"): " +
+                          $"IDevice::removeServer() returned; IServer::stop() ran through " +
+                          $"ServerImpl::removed, so its listening socket is closed. IDevice.servers held " +
+                          $"{serversBefore} server(s) before and holds {serversAfter} now");
+    }
+
     private string ServerIdTextOf(Server server)
     {
         try
@@ -2083,7 +2250,8 @@ public sealed class OpenDaqBackend : IComponentTreeBackend, IDisposable
         if (!component.CanCastTo<Server>())
             throw new WireError(WireErrorCode.Unsupported,
                 $"component \"{nodeId}\" is a {KindOf(component)} and not a server, so {wireMethod} has nothing " +
-                "to act on; openDAQ puts enableDiscovery and disableDiscovery on IServer");
+                "to act on; openDAQ puts enableDiscovery and disableDiscovery on IServer, and " +
+                "IDevice::removeServer takes an IServer* and nothing else");
         var server = component.Cast<Server>();
         // quack-snippet end
 
